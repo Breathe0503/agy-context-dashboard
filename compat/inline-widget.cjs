@@ -46,20 +46,67 @@ module.exports = function installAgPulseInlineWidget() {
   const seconds=language.elapsed;
   const timer=(at,compact=false)=>language.countdown(at,Date.now(),compact);
   const date=language.resetDate;
-  const label=g=>/gemini/i.test(g?.name||'')?'Gemini':/claude|gpt/i.test(g?.name||'')?'Claude / GPT':g?.name||t('group');
+  const label=language.quotaGroupLabel;
   const $=id=>root?.getElementById(id);
   const text=(id,value)=>{const e=$(id);if(e&&e.textContent!==String(value))e.textContent=String(value);};
   const attribute=(element,name,value)=>{if(value===null){if(element.hasAttribute(name))element.removeAttribute(name);}else if(element.getAttribute(name)!==String(value))element.setAttribute(name,String(value));};
   const style=(element,name,value)=>{if(element.style.getPropertyValue(name)!==value)element.style.setProperty(name,value);};
   const hidden=(element,value)=>{if(element.hidden!==value)element.hidden=value;};
   const GUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const visibleHostElement=element=>element.isConnected&&!element.closest('[hidden],[inert]')&&element.getClientRects().length>0&&getComputedStyle(element).visibility!=='hidden';
+  const sidebarOwners=new WeakMap();
   const conversationId=()=>{
-    if(surface)return surface.conversationId(composer);
-    // Nested agents need not change the main window route. Read only the
-    // nearest owner of this exact composer, never a sidebar/global chat ID.
-    const owner=(composer?.box||composer?.row)?.closest('[data-cascade-id]');
-    if(owner){const id=owner.getAttribute('data-cascade-id');return GUID.test(id||'')?id:null;}
-    return location.pathname.match(/\/c\/([0-9a-f-]{36})/i)?.[1]||null;
+    if(surface&&!surface.useSharedComposer)return surface.conversationId(composer);
+    const anchor=composer?.box||composer?.row;
+    if(!anchor?.isConnected)return null;
+    const readId=element=>{const id=element.getAttribute('data-cascade-id');return GUID.test(id||'')?id.toLowerCase():null;};
+    // Full View encloses its input in the conversation owner. The auxiliary
+    // subagent tab instead puts the owner on a sibling message area. Search
+    // only siblings of this input's ancestor path, never other panes or the
+    // transcript. A small wrapper around the message area does not change its
+    // ownership; missing/ambiguous/over-budget evidence fails closed.
+    const paneBoundary='aside,[role="tabpanel"],[data-aux-pane-open],[data-pane-id]';
+    let budget=96,otherComposer=false;
+    const markersIn=(scope,branch)=>{
+      const markers=[],stack=[];let evidence=false;
+      if(scope.childElementCount-1>budget)return {markers,evidence,limited:true};
+      for(const element of scope.children)if(element!==branch)stack.push({element,depth:0});
+      while(stack.length){
+        if(--budget<0)return {markers,evidence,limited:true};
+        const {element,depth}=stack.pop();
+        if(element.matches('[data-testid="subagent-tab-conversation"]')){evidence=true;if(visibleHostElement(element))markers.push(element);continue;}
+        if(element===node||element.closest('[hidden],[inert]'))continue;
+        const css=getComputedStyle(element);if(css.display==='none'||css.visibility==='hidden')continue;
+        if(element.matches(paneBoundary+', [data-testid="conversation-view"]'))continue;
+        if(element.matches('[data-testid="agent-input-box"]')){if(visibleHostElement(element))otherComposer=true;continue;}
+        if(element.matches('script,style,template,svg'))continue;
+        if((element.childElementCount&&depth>=8)||element.childElementCount+stack.length>budget)return {markers,evidence,limited:true};
+        for(const child of element.children)stack.push({element:child,depth:depth+1});
+      }
+      return {markers,evidence,limited:false};
+    };
+    const previous=sidebarOwners.get(anchor);
+    if(previous&&!previous.contains(anchor))sidebarOwners.delete(anchor);
+    let branch=null,hops=0;
+    for(let scope=anchor;scope&&scope!==document.body&&scope!==document.documentElement;branch=scope,scope=scope.parentElement){
+      if(++hops>32)return null;
+      // The host may reuse the old sidebar content root for Full View.
+      if(scope.matches('[data-testid="conversation-view"]'))return readId(scope);
+      if(scope===anchor&&scope.hasAttribute('data-cascade-id'))return readId(scope);
+      if(branch&&composer.kind==='subagent'){
+        const {markers,evidence,limited}=markersIn(scope,branch);
+        if(limited)return null;
+        if(evidence){
+          if(!otherComposer)sidebarOwners.set(anchor,scope);
+          return !otherComposer&&markers.length===1?readId(markers[0]):null;
+        }
+      }
+      if(sidebarOwners.get(anchor)===scope)return null;
+      if(scope.hasAttribute('data-cascade-id'))return readId(scope);
+      if(scope.matches(paneBoundary))return null;
+    }
+    const id=location.pathname.match(/\/c\/([0-9a-f-]{36})/i)?.[1];
+    return GUID.test(id||'')?id.toLowerCase():null;
   };
   function syncConversation(){
     const id=conversationId();
@@ -412,8 +459,8 @@ module.exports = function installAgPulseInlineWidget() {
     finally{guideSaving=false;updateGuide();}
   }
   function findComposer(){
-    if(surface)return surface.findComposer(composer);
-    const visible=element=>element.isConnected&&!element.closest('[hidden],[inert]')&&element.getClientRects().length>0&&getComputedStyle(element).visibility!=='hidden';
+    if(surface&&!surface.useSharedComposer)return surface.findComposer(composer);
+    const visible=visibleHostElement;
     const semanticEditors=Array.from(document.querySelectorAll('[role="combobox"][contenteditable="true"],[role="textbox"][contenteditable="true"]')).filter(visible);
     const editors=Array.from(new Set([...semanticEditors,...Array.from(document.querySelectorAll('[aria-label="Message input"]')).filter(visible)]));
     const stableModels=Array.from(document.querySelectorAll('[data-testid="model-selector-trigger"]')).filter(visible);
@@ -520,18 +567,20 @@ module.exports = function installAgPulseInlineWidget() {
     .density-stage{position:absolute;overflow:clip;pointer-events:none;user-select:none}.density-piece{pointer-events:none!important}
     .scope-note{margin:0 0 10px;color:var(--pulse-muted);font-size:10px}:host([data-scope=main]) .scope-note,:host([data-scope=ide]) .scope-note{display:none}
     .language-button[data-save-failed=true]{color:var(--pulse-warning);text-decoration:underline dotted}.context-ring{display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;background:conic-gradient(var(--pulse-ring) var(--used-angle,0deg),var(--pulse-ring-track) 0);mask:radial-gradient(circle,transparent 43%,#000 47%)}:host(.narrow) .context-label{display:none}
+    .collection-notice{margin:8px 0 12px;padding:9px 10px;border-left:2px solid var(--pulse-warning);background:var(--pulse-control);border-radius:6px;font-size:11px;line-height:1.55}.collection-notice[hidden]{display:none}.collection-notice p{margin:3px 0}.collection-notice summary{cursor:pointer;color:var(--pulse-label)}.collection-notice a{color:var(--pulse-emphasis);text-decoration:underline}.collection-notice strong{color:var(--pulse-warning)}:host(:not([data-collection=limited])) .collection-warning{display:none!important}.collection-warning,.collection-processing{display:none}.collection-label{display:none}:host([data-collection=limited]) [data-card=cache]{color:var(--pulse-warning)}:host([data-collection=limited]) [data-card=cache]>svg:first-child{display:none}:host([data-collection=limited]) [data-card=cache]>.collection-warning{display:block}:host([data-collection=limited]) [data-card=cache]>:not(svg){display:none}:host([data-collection=limited]) [data-card=cache]>.collection-label{display:inline}:host([data-collection=limited].icons-only) [data-card=cache]>.collection-label{display:none}:host([data-collection=processing]) .collection-notice{border-left-color:var(--pulse-emphasis)}:host([data-collection=processing]) .collection-notice strong,:host([data-collection=processing]) [data-card=cache]{color:var(--pulse-emphasis)}:host([data-collection=processing]) [data-card=cache]>svg:first-child,:host([data-collection=processing]) [data-card=cache]>:not(svg){display:none}:host([data-collection=processing]) [data-card=cache]>.collection-processing{display:block}:host([data-collection=processing]) [data-card=cache]>.collection-label{display:inline}:host([data-collection=processing].icons-only) [data-card=cache]>.collection-label{display:none}
+    :host(:not([data-collection=processing])) .collection-processing{display:none!important}[data-card=cache]{position:relative}[data-card=cache][data-task-current-only=true]::after{content:'!';position:absolute;top:0;left:13px;z-index:1;width:9px;height:9px;border-radius:50%;background:var(--pulse-warning);color:var(--pulse-background);font-size:7px;font-weight:700;line-height:9px;text-align:center;pointer-events:none}
     #rate-note{white-space:pre-line;font-size:11px;line-height:1.65}
     .footnote[hidden]{display:none}
     #transcript-details{margin-top:12px;border-top:1px solid var(--pulse-separator);padding-top:10px}#transcript-details summary{cursor:pointer;font-size:11px;color:var(--pulse-label)}#transcript-total{float:right;margin-left:8px;font-variant-numeric:tabular-nums;color:var(--pulse-foreground);font-size:10px}
     .bar{gap:6px}.chip{font-size:11px;gap:5px;padding:3px 5px}.context-card>strong{font-size:16px}.context-card>p{margin:8px 0}.quota-heading{margin-top:14px;padding-top:12px;border-top:1px solid var(--pulse-separator)}.quota-title{display:flex;align-items:center;gap:6px;font-size:11px}.quota-title>span:first-child{display:flex;align-items:center;gap:6px;margin-right:auto}.quota-title strong{font-variant-numeric:tabular-nums;font-size:13px}.quota-section+.quota-section{border-top:1px solid var(--pulse-separator);margin-top:12px;padding-top:12px}.quota-section .track{margin:8px 0}.quota-section .footnote{margin-top:6px}.quota-section dl div{margin:6px 0}.context-label{white-space:nowrap}
-    :host(.icons-only) .bar{gap:2px}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.language-button,:host(.icons-only) .bar>.dot{display:none}:host(.icons-only) .chip svg{display:block}.card-language{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--pulse-separator);font-size:10px;color:var(--pulse-muted)}
+    :host(.icons-only) .bar{gap:2px}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.language-button,:host(.icons-only) .bar>.dot{display:none}.card-language{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--pulse-separator);font-size:10px;color:var(--pulse-muted)}
     .refresh{display:inline-grid;place-items:center}.refresh[aria-busy=true]{color:var(--pulse-emphasis);cursor:wait}.refresh[aria-busy=true] svg{animation:pulse-refresh-spin 1s linear infinite;transform-origin:center}
     @keyframes pulse-refresh-spin{to{transform:rotate(360deg)}}
     @media(prefers-reduced-motion:reduce){.refresh[aria-busy=true] svg{animation:none;opacity:.65}}
     </style><div class="bar" data-i18n-aria="strip" aria-label="Dashboard statistics">
       <span class="dot" id="dot" title="Connecting"></span>
       <button class="chip" data-card="speed" data-i18n-aria="session" hidden aria-controls="speed-card" aria-expanded="false">${svg('speed')}<span class="rounds dim" id="rounds"></span><strong id="tps">—</strong><span>tok/s</span></button>
-      <button class="chip" data-card="cache" data-i18n-aria="cacheTitle" hidden aria-controls="cache-card" aria-expanded="false">${svg('cache')}<span class="cache-total" id="cache-total">— tok</span><span class="dim">·</span><span data-i18n="cache">Cache hit</span><strong id="cache-rate">—</strong></button>
+      <button class="chip" data-card="cache" data-i18n-aria="cacheTitle" hidden aria-controls="cache-card" aria-expanded="false">${svg('cache')}<svg class="collection-warning" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 15 14H1ZM8 6v4m0 2v.1"/></svg><svg class="collection-processing" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M8 1v3m3-2v3"/></svg><span class="collection-label"></span><span class="cache-total" id="cache-total">— tok</span><span class="dim">·</span><span data-i18n="cache">Cache hit</span><strong id="cache-rate">—</strong></button>
       <button class="chip" data-card="context" data-i18n-aria="context" hidden aria-controls="context-card" aria-expanded="false"><span class="context-ring" id="context-ring" aria-hidden="true"></span><span class="context-label" data-i18n="contextShort">Ctx</span><strong id="context-percent">—</strong></button>
     </div><section class="card" id="speed-card" role="region" data-i18n-aria="session" aria-label="Session statistics" hidden>
       <div class="heading"><span>${svg('speed')}<span data-i18n="session">Session statistics</span></span><span class="tag" id="samples">—</span></div>
@@ -545,10 +594,17 @@ module.exports = function installAgPulseInlineWidget() {
       <div class="track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
       <dl><div><dt data-i18n="contextModel">Sampled model</dt><dd id="context-model">—</dd></div></dl>
       <div class="heading quota-heading"><span data-i18n="group">Quota group</span><div class="toolbar"><button class="group-trigger" data-i18n-aria="group" aria-haspopup="listbox" aria-expanded="false">Quota ▾</button><div class="group-menu" role="listbox" data-i18n-aria="selectGroup" hidden></div><button class="refresh" data-i18n-aria="refresh" aria-label="Refresh quota" title="Refresh quota"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.8 6a5.1 5.1 0 1 0 .1 4M12.8 2.5V6H9.2"/></svg></button></div></div>
-      <div class="quota-details">${['five','week'].map(name=>`<section class="quota-section" data-i18n-aria="${name}" aria-label="${t(name)}"><div class="quota-title"><span>${svg(name)}<span data-i18n="${name}">${t(name)}</span></span><strong id="${name}-balance">—</strong><span class="dim" data-i18n="remaining">remaining</span></div><div class="track" role="progressbar" data-i18n-aria="${name}" id="${name}-track"><i id="${name}-fill"></i></div><dl><div><dt data-i18n="resetIn">Resets in</dt><dd class="reset" id="${name}-countdown">—</dd></div><div><dt data-i18n="resetTime">Reset time (UTC+8)</dt><dd id="${name}-reset">—</dd></div></dl><p class="footnote" id="${name}-note" hidden></p></section>`).join('')}</div>
+      <div class="quota-details">${['five','week'].map(name=>`<section class="quota-section" id="${name}-quota-section" data-i18n-aria="${name}" aria-label="${t(name)}"><div class="quota-title"><span>${svg(name)}<span id="${name}-quota-title" data-i18n="${name}">${t(name)}</span></span><strong id="${name}-balance">—</strong><span class="dim" data-i18n="remaining">remaining</span></div><div class="track" role="progressbar" data-i18n-aria="${name}" id="${name}-track"><i id="${name}-fill"></i></div><dl><div><dt data-i18n="resetIn">Resets in</dt><dd class="reset" id="${name}-countdown">—</dd></div><div><dt data-i18n="resetTime">Reset time (UTC+8)</dt><dd id="${name}-reset">—</dd></div></dl><p class="footnote" id="${name}-note" hidden></p></section>`).join('')}</div>
     </section>`);
     row.insertBefore(node,branch.nextSibling);
     for(const card of root.querySelectorAll('.card')){const note=document.createElement('p');note.className='scope-note';note.dataset.i18n='subagentStats';card.querySelector('.heading').after(note);}
+    for(const card of root.querySelectorAll('.card')){
+      const notice=document.createElement('section');notice.className='collection-notice';notice.hidden=true;
+      setMarkup(notice,'<strong class="collection-state"></strong><p data-i18n="collectionReason"></p><details><summary data-i18n="collectionDetails"></summary><p class="collection-budget-kind"></p><p class="collection-budget-size"></p><p data-i18n="collectionNoPartial"></p></details>');
+      const docs=document.createElement('a');docs.href='https://github.com/wycocoyu/agy-context-dashboard/blob/main/docs/LONG_CONVERSATIONS.md';docs.target='_blank';docs.rel='noopener noreferrer';docs.dataset.i18n='collectionDocs';notice.querySelector('details').append(docs);
+      card.querySelector('.heading').after(notice);
+      notice.querySelector('details').addEventListener('toggle',()=>{if(!disposed)position();});
+    }
     const languageRow=document.createElement('div');languageRow.className='card-language';
     setMarkup(languageRow,'<span data-i18n="language"></span><div class="language-options" role="group" data-i18n-aria="language"><button type="button" class="language-button" id="card-language-en" data-language-choice="en">English</button><button type="button" class="language-button" id="card-language-zh" data-language-choice="zh-CN">简体中文</button><button type="button" class="language-button" id="card-language-zh-tw" data-language-choice="zh-TW">繁體中文</button></div>');
     $('context-card').append(languageRow);
@@ -626,15 +682,52 @@ module.exports = function installAgPulseInlineWidget() {
       text('usage-today',compact(data.usage?.todayTokens));text('usage-month',compact(data.usage?.monthTokens));usageDashboard.update(data.usage);
     }
     if(groupMenu)return;
-    const groups=data.groups||[],model=composer?.model?.getAttribute('aria-label')||composer?.model?.textContent||data.speed?.model||'';
-    group=groups.find(g=>g.id===chosen)||groups.find(g=>/gemini/i.test(model)?/gemini/i.test(g.id):/claude|gpt/i.test(model)?/3p|claude|gpt/i.test(g.id):false)||groups[0];
+    const groups=data.groups||[],models=[composer?.model?.getAttribute('aria-label'),composer?.model?.textContent,data.speed?.model];
+    group=language.chooseQuotaGroup(groups,models,chosen);
     for(const button of root.querySelectorAll('.group-trigger')){
       if(button.textContent!==`${label(group)} ▾`)button.textContent=`${label(group)} ▾`;
-      const menu=button.parentElement.querySelector('.group-menu'),signature=groups.map(g=>g.id).join('|');
+      const menu=button.parentElement.querySelector('.group-menu'),signature=JSON.stringify(groups.map(g=>[g.id,label(g)]));
       if(menu.dataset.signature!==signature){menu.replaceChildren(...groups.map(g=>{const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.textContent=label(g);option.dataset.group=g.id;option.addEventListener('click',()=>{chosen=g.id;localSet('ag-pulse-group',chosen);closeGroup();render();menu.parentElement.querySelector('.group-trigger')?.focus({preventScroll:true});});return option;}));menu.dataset.signature=signature;}
       for(const option of menu.children)attribute(option,'aria-selected',option.dataset.group===group?.id);
     }
-    const speed=data.speed;
+    const speed=data.speed,collection=data.collection;
+    const taskUsage=Number.isSafeInteger(speed?.taskUsage?.subagents)&&speed.taskUsage.subagents>0?speed.taskUsage:null;
+    const limited=collection?.state==='limited'&&collection.code==='budget-exceeded';
+    const processing=collection?.state==='processing'&&collection.code==='background-collection',collectionActive=limited||processing;
+    attribute(node,'data-collection',processing?'processing':limited?'limited':null);
+    const cacheChip=root.querySelector('[data-card="cache"]');
+    const currentOnly=!collectionActive&&taskUsage?.state==='partial'&&taskUsage.loadedSubagents===0;
+    const cacheLabel=collectionActive?t(processing?'collectionProcessing':'collectionLimited'):currentOnly?t('taskCurrentOnly'):t('cacheTitle');
+    attribute(cacheChip,'data-task-current-only',currentOnly?'true':null);
+    attribute(cacheChip,'aria-label',cacheLabel);
+    attribute(cacheChip,'title',collectionActive||currentOnly?cacheLabel:null);
+    attribute(cacheChip,'aria-busy',processing?'true':null);
+    const collectionLabel=root.querySelector('.collection-label'),collectionText=t(processing?'collectionProcessing':'collectionLimited');
+    if(collectionLabel.textContent!==collectionText)collectionLabel.textContent=collectionText;
+    for(const notice of root.querySelectorAll('.collection-notice')){
+      hidden(notice,!collectionActive);if(!collectionActive){notice.querySelector('details').open=false;continue;}
+      const set=(selector,value)=>{const element=notice.querySelector(selector);if(element.textContent!==value)element.textContent=value;};
+      set('.collection-state',collection.freshness==='saved'&&Number.isFinite(Date.parse(collection.lastSuccessAt))?t('collectionSavedAt',{time:date(collection.lastSuccessAt)}):t(collection.freshness==='saved'?'collectionSaved':'collectionLimited'));
+      set('[data-i18n="collectionReason"]',t(processing?'collectionProcessingReason':collection.reason?'collectionBackgroundFailed':'collectionReason'));
+      set('summary',t(processing?'collectionProgress':'collectionDetails'));
+      hidden(notice.querySelector('[data-i18n="collectionNoPartial"]'),processing);
+      hidden(notice.querySelector('a'),processing);
+      if(processing){
+        if(collection.freshness!=='saved')set('.collection-state',t('collectionProcessing'));
+        const stages={queued:'collectionQueued',steps:'collectionSteps',generators:'collectionGenerators',reducing:'collectionReducing',publishing:'collectionPublishing'};
+        set('.collection-budget-kind',t(stages[collection.stage]||'collectionQueued'));
+        const valid=n=>Number.isSafeInteger(n)&&n>=0,steps=collection.processedSteps,requests=collection.processedGenerators;
+        hidden(notice.querySelector('.collection-budget-size'),!valid(steps)||!valid(requests));
+        if(valid(steps)&&valid(requests))set('.collection-budget-size',t('collectionProgressCounts',{steps:count(steps),requests:count(requests)}));
+        continue;
+      }
+      set('.collection-budget-kind',t(collection.kind==='projected-json'?'collectionProjected':collection.kind==='field'?'collectionField':'collectionRetained'));
+      const characters=collection.unit==='characters',limit=characters?collection.limit:collection.limitBytes,observed=characters?collection.observed:collection.observedBytes;
+      const valid=n=>Number.isSafeInteger(n)&&n>=0;
+      const format=n=>characters?t('collectionCharacters',{n:count(n)}):`${(Math.floor(n/1048576*100)/100).toFixed(2)} MiB (${count(n)} B)`;
+      const size=notice.querySelector('.collection-budget-size');hidden(size,!valid(limit)||!valid(observed));
+      if(valid(limit)&&valid(observed))set('.collection-budget-size',t('collectionObserved',{observed:format(observed),limit:format(limit)}));
+    }
     hidden(root.querySelector('[data-card="speed"]'),!lastConversation&&!surface?.showEmpty);
     hidden(root.querySelector('[data-card="cache"]'),!lastConversation&&!surface?.showEmpty&&!data.usage);
     const context=speed?.context, hasCapacity=typeof context?.usedFraction==='number';
@@ -642,20 +735,19 @@ module.exports = function installAgPulseInlineWidget() {
     const empty=surface?.conversationState?.(composer).status==='new'&&!lastConversation&&data.connection==='live';
     text('context-percent',hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—');
     style($('context-ring'),'--used-angle',`${hasCapacity?Math.min(1,context.usedFraction)*360:0}deg`);
-    text('context-summary',hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):t(empty?'waitingRequest':'contextUnknown'));
+    text('context-summary',hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):collectionActive?'—':t(empty?'waitingRequest':'contextUnknown'));
     text('context-tokens',context?t('contextTokens',{used:compact(context.usedTokens),max:context.maxTokens===null?'—':compact(context.maxTokens)}):'—');
     text('context-model',context?.model||'—');
     style($('context-fill'),'width',hasCapacity?`${Math.min(1,context.usedFraction)*100}%`:'0%');
     style($('context-fill'),'background',hasCapacity&&context.usedFraction>=.9?'var(--pulse-danger)':'');
     attribute($('context-track'),'aria-valuenow',hasCapacity?Math.min(100,context.usedFraction*100):null);attribute($('context-track'),'aria-valuemin','0');attribute($('context-track'),'aria-valuemax','100');
     text('tps',rate(speed?.tps));text('rounds',speed?t('rounds',{rounds:speed.rounds,steps:speed.steps}):'');
-    text('samples',speed?t('sample',{rounds:speed.rounds,steps:speed.steps,requests:speed.measuredRequests}):t('waitingRequest'));text('model-time',seconds(speed?.modelSeconds));text('tool-time',seconds(speed?.toolSeconds));text('ttft',seconds(speed?.ttftSeconds));text('session-rate',`${rate(speed?.tps)} tok/s`);text('latest-rate',`${rate(speed?.latestTps)} tok/s`);text('tokens',speed?`${count(speed.counts.responseOutput)} / ${count(speed.counts.thinkingOutput)} tok`:'—');
+    text('samples',speed?t('sample',{rounds:speed.rounds,steps:speed.steps,requests:speed.measuredRequests}):collectionActive?'—':t(data.sessionError?'collectionUnavailable':'waitingRequest'));text('model-time',seconds(speed?.modelSeconds));text('tool-time',seconds(speed?.toolSeconds));text('ttft',seconds(speed?.ttftSeconds));text('session-rate',`${rate(speed?.tps)} tok/s`);text('latest-rate',`${rate(speed?.latestTps)} tok/s`);text('tokens',speed?`${count(speed.counts.responseOutput)} / ${count(speed.counts.thinkingOutput)} tok`:'—');
     if(speed?.latestRateStatus==='unreliable')text('latest-rate',t('timingUnreliable'));
     if(speed?.latestRateStatus==='legacy'){text('latest-rate',t('ratePending'));text('session-rate',t('ratePending'));}
-    const savedNote=speed?.restoredFromHistory?' '+t('savedStats',{time:speed.savedAt?language.resetDate(speed.savedAt):'—'}):'';
+    const savedNote=!collectionActive&&speed?.restoredFromHistory?' '+t('savedStats',{time:speed.savedAt?language.resetDate(speed.savedAt):'—'}):'';
     const saveWarning=data.persistenceError?' '+t('saveFailed'):'';
-    text('rate-note',[language.errorMessage(data.error||data.sessionError),language.rateNote(speed)].filter(Boolean).join(' ')+savedNote+saveWarning);
-    const taskUsage=Number.isSafeInteger(speed?.taskUsage?.subagents)&&speed.taskUsage.subagents>0?speed.taskUsage:null;
+    text('rate-note',[language.errorMessage(data.error||(collectionActive?null:data.sessionError)),language.rateNote(speed)].filter(Boolean).join(' ')+savedNote+saveWarning);
     const usage=taskUsage||speed,cache=usage?.cache;
     text('cache-rate',pct(cache?.hitRate));text('cache-detail-rate',pct(cache?.hitRate));
     const tokens=usage?.tokens || cache;
@@ -676,12 +768,20 @@ module.exports = function installAgPulseInlineWidget() {
       const value=taskUsage?.[field],known=field!=='subagentTokens'||taskUsage?.loadedSubagents>0;
       text(id,known&&Number.isSafeInteger(value)&&value>=0?`${count(value)} tok`:'—');
     }
-    const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t('taskPartial'):'';
+    const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t(taskUsage.loadedSubagents===0?'taskCurrentOnly':'taskPartial'):'';
     text('cache-note',taskNote);hidden($('cache-note'),!taskNote);
+    const visibleQuotaWindows=language.quotaWindows(group),isArgon=language.quotaGroupKind(group)==='gemini-argon';
+    style($('week-quota-section'),'border-top',visibleQuotaWindows.includes('5h')?'':'0');
+    style($('week-quota-section'),'margin-top',visibleQuotaWindows.includes('5h')?'':'0');
+    style($('week-quota-section'),'padding-top',visibleQuotaWindows.includes('5h')?'':'0');
     for(const [window,name]of[['5h','five'],['weekly','week']]){
-      const b=group?.windows?.[window];text(name,pct(b?.remaining));text(`${name}-balance`,pct(b?.remaining));text(`${name}-reset`,date(b?.resetAt));
-      style($(`${name}-fill`),'width',typeof b?.remaining==='number'?`${b.remaining*100}%`:'0%');style($(`${name}-fill`),'background',b?.remaining<.05?'var(--pulse-danger)':b?.remaining<.2?'var(--pulse-warning)':'');
-      attribute($(`${name}-track`),'aria-valuenow',typeof b?.remaining==='number'?b.remaining*100:null);attribute($(`${name}-track`),'aria-valuemin','0');attribute($(`${name}-track`),'aria-valuemax','100');
+      hidden($(`${name}-quota-section`),!visibleQuotaWindows.includes(window));
+      const heading=t(window==='weekly'&&isArgon?'argonWeek':name);
+      text(`${name}-quota-title`,heading);attribute($(`${name}-quota-section`),'aria-label',heading);attribute($(`${name}-track`),'aria-label',heading);
+      const b=group?.windows?.[window],remaining=language.quotaRemaining(b),balance=b?.disabled?t('unavailableQuota'):pct(remaining);
+      text(name,balance);text(`${name}-balance`,balance);text(`${name}-reset`,date(b?.resetAt));
+      style($(`${name}-fill`),'width',remaining!==null?`${remaining*100}%`:'0%');style($(`${name}-fill`),'background',remaining!==null&&remaining<.05?'var(--pulse-danger)':remaining!==null&&remaining<.2?'var(--pulse-warning)':'');
+      attribute($(`${name}-track`),'aria-valuenow',remaining!==null?remaining*100:null);attribute($(`${name}-track`),'aria-valuemin','0');attribute($(`${name}-track`),'aria-valuemax','100');
       text(`${name}-note`,(composer?.kind==='subagent'?t('accountQuota')+' ':'')+(language.errorMessage(data.error)||(b?.disabled?t('disabledQuota'):!b?.available?t('noQuota'):t('sharedQuota')+' '+t('updated',{time:data.quotaUpdatedAt?new Date(data.quotaUpdatedAt).toLocaleTimeString(language.language,{hour12:false}):'—'}))));
     }
     attribute($('dot'),'class',`dot ${data.connection}`);attribute($('dot'),'title',t(data.connection==='live'?'live':data.connection==='stale'?'stale':'offline'));tick();fit();position();
@@ -730,14 +830,15 @@ module.exports = function installAgPulseInlineWidget() {
   }
   const observer=new MutationObserver(records=>{if(records.some(record=>record.target!==node&&!node?.contains(record.target)))scheduleLayout();});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','hidden','inert','data-cascade-id','data-testid','data-tooltip-id','aria-label','role','contenteditable']});
   const onKey=e=>{if(e.key==='Escape')hide();}, onPointer=e=>{if(node&&!e.composedPath().includes(node))hide();};
-  document.addEventListener('keydown',onKey);document.addEventListener('pointerdown',onPointer);
+  const onFocus=e=>{if(!node||!e.composedPath().includes(node))scheduleLayout();};
+  document.addEventListener('keydown',onKey);document.addEventListener('pointerdown',onPointer);document.addEventListener('focusin',onFocus);
   window.addEventListener('resize',scheduleLayout);document.addEventListener('scroll',scheduleLayout,true);
   densityMedia.addEventListener('change',stopDensityMotion);
   const timerId=setInterval(()=>{mount();fit();tick();position();if(conversationId()!==lastConversation||Date.now()-lastFetch>(document.hidden?10000:2200))refresh();},1000);
   window.__agPulseDispose=()=>{
     disposed=true;requestEpoch++;pending=false;refreshRequest=null;stopDensityMotion();densityFrame=null;densityProbe=null;
     clearInterval(timerId);clearTimeout(hoverTimer);clearTimeout(openTimer);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();resizeObserver?.disconnect();themeController?.dispose();preferences.dispose();hide();usageDashboard?.dispose();updateMenu?.dispose();node?.remove();
-    document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);
+    document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);document.removeEventListener('focusin',onFocus);
     document.removeEventListener('scroll',scheduleLayout,true);window.removeEventListener('resize',scheduleLayout);
     densityMedia.removeEventListener('change',stopDensityMotion);
     document.removeEventListener('DOMContentLoaded',mount);node=null;root=null;composer=null;

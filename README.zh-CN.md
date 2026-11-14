@@ -7,7 +7,7 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.8.14](https://img.shields.io/badge/version-0.8.14-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.8.15](https://img.shields.io/badge/version-0.8.15-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -18,7 +18,7 @@
 
 > **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
 
-**v0.8.14：** 将社区接续仓库正式更名为 `wycocoyu/agy-context-dashboard` 以方便 Antigravity (`agy`) 与 DSH 社区用户检索，并同步更新 `compat/update-worker.py`、包元数据与发布链接；完整保留 `v0.8.13` 的 `language_server.native` 兼容及 Gemini 4 / GPT-6.1 Sol 1M+ 参考支持。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.14) · [变更记录](CHANGELOG.md)。
+**v0.8.15：** 合入上游 `v0.8.20` 优化（基于 `node:sqlite` 的后台流式采集与磁盘用量统计工作线程、Gemini 4 Argon 周额度独立展示、子代理标签页输入框隔离、更新器 `DirectoryAnchor` 路径校验、Windows 端口探测加固与侧栏版本号标签），同时完整保留 `v0.8.13`–`v0.8.14` 分支特性（`wycocoyu/agy-context-dashboard`、`language_server.native` 兼容及 Gemini 4 / GPT-6.1 Sol 1M+ 参考支持）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -66,7 +66,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.8.14.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.8.15.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带

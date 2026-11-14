@@ -142,11 +142,11 @@ class UpdateWorkerTests(unittest.TestCase):
         script = '''import importlib.util,os,sys
 from pathlib import Path
 s=importlib.util.spec_from_file_location('worker',sys.argv[1]); w=importlib.util.module_from_spec(s);s.loader.exec_module(w)
-target,stage,backup=map(Path,sys.argv[2:5]);point=sys.argv[5]
+target,stage,backup=map(Path,sys.argv[2:5]);point=sys.argv[5];stage_root,target_root=stage.resolve(),target.resolve()
 replace=w.os.replace
 def crash_replace(a,b):
     replace(a,b)
-    if point=='after:'+Path(b).name and Path(a).parent==stage and Path(b).parent==target:os._exit(93)
+    if point=='after:'+Path(b).name and Path(a).resolve().parent==stage_root and Path(b).resolve().parent==target_root:os._exit(93)
 def fault(name):
     if point=='before:'+name:os._exit(93)
 w.os.replace=crash_replace

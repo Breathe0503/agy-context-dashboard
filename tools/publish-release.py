@@ -29,7 +29,9 @@ def checked_assets(root, tag):
         archive.getinfo(prefix + 'sidecars/panel/trajectory-json.mjs')
         archive.getinfo(prefix + 'sidecars/panel/trajectory-reader.mjs')
         archive.getinfo(prefix + 'sidecars/panel/transcript.mjs')
-        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs']:
+        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs',
+                         'collection-state.mjs', 'background-statistics.mjs', 'background-worker.mjs',
+                         'disk-statistics.mjs', 'usage-disk-worker.mjs']:
             archive.getinfo(prefix + 'sidecars/panel/' + required)
         for required in ['compat/update-ui.cjs', 'compat/update-worker.py', 'compat/update-lock.py',
                          'sidecars/panel/updater.mjs', 'sidecars/panel/local-conversations.mjs', 'docs/UPDATES.md']:
@@ -56,7 +58,9 @@ def checked_assets(root, tag):
         archive.getinfo('extension/sidecars/panel/trajectory-json.mjs')
         archive.getinfo('extension/sidecars/panel/trajectory-reader.mjs')
         archive.getinfo('extension/sidecars/panel/transcript.mjs')
-        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs']:
+        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs',
+                         'collection-state.mjs', 'background-statistics.mjs', 'background-worker.mjs',
+                         'disk-statistics.mjs', 'usage-disk-worker.mjs']:
             archive.getinfo('extension/sidecars/panel/' + required)
         archive.getinfo('extension/sidecars/panel/local-conversations.mjs')
     return [bundle, checksum, ide, ide_checksum]

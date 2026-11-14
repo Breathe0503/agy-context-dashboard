@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.15 — 2026-11-14
+
+- Merge upstream `v0.8.20` optimizations and fixes into `wycocoyu/agy-context-dashboard` ([`#2`](https://github.com/wycocoyu/agy-context-dashboard/issues/2)) while preserving all `v0.8.13`–`v0.8.14` fork features (`Gemini 4` & `GPT-6.1 Sol` 1M+ context references with strict host denominator occupancy, macOS `language_server.native` process discovery, and `wycocoyu/agy-context-dashboard` repository/updater targets).
+- **SQLite background collection & disk-backed usage ledger:** Introduce bounded worker-thread collection (`sidecars/panel/background-worker.mjs`, `background-statistics.mjs`, `disk-statistics.mjs`, `collection-state.mjs`, `usage-disk-worker.mjs`) using `node:sqlite`, streaming step/generator-metadata reads (`streamTrajectoryPage`), cancellation guards, and disk/memory budgets; migrate per-conversation `usage-v1` ledgers to `.sqlite` while preserving legacy `.json` imports and `previousTaskUsage` recovery across large refreshes, and surface background collection progress in the UI.
+- **Gemini 4 Argon weekly quota support:** Add separate `gemini-argon-wtu` weekly quota tracking (`sidecars/panel/metrics.mjs`, `compat/i18n.cjs`, `compat/inline-widget.cjs`, `sidecars/panel/app.js`), flat-bucket family separation, nested `remaining.*` fallbacks when canonical flat fields are absent, and localized `Argon weekly quota` labels with dynamic 5h/weekly window visibility.
+- **Subagent tab isolation & nested IDE webviews:** Isolate sidebar subagent composer ownership (`[data-testid="subagent-tab-conversation"]` in `compat/inline-widget.cjs`), pass `selectLatest: false` for inline snapshot requests (`sidecars/panel/main.mjs`), support `allowNested`/`sourceForTarget` for IDE webviews, and enforce synchronous binding revocation in `compat/runtime-ui.mjs`.
+- **Updater `DirectoryAnchor` & Windows discovery hardening:** Add physical directory anchoring (`DirectoryAnchor`) and `install-location` / `plan-expired` error details (`compat/update-worker.py`, `compat/update-ui.cjs`, `sidecars/panel/updater.mjs`), add `httpLogPorts`, TUN-aware `netstatSnapshot`, and bounded `probeLoopbackPort` / `discoverWindowsPorts` (`sidecars/panel/discovery.mjs`, `sidecars/panel/client.mjs`), display the verified plugin version badge in the panel header (`sidecars/panel/panel-source.mjs`, `sidecars/panel/index.html`), and update IDE/release packaging allowlists (`ide/package.py`, `tools/publish-release.py`).
+
 ## 0.8.14 — 2026-11-13
 
 - Rename the community continuation repository to `wycocoyu/agy-context-dashboard` for clearer Antigravity (`agy`) and DSH-style discoverability while preserving the internal plugin ID (`antigravity-pulse`) and archive naming compatibility.

@@ -1,24 +1,26 @@
-import { readFile } from 'node:fs/promises';
+import { readFile,stat } from 'node:fs/promises';
 import { request } from 'node:http';
+import {setImmediate as yieldStream} from 'node:timers/promises';
 import { platformPaths } from '../../compat/platform.mjs';
-import { discoverProcesses } from './discovery.mjs';
+import { discoverProcesses,httpLogPorts } from './discovery.mjs';
 import { TrajectoryJson } from './trajectory-json.mjs';
 import { TrajectoryReader } from './trajectory-reader.mjs';
 
 const SERVICE = '/exa.language_server_pb.LanguageServerService/';
-export function serverFromDiscovery(log, processes) {
+function serverFromPorts(logPorts, processes) {
   const rows = (Array.isArray(processes) ? processes : [processes]).filter(p => /--standalone\b/.test(p.CommandLine || ''));
   if (rows.length !== 1) throw new Error(rows.length ? '检测到多个 Antigravity 实例，请保留一个' : '未找到 Antigravity 桌面后台');
   const ports = new Set([rows[0].Ports].flat().map(Number));
-  const port = [...log.matchAll(/listening on random port at (\d+) for HTTP(?:\s|$)/g)].reverse().map(m=>Number(m[1])).find(p=>ports.has(p));
+  const port = logPorts.find(p=>ports.has(p));
   if (!port) throw new Error('等待 Antigravity 本地接口启动');
   const csrf = rows[0].CommandLine.match(/--csrf_token(?:=|\s+)"?([^\s"]+)/)?.[1];
   if (!csrf) throw new Error('当前版本未提供可用的本地检测凭据');
   return {port,csrf,pid:rows[0].ProcessId};
 }
+export function serverFromDiscovery(log, processes) { return serverFromPorts(httpLogPorts(log),processes); }
 export class AntigravityClient {
-  constructor({paths=platformPaths,readLog=readFile,processes=discoverProcesses,now=Date.now,onRpc=null}={}) {
-    this.paths=paths;this.readLog=readLog;this.processes=processes;this.now=now;this.onRpc=onRpc;this.reader=new TrajectoryReader(this);
+  constructor({paths=platformPaths,readLog=readFile,logStat=stat,processes=discoverProcesses,now=Date.now,onRpc=null}={}) {
+    this.paths=paths;this.readLog=readLog;this.logStat=logStat;this.processes=processes;this.now=now;this.onRpc=onRpc;this.reader=new TrajectoryReader(this);
   }
   server = null;
   discoveredAt = 0;
@@ -47,16 +49,40 @@ export class AntigravityClient {
     // A sidecar can outlive a renderer/backend restart. Its injected token may
     // then refer to the previous LS instance; pair the current log port with
     // the current standalone process credential instead of mixing generations.
-    const parsed = await this.processes();
+    const paths=this.paths(),logs=[],files=[...new Set(paths.logCandidates||[paths.log])];
+    for(const file of files){
+      try {
+        let modifiedAt=null;
+        if(files.length>1){try{const info=await this.logStat(file);if(Number.isFinite(info?.mtimeMs))modifiedAt=info.mtimeMs;}catch{}}
+        logs.push({ports:httpLogPorts(await this.readLog(file,'utf8')),modifiedAt});
+      }
+      catch(error) { logs.push({error}); }
+    }
+    // Hosts can move the log from the profile into .gemini. Prefer the active
+    // file over a stale fallback path whose old HTTP port was reused by gRPC.
+    // Metadata only ranks hints: PID ownership is still checked below. Equal
+    // or unavailable timestamps keep the configured order; explicit overrides
+    // expose only one path and are not replaced by default locations.
+    if(logs.every(entry=>entry.error||Number.isFinite(entry.modifiedAt))){
+      logs.sort((a,b)=>{
+        const first=a.modifiedAt??-Infinity,second=b.modifiedAt??-Infinity;
+        return first===second?0:second-first;
+      });
+    }
+    // Another valid socket (for example gRPC) does not prove the HTTP socket
+    // is present. Supply log hints to trigger one bounded Windows fallback;
+    // the hinted ports still require independent live PID ownership proof.
+    const expectedPorts=[...new Set(logs.flatMap(log=>log.ports||[]))];
+    const parsed = await this.processes({expectedPorts});
     if (!parsed || Array.isArray(parsed) && !parsed.length) throw new Error('请先打开 Antigravity');
     // Credentials stay in process memory. They are never logged, persisted, or
     // returned to a browser; all calls go exclusively to 127.0.0.1.
     let foundLog=false,lastError=null;
-    const paths=this.paths();
-    for(const file of paths.logCandidates||[paths.log]) {
+    for(const entry of logs) {
       try {
-        const log=await this.readLog(file,'utf8');foundLog=true;
-        this.server=serverFromDiscovery(log,parsed);break;
+        if(entry.error)throw entry.error;
+        foundLog=true;
+        this.server=serverFromPorts(entry.ports,parsed);break;
       } catch(error) {
         if(error.code!=='ENOENT'&&error.code!=='ENOTDIR')lastError=error;
       }
@@ -125,6 +151,49 @@ export class AntigravityClient {
       if(retry){await this.discover();return this.call(method,body,false);}
       throw error;
     }
+  }
+
+  // Background-only record stream. No complete page array is materialized and
+  // asynchronous consumers apply backpressure before the next record is parsed.
+  async streamTrajectoryPage(method,body,{onRecord,isCurrent=()=>true,wallMs=30000}={}) {
+    if(!['GetCascadeTrajectorySteps','GetCascadeTrajectoryGeneratorMetadata'].includes(method)||typeof onRecord!=='function')throw Error('Unsupported statistics stream');
+    if(!Number.isSafeInteger(wallMs)||wallMs<30000||wallMs>300000)throw Error('Invalid statistics stream deadline');
+    let streamError=null,rejectAbort;
+    const aborted=new Promise((_,reject)=>{rejectAbort=reject;});aborted.catch(()=>{});
+    const assertCurrent=()=>{if(streamError)throw streamError;if(isCurrent()!==true)throw Error('Statistics stream cancelled');};
+    assertCurrent();const server=await this.discover();assertCurrent();
+    const input=JSON.stringify(method==='GetCascadeTrajectoryGeneratorMetadata'?{...body,includeMessages:false}:body);
+    let pending=null;
+    const parser=new TrajectoryJson({onRecord:(kind,index,value)=>{if(pending)throw Error('Statistics stream consumer overflow');pending={kind,index,value};}});
+    const started=this.now();let bytes=0,peakRetained=0,req,res,deadline,watch;
+    const timeout=()=>Error('Antigravity 本地接口超时');
+    const abort=error=>{streamError||=error;rejectAbort(streamError);res?.destroy();req?.destroy(streamError);};
+    try {
+      res=await new Promise((resolve,reject)=>{
+        req=request({hostname:'127.0.0.1',port:server.port,method:'POST',path:SERVICE+method,agent:false,
+          headers:{'Content-Type':'application/json','Connect-Protocol-Version':'1','x-codeium-csrf-token':server.csrf,'Content-Length':Buffer.byteLength(input)}},resolve);
+        req.on('error',error=>{streamError||=error;rejectAbort(streamError);reject(error);});req.setTimeout(12000,()=>abort(timeout()));
+        deadline=setTimeout(()=>abort(timeout()),wallMs);deadline.unref();
+        watch=setInterval(()=>{if(isCurrent()!==true)abort(Error('Statistics stream cancelled'));},250);watch.unref();req.end(input);
+      });
+      if(res.statusCode!==200)throw Object.assign(Error('Statistics stream HTTP '+res.statusCode),{status:res.statusCode});
+      res.setEncoding('utf8');
+      for await(const chunk of res){
+        assertCurrent();bytes+=Buffer.byteLength(chunk);
+        // Even a huge text-only value yields regularly; retained text is skipped.
+        for(let offset=0;offset<chunk.length;){
+          assertCurrent();const slice=chunk.slice(offset,offset+8192);
+          const consumed=parser.write(slice,{stopAfterRecord:true});offset+=consumed;
+          peakRetained=Math.max(peakRetained,parser.retained);
+          if(pending){const item=pending;pending=null;await Promise.race([onRecord(item.kind,item.index,item.value),aborted]);assertCurrent();}
+          await yieldStream();
+        }
+      }
+      assertCurrent();const result=parser.end();
+      if(pending){const item=pending;pending=null;await Promise.race([onRecord(item.kind,item.index,item.value),aborted]);assertCurrent();}
+      try{this.onRpc?.({method,bytes,retainedBytes:peakRetained,ms:this.now()-started,streamed:true});}catch{}
+      return result;
+    } finally {clearTimeout(deadline);clearInterval(watch);res?.destroy();req?.destroy();}
   }
 
   resetTrajectories(){this.reader.reset();}

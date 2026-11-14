@@ -59,18 +59,16 @@ function localize(){
 }
 
 function chooseGroup(groups, speed) {
-  if (selectedGroup && groups.some(g => g.id === selectedGroup)) return groups.find(g => g.id === selectedGroup);
-  const model = String(speed?.model || '').toLowerCase();
-  return groups.find(g => /gemini/.test(model) ? /gemini/i.test(g.id) : /claude|gpt/.test(model) ? /3p|claude|gpt/i.test(g.id) : false) || groups[0] || null;
+  return language.chooseQuotaGroup(groups,speed?.model,selectedGroup);
 }
 function groupLabel(value) {
-  return /gemini/i.test(value.name) ? 'Gemini' : /claude|gpt/i.test(value.name) ? 'Claude / GPT' : value.name;
+  return language.quotaGroupLabel(value);
 }
 
 function renderQuota(window, prefix) {
   const bucket = group?.windows?.[window];
-  const remaining = bucket?.remaining;
-  $(`${prefix}-balance`).textContent = percent(remaining);
+  const remaining = language.quotaRemaining(bucket);
+  $(`${prefix}-balance`).textContent = bucket?.disabled?t('unavailableQuota'):percent(remaining);
   const fill = $(`${prefix}-fill`), track = $(`${prefix}-track`);
   fill.style.width = typeof remaining === 'number' ? `${remaining * 100}%` : '0%';
   fill.style.background = remaining !== null && remaining < .05 ? 'var(--pulse-danger)' : remaining !== null && remaining < .2 ? 'var(--pulse-warning)' : '';
@@ -84,14 +82,25 @@ function render() {
   if (!snapshot) return;
   const groups = snapshot.groups || [], speed = snapshot.speed;
   group = chooseGroup(groups, speed);
-  const optionsKey = groups.map(g => g.id).join('|');
+  const optionsKey = JSON.stringify([groups.map(g => [g.id,groupLabel(g)]),Boolean(group),language.language]);
   const select = $('quota-group');
   if (select.dataset.options !== optionsKey) {
-    select.replaceChildren(...(groups.length ? groups.map(g => new Option(groupLabel(g),g.id)) : [new Option(t('unavailableQuota'),'')]));
+    const options=groups.map(g=>new Option(groupLabel(g),g.id));
+    if(!group){const empty=new Option(t('unavailableQuota'),'');empty.disabled=true;options.unshift(empty);}
+    select.replaceChildren(...options);
     select.dataset.options = optionsKey;
   }
-  if (group) select.value = group.id;
+  select.value = group?.id||'';
+  select.dataset.quotaFamily=language.quotaGroupKind(group)||'';
+  select.title = group?groupLabel(group):t('unavailableQuota');
   for (const element of document.querySelectorAll('.group-name')) element.textContent = group ? groupLabel(group) : '—';
+  const visibleQuotaWindows=language.quotaWindows(group),isArgon=language.quotaGroupKind(group)==='gemini-argon';
+  for(const [key,prefix]of[['5h','five'],['weekly','week']]){
+    hidden(`${prefix}-summary`,!visibleQuotaWindows.includes(key));hidden(`${prefix}-details`,!visibleQuotaWindows.includes(key));
+  }
+  $('quota-overview').dataset.windows=String(visibleQuotaWindows.length);
+  text('week-summary-label',t(isArgon?'argonWeek':'weekShort'));text('week-quota-title',t(isArgon?'argonWeek':'week'));
+  $('week-details').setAttribute('aria-label',t(isArgon?'argonWeek':'week'));
   renderQuota('5h','five'); renderQuota('weekly','week');
   $('strip-tps').textContent = rate(speed?.tps);
   $('speed-tab').title=rate(speed?.tps)+' tok/s';
@@ -99,7 +108,8 @@ function render() {
   $('latest-tps').textContent = speed?.latestRateStatus==='unreliable'?t('timingUnreliable'):speed?.latestRateStatus==='legacy'?t('ratePending'):rate(speed?.latestTps);
   $('request-count').textContent = t('sampleCount',{n:speed?.measuredRequests??0});
   $('session-steps').textContent = speed ? t('rounds',{rounds:speed.rounds,steps:speed.steps}) : '';
-  $('strip-model').textContent = speed?.model || t('waitingRequest');
+  const collectionLimited=snapshot.collection?.state==='limited',collectionProcessing=snapshot.collection?.state==='processing'&&snapshot.collection.code==='background-collection';
+  $('strip-model').textContent = collectionProcessing?t(speed?'collectionSaved':'collectionProcessing'):collectionLimited?t(speed?'collectionSaved':'collectionLimited'):speed?.model || t(snapshot.sessionError?'collectionUnavailable':'waitingRequest');
   $('strip-model').title=$('strip-model').textContent;
   $('model-time').textContent = language.elapsed(speed?.modelSeconds);
   $('tool-time').textContent = language.elapsed(speed?.toolSeconds);
@@ -110,6 +120,12 @@ function render() {
   $('speed-basis').textContent = language.rateNote(speed)+savedNote+saveWarning;
   const taskUsage=Number.isSafeInteger(speed?.taskUsage?.subagents)&&speed.taskUsage.subagents>0?speed.taskUsage:null;
   const usage=taskUsage||speed,cache=usage?.cache;
+  const currentOnly=!collectionLimited&&!collectionProcessing&&taskUsage?.state==='partial'&&taskUsage.loadedSubagents===0;
+  const cacheTab=$('cache-tab');
+  const cacheAttr=(name,value)=>{if(value===null){if(cacheTab.hasAttribute(name))cacheTab.removeAttribute(name);}else if(cacheTab.getAttribute(name)!==value)cacheTab.setAttribute(name,value);};
+  cacheAttr('data-task-current-only',currentOnly?'true':null);
+  cacheAttr('aria-label',currentOnly?t('taskCurrentOnly'):null);
+  cacheAttr('title',currentOnly?t('taskCurrentOnly'):null);
   const context=speed?.context,hasCapacity=typeof context?.usedFraction==='number';
   $('strip-context').textContent=hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—';
   $('strip-context-size').textContent=context?`${compact(context.usedTokens)} / ${context.maxTokens===null?'—':compact(context.maxTokens)}`:'—';
@@ -139,13 +155,13 @@ function render() {
     const value=taskUsage?.[field],known=field!=='subagentTokens'||taskUsage?.loadedSubagents>0;
     text(id,known&&Number.isSafeInteger(value)&&value>=0?`${count(value)} tok`:'—');
   }
-  const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t('taskPartial'):'';
+  const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t(taskUsage.loadedSubagents===0?'taskCurrentOnly':'taskPartial'):'';
   text('cache-note',taskNote);hidden('cache-note',!taskNote);
   $('connection-dot').className = `connection-dot ${snapshot.connection}`;
   $('connection-dot').title = t(snapshot.connection === 'live'?'live':snapshot.connection === 'stale'?'stale':'offline');
   const timestamp = snapshot.quotaUpdatedAt ? new Date(snapshot.quotaUpdatedAt).toLocaleTimeString(language.language,{hour12:false}) : null;
-  $('health-note').textContent = language.errorMessage(snapshot.error||snapshot.sessionError) || (timestamp ? t('health',{time:timestamp}) : t('firstUpdate'));
-  $('health-note').classList.toggle('warning', snapshot.connection !== 'live' || !!snapshot.sessionError);
+  $('health-note').textContent = (collectionProcessing?t('collectionProcessingReason'):collectionLimited?t('collectionReason'):language.errorMessage(snapshot.error||snapshot.sessionError)) || (timestamp ? t('health',{time:timestamp}) : t('firstUpdate'));
+  $('health-note').classList.toggle('warning', snapshot.connection !== 'live' || !!snapshot.sessionError || collectionLimited);
   const integration = snapshot.integration;
   $('integration-note').textContent = integration && !['mounted','disabled'].includes(integration.state)
     ? (language.language === 'zh-TW' ? '內嵌狀態列正在自動重新連線；此面板仍可檢視統計資料。' : (language.language === 'zh-CN' ? '内嵌栏正在自动重连；此面板仍可查看统计。' : 'Inline widget is reconnecting automatically; statistics remain available in this panel.')) : '';
@@ -158,8 +174,9 @@ function updateCountdowns() {
     const bucket = group?.windows?.[window];
     $(`${prefix}-countdown`).textContent = language.countdown(bucket?.resetAt,now);
     $(`${prefix}-summary-countdown`).textContent=language.countdown(bucket?.resetAt,now,true);
-    $(`${prefix}-summary-balance`).textContent=percent(bucket?.remaining);
-    $(`${prefix}-summary-fill`).style.width=typeof bucket?.remaining==='number'?`${Math.min(100,Math.max(0,bucket.remaining*100))}%`:'0%';
+    const remaining=language.quotaRemaining(bucket);
+    $(`${prefix}-summary-balance`).textContent=bucket?.disabled?t('unavailableQuota'):percent(remaining);
+    $(`${prefix}-summary-fill`).style.width=remaining!==null?`${remaining*100}%`:'0%';
     if (bucket?.resetAt && Date.parse(bucket.resetAt) <= now && snapshot?.connection === 'live' && now - lastExpiredRefresh > 30000) {
       lastExpiredRefresh = now; setTimeout(() => refresh(true),0);
     }

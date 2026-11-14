@@ -11,6 +11,8 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
+2026-11-14 / **v0.8.15**：合入上游 `v0.8.20` 优化（`node:sqlite` 后台流式采集与磁盘 `usage-v1` 账本、`Argon` 周额度独立分组、子代理标签页隔离、更新器 `DirectoryAnchor` 与 Windows 端口探测加固、侧栏版本号显示），保留 `v0.8.13`–`v0.8.14` 全部特性与 `wycocoyu/agy-context-dashboard` 身份。
+
 2026-11-13 / **v0.8.14**：社区接续仓库更名为 `wycocoyu/agy-context-dashboard`，同步调整 `update-worker.py`、IDE 包元数据及安装文档链接；保持本地插件目录 `antigravity-pulse`、历史数据路径及安装包文件名完全向后兼容。
 
 2026-11-13 / **v0.8.13**：社区接续维护版本（`wycocoyu/antigrative-dashboard`）：将应用内更新源切至新仓、macOS 进程发现兼容 `language_server.native`、新增 Gemini 4（`Hydrogen` / `Argon` / `Carbon`）与 `GPT-6.1 Sol` 模型识别及 1M+ 官方上下文参考（主占比继续严格以宿主下发 `maxContextTokens` 为准）。macOS 本地运行：`npm test` 335 项全过、`ide/tests` 11 项全过、Python `unittest` 82 项（80 通过、2 跳过），并完成打包白名单校验。
@@ -21,7 +23,7 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 ## Antigravity 自带 IDE
 
-专用包为 `antigrative-dashboard-ide-0.8.14.vsix`，安装入口与桌面 App 独立。
+专用包为 `antigrative-dashboard-ide-0.8.15.vsix`，安装入口与桌面 App 独立。
 Windows 11 / IDE 2.5.5（VS Code base 1.107.0）已用真实对话验证速率、缓存、上下文、重启历史恢复和窄宽布局。
 Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 浏览器 fixture 纳入 CI；登录后的 IDE GUI 仍待实机验收。
 当前仅支持默认用户 profile；私有 Preact/DOM 或 RPC 变化可能需要适配，不能保证未来 IDE 版本无需维护。
