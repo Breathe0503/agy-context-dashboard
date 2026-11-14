@@ -107,8 +107,15 @@ def remove_verified_legacy_adapter():
         raise RuntimeError('The legacy adapter has unknown app changes; refusing to overwrite them. Inspect its backup first.')
 
 
+def cli_lifecycle():
+    spec = importlib.util.spec_from_file_location('pulse_cli_lifecycle', SOURCE / 'cli' / 'lifecycle.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @lifecycle_operation
-def install(panel_only=False, legacy_loader=False):
+def install(panel_only=False, legacy_loader=False, with_cli=False, node=None, language=None):
     own_plugin()
     config = json_read(CONFIG)
     if not isinstance(config, dict) or not isinstance(config.get('plugins', {}), dict):
@@ -146,6 +153,19 @@ def install(panel_only=False, legacy_loader=False):
     set_enabled(True)
     print('Installed:', PLUGIN)
     print('Fully quit and reopen Antigravity to start the plugin runtime. App updates no longer overwrite the inline adapter.')
+    if with_cli:
+        cli_lifecycle().install(SOURCE, HOME, node, language)
+    else:
+        try:
+            cli_state = cli_lifecycle().inspect_status(HOME, SOURCE)
+        except Exception:
+            cli_state = None
+        if cli_state and cli_state.get('stale'):
+            current_ver = cli_state.get('version') or 'legacy/unknown'
+            print(
+                f"Note: installed CLI status line ({current_ver}) differs from source ({cli_state['sourceVersion']}). "
+                "Run 'python3 manage.py install-cli' (or pass --with-cli) to update it."
+            )
 
 @lifecycle_operation
 def uninstall():
@@ -182,10 +202,15 @@ def status():
     installed = (PLUGIN / 'plugin.json').is_file()
     enabled = installed and json_read(CONFIG).get('plugins', {}).get('antigravity-pulse', {}).get('enabled', True)
     health_file = HOME / '.gemini' / 'antigravity' / 'sidecar_data' / 'antigravity-pulse' / 'panel' / 'data' / 'integration-state.json'
+    try:
+        cli_state = cli_lifecycle().inspect_status(HOME, SOURCE)
+    except Exception as error:
+        cli_state = {'error': str(error)}
     print(json.dumps({'installed': installed, 'enabled': bool(enabled), 'pluginDirectory': str(PLUGIN),
                       'integrationMode': json_read(SETTINGS).get('mode', 'legacy'),
                       'inlineIntegration': json_read(health_file, None),
-                      'toolbarAdapterRecoverable': APP.exists() and original_for_current(APP.read_bytes()) is not None}, indent=2))
+                      'toolbarAdapterRecoverable': APP.exists() and original_for_current(APP.read_bytes()) is not None,
+                      'cli': cli_state}, indent=2))
 
 def package(output=None):
     version = json_read(SOURCE / 'plugin.json')['version']
@@ -216,6 +241,9 @@ def main():
     group.add_argument('--panel-only', action='store_true')
     group.add_argument('--legacy-loader', action='store_true', help='Opt in to the old, version-specific app.asar adapter')
     p.add_argument('--app-path', type=Path, help='Path to the desktop app resources/app.asar for a custom installation')
+    p.add_argument('--with-cli', action='store_true', help='Also install or sync the official CLI statusLine adapter')
+    p.add_argument('--node', help='Node.js 20+ executable when installing the CLI adapter with --with-cli')
+    p.add_argument('--language', choices=('en', 'zh-CN', 'zh-TW'), help='Override shared desktop language choice when used with --with-cli')
     for action in ('enable', 'disable', 'status', 'uninstall'): sub.add_parser(action)
     p = sub.add_parser('install-cli', help='Install the official CLI statusLine adapter independently of desktop')
     p.add_argument('--node', help='Node.js 20+ executable (defaults to PATH)')
@@ -227,14 +255,13 @@ def main():
         APP = args.app_path.expanduser().resolve()
     try:
         if args.action in ('install-cli', 'uninstall-cli', 'status-cli'):
-            spec = importlib.util.spec_from_file_location('pulse_cli_lifecycle', SOURCE / 'cli' / 'lifecycle.py')
-            cli = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(cli)
+            cli = cli_lifecycle()
             if args.action == 'install-cli': cli.install(SOURCE, HOME, args.node, args.language)
             elif args.action == 'uninstall-cli': cli.uninstall(HOME)
-            else: cli.status(HOME)
+            else: cli.status(HOME, SOURCE)
             return 0
-        if args.action == 'install': install(args.panel_only, args.legacy_loader)
+        if args.action == 'install':
+            install(args.panel_only, args.legacy_loader, with_cli=args.with_cli, node=args.node, language=args.language)
         elif args.action == 'enable': set_enabled(True)
         elif args.action == 'disable': set_enabled(False)
         elif args.action == 'uninstall': uninstall()

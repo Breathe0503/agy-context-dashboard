@@ -62,6 +62,20 @@ def verify_root(root):
             regular(child)
 
 
+def source_version(source):
+    if not source:
+        return None
+    base = Path(source)
+    for name in ('package.json', 'plugin.json'):
+        candidate = base / name
+        if candidate.is_file():
+            data = read(candidate)
+            version = data.get('version')
+            if isinstance(version, str) and version.strip():
+                return version.strip()
+    return None
+
+
 @contextmanager
 def locked(base):
     regular(base)
@@ -150,7 +164,11 @@ def install(source, home, node=None, language=None):
         state['command'] = installed_command
         write(backup, state)
         root.mkdir(parents=True, exist_ok=True)
-        write(root / 'installation.json', {'name': NAME, 'schema': 1})
+        meta = {'name': NAME, 'schema': 1}
+        version = source_version(source)
+        if version:
+            meta['version'] = version
+        write(root / 'installation.json', meta)
         for name in ('cli/metrics.mjs', 'cli/render.mjs', 'cli/statusline.mjs', 'compat/platform.mjs', 'compat/preferences.mjs'):
             target = root / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -195,11 +213,30 @@ def uninstall(home):
     print('CLI adapter removed; prior statusLine restored if still owned. Reopen agy.')
 
 
-def status(home):
+def inspect_status(home, source=None):
     _, settings, root, backup = paths(home)
     state, config = read(backup), read(settings)
     current = config.get('statusLine')
     configured = owns(current, state)
-    print(json.dumps({'installed': (root / 'cli' / 'statusline.mjs').is_file(), 'configured': configured,
-                      'enabled': configured and current.get('enabled', True) is not False,
-                      'directory': str(root), 'settings': str(settings)}, indent=2))
+    installed = (root / 'cli' / 'statusline.mjs').is_file()
+    meta_file = root / 'installation.json'
+    meta = read(meta_file) if meta_file.is_file() else {}
+    raw_version = meta.get('version')
+    version = raw_version.strip() if isinstance(raw_version, str) and raw_version.strip() else None
+    result = {
+        'installed': installed,
+        'configured': configured,
+        'enabled': configured and current.get('enabled', True) is not False,
+        'version': version,
+        'directory': str(root),
+        'settings': str(settings),
+    }
+    expected = source_version(source) if source else None
+    if expected:
+        result['sourceVersion'] = expected
+        result['stale'] = installed and version != expected
+    return result
+
+
+def status(home, source=None):
+    print(json.dumps(inspect_status(home, source=source), indent=2))

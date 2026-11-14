@@ -1,4 +1,4 @@
-import { compact, percentage, countdown } from './metrics.mjs';
+import { compact, percentage, countdown, quotaGroupForModel } from './metrics.mjs';
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const clusters = text => [...segmenter.segment(text)].map(item => item.segment);
@@ -27,13 +27,13 @@ export function truncate(text, width) {
 const labels = {
   en: { context: 'Context', shortContext: 'Ctx', cache: 'Cache', read: 'read', capacity: 'Capacity', created: 'Cache write', input: 'Input', output: 'Output',
     left: 'left', reset: 'reset', quota: 'Quota', week: 'week', unknown: 'Unknown', idle: 'Ready', thinking: 'Thinking',
-    working: 'Working', tool_use: 'Tool', initializing: 'Starting' },
+    working: 'Working', tool_use: 'Tool', initializing: 'Starting', subagents: 'Subagents' },
   'zh-CN': { context: '上下文', shortContext: '上下文', cache: '缓存', read: '读取', capacity: '容量', created: '缓存写入', input: '输入', output: '输出',
     left: '剩余', reset: '重置', quota: '额度', week: '周', unknown: '未知', idle: '就绪', thinking: '思考中',
-    working: '生成中', tool_use: '工具', initializing: '启动中' },
+    working: '生成中', tool_use: '工具', initializing: '启动中', subagents: '子代理' },
   'zh-TW': { context: '上下文', shortContext: '上下文', cache: '快取', read: '讀取', capacity: '容量', created: '快取寫入', input: '輸入', output: '輸出',
     left: '剩餘', reset: '重設', quota: '配額', week: '週', unknown: '未知', idle: '就緒', thinking: '思考中',
-    working: '生成中', tool_use: '工具', initializing: '啟動中' },
+    working: '生成中', tool_use: '工具', initializing: '啟動中', subagents: '子代理' },
 };
 
 export function render(metrics, { language = 'en', width = metrics.width, color = true, details = false, lightBackground = false, now = Date.now() } = {}) {
@@ -83,24 +83,37 @@ export function render(metrics, { language = 'en', width = metrics.width, color 
   if (displayWidth(plain([...main, ...state])) <= width) main.push(...state);
 
   // Group only exact contract IDs; unknown future buckets keep their identity.
-  const known = { 'gemini-5h': ['gemini', 'Gemini', '5h', 36], 'gemini-weekly': ['gemini', 'Gemini', l.week, 36],
-    '3p-5h': ['3p', 'Claude/GPT', '5h', 35], '3p-weekly': ['3p', 'Claude/GPT', l.week, 35] };
+  const known = {
+    'gemini-5h': ['gemini', 'Gemini', '5h', 36],
+    'gemini-weekly': ['gemini', 'Gemini', l.week, 36],
+    'gemini-argon-5h': ['gemini-argon', 'Argon', '5h', 34],
+    'gemini-argon-wtu': ['gemini-argon', 'Argon', l.week, 34],
+    'gemini-argon-weekly': ['gemini-argon', 'Argon', l.week, 34],
+    'gemini-argon-wtu-weekly': ['gemini-argon', 'Argon', l.week, 34],
+    '3p-5h': ['3p', 'Claude', '5h', '38;2;218;119;86'],
+    '3p-weekly': ['3p', 'Claude', l.week, '38;2;218;119;86'],
+  };
   const groups = new Map();
   for (const quota of metrics.quotas) {
     const [id, name, window, code] = known[quota.id] || [quota.id, quota.id, null, 36];
     if (!groups.has(id)) groups.set(id, { id, name, code, known: !!known[quota.id], windows: [] });
     groups.get(id).windows.push({ ...quota, window });
   }
-  const active = /^gemini\b/i.test(metrics.model || '') ? 'gemini' : /^(claude\b|gpt\b|o[134](?:-|$))/i.test(metrics.model || '') ? '3p' : null;
-  const sorted = [...groups.values()].sort((a, b) => (b.id === active ? 1 : 0) - (a.id === active ? 1 : 0) ||
-    (b.known ? 1 : 0) - (a.known ? 1 : 0) || a.name.localeCompare(b.name));
+  const targetGroup = quotaGroupForModel(metrics.model);
+  const active = targetGroup && groups.has(targetGroup)
+    ? targetGroup
+    : targetGroup === 'gemini-argon' && groups.has('gemini')
+      ? 'gemini'
+      : null;
+  const order = { gemini: 0, 'gemini-argon': 1, '3p': 2 };
+  const sorted = [...groups.values()].sort((a, b) =>
+    (b.id === active ? 1 : 0) - (a.id === active ? 1 : 0) ||
+    (b.known ? 1 : 0) - (a.known ? 1 : 0) ||
+    (order[a.id] ?? 99) - (order[b.id] ?? 99) ||
+    a.name.localeCompare(b.name));
   const quotaRow = (group, bars, resets) => {
-    // 3p is one shared quota bucket, but each model label keeps its own color.
-    const name = group.id === '3p' && group.known
-      ? [part('Claude', '38;2;218;119;86', true), subtle('/'),
-        part('GPT', lightBackground ? 39 : '38;2;248;250;252', true), part(' ')]
-      : [part((group.name + (group.known ? '' : ' ')).padEnd(group.known ? 11 : 0), group.code, true)];
-    const row = [...name, subtle(`${l.left}  `)];
+    const label = group.known ? group.name.padEnd(11) : `${group.name} `;
+    const row = [part(label, group.code, true), subtle(`${l.left}  `)];
     const windows = [...group.windows].sort((a, b) => (a.window === '5h' ? -1 : 1) - (b.window === '5h' ? -1 : 1));
     for (const [index, quota] of windows.entries()) {
       if (index) row.push(subtle('   │   '));
@@ -117,16 +130,32 @@ export function render(metrics, { language = 'en', width = metrics.width, color 
   };
   const lines = [paint(main)];
   if (!sorted.length) lines.push(paint([subtle(`${l.quota} --`)]));
-  for (const group of sorted.slice(0, 2)) {
+  const knownCount = sorted.filter(group => group.known).length;
+  const visible = sorted.slice(0, Math.min(3, Math.max(2, knownCount)));
+  for (const group of visible) {
     let row = quotaRow(group, width >= 100, width >= 80);
     if (displayWidth(plain(row)) > width) row = quotaRow(group, false, width >= 80);
     if (displayWidth(plain(row)) > width) row = quotaRow(group, false, false);
-    if (sorted.length > 2 && group === sorted[1]) row.push(subtle(`  … +${sorted.length - 2}`));
+    if (sorted.length > visible.length && group === visible[visible.length - 1]) {
+      row.push(subtle(`  … +${sorted.length - visible.length}`));
+    }
     lines.push(paint(row));
   }
   if (details) {
-    const more = `${metrics.model || 'Antigravity'} · ${l.capacity} ${compact(metrics.context.capacity)} · ${l.input} ${compact(metrics.inputTokens)} · ${l.output} ${compact(metrics.outputTokens)} · ${l.created} ${compact(metrics.cacheCreationTokens)}`;
-    lines.push(paint([subtle(more)]));
+    const parts = [
+      metrics.model || 'Antigravity',
+      `${l.capacity} ${compact(metrics.context.capacity)}`,
+      `${l.input} ${compact(metrics.inputTokens)}`,
+      `${l.output} ${compact(metrics.outputTokens)}`,
+      `${l.created} ${compact(metrics.cacheCreationTokens)}`,
+    ];
+    if (metrics.subagents?.length) {
+      const summary = metrics.subagents
+        .map(item => [item.name || item.role || 'subagent', item.model ? `(${item.model})` : null, item.status].filter(Boolean).join(' '))
+        .join(', ');
+      parts.push(`${l.subagents} ${metrics.subagents.length}: ${summary}`);
+    }
+    lines.push(paint([subtle(parts.join(' · '))]));
   }
   return lines.join('\n');
 }

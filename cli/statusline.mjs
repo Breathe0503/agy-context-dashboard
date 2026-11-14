@@ -45,11 +45,22 @@ async function input() {
 
 function preview() {
   return {
-    version: '1.3.2', model: { id: 'claude-sonnet-4-6', display_name: 'Claude Sonnet 4.6 (Thinking)' }, agent_state: 'working', terminal_width: 100,
-    context_window: { used_percentage: 44.2, context_window_size: 1048576,
-      current_usage: { input_tokens: 190, output_tokens: 346, cache_read_input_tokens: 17244, cache_creation_input_tokens: 0 } },
-    quota: { 'gemini-5h': { remaining_fraction: 0.72, reset_in_seconds: 8100 },
-      'gemini-weekly': { remaining_fraction: 0.9378, reset_in_seconds: 560580 } },
+    version: '1.5.9',
+    model: { id: 'gemini-4-hydrogen-xhigh', display_name: 'Gemini 4 Hydrogen (XHigh)', effort: 'xhigh' },
+    agent_state: 'working',
+    terminal_width: 100,
+    context_window: {
+      used_percentage: 44.2,
+      context_window_size: 1048576,
+      current_usage: { input_tokens: 190, output_tokens: 346, cache_read_input_tokens: 17244, cache_creation_input_tokens: 0 },
+    },
+    quota: {
+      'gemini-5h': { remaining_fraction: 0.72, reset_in_seconds: 8100 },
+      'gemini-weekly': { remaining_fraction: 0.9378, reset_in_seconds: 560580 },
+      'gemini-argon-wtu-weekly': { remaining_fraction: 0.97, reset_in_seconds: 432000 },
+      '3p-5h': { remaining_fraction: 0.85, reset_in_seconds: 10800 },
+      '3p-weekly': { remaining_fraction: 0.64, reset_in_seconds: 345600 },
+    },
   };
 }
 
