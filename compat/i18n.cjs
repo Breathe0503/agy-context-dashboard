@@ -257,16 +257,33 @@ module.exports = function createDashboardI18n(initialLanguage) {
   // Shared serializable quota presentation policy for App, IDE and sidecar.
   // Bucket IDs can be opaque; labels and automatic selection must agree on
   // the host display name as well. Keep unrelated future groups intact.
+  const quotaModelAliases={
+    model_placeholder_m26:'Claude Opus 4.6 (Thinking)',
+    model_placeholder_m35:'Claude Sonnet 4.6 (Thinking)',
+    model_placeholder_m318:'Gemini 3.8 Flash (High)',
+    model_placeholder_m319:'Gemini 3.8 Flash (Medium)',
+    model_placeholder_m320:'Gemini 3.8 Flash (Low)',
+    model_google_gemini_internal_byom:'Gemini (Internal BYOM)',
+    model_openai_gpt_oss_120b_medium:'GPT-OSS 120B (Medium)',
+    'gemini-pro-orchestrator-g1-pro':'Orchestrator (Argon)',
+  };
+  function resolveQuotaModelToken(raw) {
+    const trimmed=String(raw||'').trim();
+    if(!trimmed)return '';
+    const direct=quotaModelAliases[trimmed.toLowerCase()];
+    const base=(direct||trimmed).replace(/^word\//i,'').trim();
+    return quotaModelAliases[base.toLowerCase()]||base;
+  }
   function quotaGroupKind(group) {
-    const id=String(group?.id||''),name=String(group?.name||''),value=id+' '+name;
+    const id=String(group?.id||''),resolvedId=resolveQuotaModelToken(id),resolvedName=resolveQuotaModelToken(group?.name||''),value=id+' '+resolvedId+' '+resolvedName;
     if(/(?:^|[^a-z])argon(?:$|[^a-z])/i.test(value))return 'gemini-argon';
     if(/gemini/i.test(value))return 'gemini';
-    if(/claude|gpt/i.test(value)||/^3p(?:$|[-_])/i.test(id))return '3p';
+    if(/claude|gpt|perplexity|fable/i.test(value)||/^3p(?:$|[-_])/i.test(id))return '3p';
     return null;
   }
   function quotaGroupLabel(group) {
     if(!group)return '—';
-    return ({'gemini-argon':'Gemini (Argon)',gemini:'Gemini','3p':'Claude / GPT'})[quotaGroupKind(group)]||group.name||group.id||t('group');
+    return ({'gemini-argon':'Gemini (Argon)',gemini:'Gemini','3p':'Claude'})[quotaGroupKind(group)]||group.name||group.id||t('group');
   }
   function chooseQuotaGroup(groups,models,selected) {
     const list=Array.isArray(groups)?groups.filter(g=>g&&typeof g.id==='string'):[];

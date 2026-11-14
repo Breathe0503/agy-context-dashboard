@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { contextMetrics, safeContext, formatModelName, modelContextReference, modelContextCapacity, modelCompressionLimit } from '../context.mjs';
+import { contextMetrics, safeContext, formatModelName, modelContextReference, modelContextCapacity, modelCompressionLimit, usageModelKey } from '../context.mjs';
 import { trajectoryMetrics } from '../metrics.mjs';
 import { SessionHistory, safeMetrics } from '../history.mjs';
 import { MetricsStore } from '../store.mjs';
@@ -108,19 +108,69 @@ test('equivalent model IDs normalize identically without changing versions or in
  assert.equal(formatModelName('gemini-4-argon'),'Gemini 4 Argon');
  assert.equal(formatModelName('gemini-4-carbon-high'),'Gemini 4 Carbon (High)');
  assert.equal(formatModelName('gpt-6.1-sol'),'GPT-6.1 Sol');
+ assert.equal(formatModelName('word/gpt-6.1-sol'),'GPT-6.1 Sol');
  assert.equal(formatModelName('gpt-6-1-sol-high'),'GPT-6.1 Sol (High)');
+ assert.equal(formatModelName('gpt-6-astra-extra'),'GPT-6 Astra (XHigh)');
  assert.equal(modelContextCapacity('Gemini 4 Hydrogen (XHigh)'),1048576);
  assert.equal(modelContextCapacity('gemini-4-argon'),1048576);
  assert.equal(modelContextCapacity('gemini-4-carbon'),1048576);
- assert.equal(modelContextCapacity('gpt-6.1-sol'),1050000);
+ assert.equal(modelContextCapacity('gpt-6.1-sol'),null);
+ assert.equal(modelContextReference('gpt-6.1-sol'),null);
+ assert.equal(modelContextReference('gpt-6-astra'),null);
  const hydrogen=contextMetrics({estimatedTokensUsed:51643,maxContextTokens:256000},{model:'Gemini 4 Hydrogen (Low)'});
  assert.equal(hydrogen.maxTokens,256000);assert.equal(hydrogen.providerMaxTokens,1048576);
  assert.equal(Math.round(hydrogen.usedFraction*100),20);
  const oneMillion=contextMetrics({estimatedTokensUsed:200000,maxContextTokens:1000000},{model:'gemini-4-hydrogen-xhigh'});
  assert.equal(oneMillion.maxTokens,1000000);assert.equal(oneMillion.usedFraction,0.2);assert.equal(oneMillion.providerMaxTokens,1048576);
 });
+test('Claude 4.5-5.5, enums, word/*, efforts, Orchestrator, BYOM, Perplexity and tiered Flash normalize safely',()=>{
+ for(const family of ['sonnet','opus','haiku']){
+  const cap=family[0].toUpperCase()+family.slice(1);
+  for(const raw of [`claude-${family}-4-5`,`claude-${family}-4.5`,`claude-${family}-4-5-20250929`,`claude-${family}-4-5@20261114`,`MODEL_CLAUDE_4_5_${family.toUpperCase()}`,`word/claude-${family}-4-5`]){
+   assert.equal(formatModelName(raw),`Claude ${cap} 4.5`,raw);
+   assert.equal(modelContextReference(raw)?.label,'200K',raw);
+   assert.equal(modelContextCapacity(raw),null,raw);
+  }
+  assert.equal(formatModelName(`MODEL_CLAUDE_4_5_${family.toUpperCase()}_THINKING`),`Claude ${cap} 4.5 (Thinking)`);
+  assert.equal(modelContextReference(`MODEL_CLAUDE_4_5_${family.toUpperCase()}_THINKING`)?.label,'200K');
+ }
+ for(const raw of ['claude-opus-4-7','claude-opus-4.8','word/claude-opus-4-7-max','claude-haiku-5-5','claude-haiku-5.5-extra']){
+  assert.equal(modelContextReference(raw)?.label,'1M',raw);
+ }
+ assert.equal(formatModelName('claude-opus-4-7-max'),'Claude Opus 4.7 (Max)');
+ assert.equal(formatModelName('claude-sonnet-5-5-extra-high'),'Claude Sonnet 5.5 (XHigh)');
+ assert.equal(formatModelName('claude-sonnet-5-5-extra'),'Claude Sonnet 5.5 (XHigh)');
+ assert.equal(formatModelName('claude-sonnet-5-5-n'),'Claude Sonnet 5.5');
+ assert.equal(formatModelName('word/claude-sonnet-5-5-medium@default'),'Claude Sonnet 5.5 (Medium)');
+ for(const [raw,expected] of [
+  ['MODEL_CLAUDE_4_OPUS_THINKING','Claude Opus 4 (Thinking)'],
+  ['MODEL_CLAUDE_3_5_SONNET','Claude Sonnet 3.5'],
+  ['claude-sonnet-4-7','Claude Sonnet 4.7'],
+  ['claude-haiku-4-6','Claude Haiku 4.6'],
+  ['MODEL_GOOGLE_GEMINI_INTERNAL_BYOM','Gemini (Internal BYOM)'],
+  ['gemini-pro-orchestrator-g1-pro','Orchestrator (Argon)'],
+  ['perplexity/fable-5.1','Perplexity Fable 5.1'],
+  ['perplexity/sonnet-5-5-high','Perplexity Sonnet 5.5 (High)'],
+ ]){
+  assert.equal(formatModelName(raw),expected,raw);
+  assert.equal(modelContextReference(raw),null,raw);
+ }
+ assert.equal(formatModelName('gemini-3.8-flash-tiered'),'Gemini 3.8 Flash (Tiered)');
+ assert.equal(modelContextCapacity('gemini-3.8-flash-tiered'),1048576);
+ assert.equal(usageModelKey('claude-sonnet-5-5-medium'),'Claude Sonnet 5.5 (Medium)');
+ assert.equal(usageModelKey('word/claude-sonnet-5.5-medium@default'),'Claude Sonnet 5.5 (Medium)');
+ assert.equal(usageModelKey(' \x00 '),'Unknown');
+});
+test('metrics and history normalize raw placeholder and wrapped model names',async t=>{
+ const result=trajectoryMetrics({trajectory:{cascadeId:id,generatorMetadata:[{chatModel:{model:'MODEL_PLACEHOLDER_M26',chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:1000,maxContextTokens:100000}},usage:{messageId:'m1',inputTokens:'10',responseOutputTokens:'10',apiProvider:'API_PROVIDER_ANTHROPIC'}},streamingDuration:'1s'}]}});
+ assert.equal(result.model,'Claude Opus 4.6 (Thinking)');
+ assert.equal(result.context.providerCapacityLabel,'1M');
+ const dir=await mkdtemp(join(tmpdir(),'ag-hist-model-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const history=new SessionHistory(dir);await history.save(scope,id,{...result,model:'word/claude-sonnet-5-5-medium'});
+ assert.equal((await history.load(scope,id)).metrics.model,'Claude Sonnet 5.5 (Medium)');
+});
 test('unknown/family/specialized model names never inherit another model reference',()=>{
- for(const model of ['Gemini','gemini-3.8-flash-tts','gemini-3.8-flash-lite','gemini-4','gemini-4-hydrogen-tts','Claude','claude-sonnet-4-5','claude-sonnet-4','claude-sonnet-5-5-custom','gpt-oss','gpt-oss-20b','gpt-6.1','gpt-6.1-sol-custom','MODEL_PLACEHOLDER_M317','MODEL_PLACEHOLDER_M421','user-gemini-3.8-flash-custom']){
+ for(const model of ['Gemini','gemini-3.8-flash-tts','gemini-3.8-flash-lite','gemini-4','gemini-4-hydrogen-tts','Claude','claude-sonnet-4','claude-sonnet-5-5-custom','gpt-oss','gpt-oss-20b','gpt-6.1','gpt-6.1-sol-custom','MODEL_PLACEHOLDER_M317','MODEL_PLACEHOLDER_M322','MODEL_PLACEHOLDER_M421','user-gemini-3.8-flash-custom']){
   assert.equal(modelContextReference(model),null,model);assert.equal(formatModelName(model),model);
  }
  for(const model of [undefined,null,123,'',' \n\t'])assert.equal(modelContextReference(model),null);

@@ -40,7 +40,9 @@ try{
    await strip.locator('[data-card=context]').hover();await strip.locator('#context-card').waitFor({state:'visible'});
    assert.match(await strip.locator('#context-card .scope-note').textContent(),lang==='en'?/Current subagent/:/当前子代理/);
    assert.match(await strip.locator('#five-note').textContent(),lang==='en'?/Account quota/:/账号共享额度/);
-   assert.ok((await strip.locator('.group-trigger').textContent()).includes('Claude / GPT'),'Quota group comes from child sampled model');
+   const triggerText=await strip.locator('.group-trigger').textContent();
+   assert.ok(triggerText.includes('Claude'),'Quota group comes from child sampled model');
+   assert.equal(triggerText.includes('GPT'),false,'3p group label must not include GPT');
    await page.keyboard.press('Escape');
    for(const width of [700,500,370,1100]){
     await page.setViewportSize({width,height:800});await page.waitForTimeout(100);

@@ -16,7 +16,7 @@ The collector and this document distinguish the following sources. The compact c
 2. **Provider capacity reference:** a sourced upstream specification for an exactly identified model. It does not promise that this account, host, mode or request can use that capacity. Gemini's published input budget and a combined context window are not interchangeable.
 3. **Compaction threshold:** unknown unless a reliable host-specific source establishes the trigger. `maxContextTokens` alone is not evidence of such a threshold. The current inspected schema provides only `estimatedTokensUsed` and `maxContextTokens`, so this implementation does not claim fixed 256K/160K/80K triggers.
 
-References checked on **2026-10-14** (with Gemini 4 and GPT-6.1 Sol checked on **2026-11-13**):
+References checked on **2026-10-14** (with Gemini 4 checked on **2026-11-13**, and Claude context windows and host aliases re-checked on **2026-11-14**):
 
 | Exact model family | Published reference | Source |
 | --- | --- | --- |
@@ -25,19 +25,24 @@ References checked on **2026-10-14** (with Gemini 4 and GPT-6.1 Sol checked on *
 | Gemini 4 Argon | Context window 1,048,576 | [Google AI Studio model documentation](https://aistudio.google.com/docs/models/gemini-4-argon) |
 | Gemini 4 Carbon | Context window 1,048,576 | [Google AI Studio model documentation](https://aistudio.google.com/docs/models/gemini-4-carbon) |
 | GPT-OSS 120B | Context window 131,072 | [OpenAI model specification](https://developers.openai.com/api/docs/models/gpt-oss-120b) |
-| GPT-6.1 Sol | Context window 1,050,000 | [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6.1-sol) |
+| Claude Sonnet 4.5 | 200K | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
+| Claude Opus 4.5 | 200K | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
+| Claude Haiku 4.5 | 200K | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
 | Claude Sonnet 4.6 | 1M | [Anthropic model specification](https://platform.claude.com/docs/en/models/sonnet-4-6/overview) |
 | Claude Opus 4.6 | 1M | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
+| Claude Opus 4.7 | 1M | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
+| Claude Opus 4.8 | 1M | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
 | Claude Sonnet 5.5 | 1M | [Anthropic model specification](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) |
 | Claude Opus 5.5 | 1M | [Anthropic model specification](https://platform.claude.com/docs/en/models/opus-5-5/overview) |
+| Claude Haiku 5.5 | 1M | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
 
-Claude references retain the literal published `1M` label; they are not converted into a guessed precise 1,048,576-token figure. The raw numeric provider-reference field is null for these label-only entries. References are static, dated documentation lookups, not a live capabilities query.
+Claude references retain the literal published `200K` or `1M` label; they are not converted into a guessed precise binary or decimal figure. The raw numeric provider-reference field is null for these label-only entries. References are static, dated documentation lookups, not a live capabilities query.
 
 ## Model recognition
 
-Version spellings such as `claude-sonnet-5.5` and `claude-sonnet-5-5` normalize consistently. The parser preserves explicit thinking/effort labels; it does not invent them for every model. Exact unrecognized models, custom suffixes, TTS variants, incomplete family names and unknown placeholders do not inherit another model's reference.
+Version spellings such as `claude-sonnet-5.5` and `claude-sonnet-5-5`, host enum IDs (`MODEL_CLAUDE_*`), `word/*` wrappers, and `@default` or `@YYYYMMDD` date tags normalize consistently into canonical display labels (`Claude Sonnet 5.5 (Medium)`). Usage ledgers canonicalize keys at aggregation and UI render time so equivalent IDs merge without mutating existing JSON or SQLite ledger files. The parser preserves explicit effort and thinking labels (`Low`, `Medium`, `High`, `XHigh` for `extra`/`extra-high`, `Max`, `Tiered`, `Thinking`) while omitting empty `-n` suffixes, formats `perplexity/*` slugs and historical `GPT-6.1 Sol` / `GPT-6 Astra` labels cleanly, and does not fabricate provider capacity references for unverified variants (such as speculative Claude 4.7/4.8 Sonnet/Haiku, `GPT-6.1 Sol`, `GPT-6 Astra`, `Orchestrator (Argon)`, `Gemini (Internal BYOM)`, `Perplexity`, TTS variants, or unknown placeholders).
 
-Host enum aliases were checked against the installed App's model catalog on the same date: M318 = Gemini High, M319 = Medium, **M320 = Low**, M35 = Claude Sonnet 4.6 (Thinking), M26 = Claude Opus 4.6 (Thinking). M317 is not assumed to be Gemini Low. Alias mappings can change in future host versions; the active percentage still uses the host counters even if a reference alias later becomes outdated.
+Host enum aliases were checked against the installed App's model catalog on **2026-10-14** and **2026-11-14**: M318 = Gemini 3.8 Flash (High), M319 = Medium, **M320 = Low**, M35 = Claude Sonnet 4.6 (Thinking), M26 = Claude Opus 4.6 (Thinking), `MODEL_GOOGLE_GEMINI_INTERNAL_BYOM` = Gemini (Internal BYOM), and `gemini-pro-orchestrator-g1-pro` = Orchestrator (Argon). M317 and M322 are not guessed. Alias mappings can change in future host versions; the active percentage still uses the host counters even if a reference alias later becomes outdated.
 
 ## Persistence and verification
 
@@ -49,7 +54,7 @@ Regressions cover host/reference disagreement, missing and invalid counters, zer
 
 控件百分比仍使用宿主返回的「当前已用量 ÷ 当前窗口容量」。供应商容量在后台数据和本说明里单独作为参考，不覆盖当前会话的分母；原生规格、当前产品窗口和压缩触发阈值是不同概念。未核实的压缩阈值不展示，不套用固定数值。
 
-模型 ID 的小数点和连字符写法统一解析，精确识别已核实型号；未知型号不继承其他型号的容量。恢复保存记录时重新计算派生值，并拒绝任意来源 URL、非法阈值和未知字段。
+模型 ID 的小数点和连字符写法、`word/*` 前缀、`MODEL_CLAUDE_*` 枚举及 `@default`/`@YYYYMMDD` 后缀统一规范化，精确识别已核实型号（Claude 4.5 标注 `200K`，Claude 4.6/4.7/4.8/5.5 标注 `1M`，已移除未核实的 `GPT-6.1 Sol` 容量引用）；未知或未核实型号不继承其他型号的容量。读取用量账本与图表时按规范化名称动态合并，不改写磁盘上的既有 JSON 或 SQLite 记录。恢复保存记录时重新计算派生值，并拒绝任意来源 URL、非法阈值和未知字段。
 
 ## Optional recorded-text breakdown (PR #15)
 

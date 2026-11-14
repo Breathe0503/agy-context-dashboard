@@ -3,6 +3,7 @@ import {Worker} from 'node:worker_threads';
 import {readFile,writeFile,mkdir,rename,readdir,unlink,open,stat,lstat} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
+import {usageModelKey} from './context.mjs';
 import {tokenCount,requestCacheMetrics} from './metrics.mjs';
 import {platformPaths} from '../../compat/platform.mjs';
 import {discoverLocalConversations,conversationId} from './local-conversations.mjs';
@@ -12,7 +13,17 @@ import {collectionFailure} from './collection-state.mjs';
 const HASH=/^[a-f0-9]{64}$/,GUID=/^[a-f0-9-]{36}$/i;
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const keys=['uncached','cacheRead','cacheWrite','output'];
-const cleanModel=value=>String(value||'Unknown').replace(/[\x00-\x1f\x7f]/g,'').slice(0,120);
+const cleanModel=value=>usageModelKey(typeof value==='string'?value:value==null?'':String(value));
+export function createUsageModelNormalizer(){
+  const cache=new Map();
+  return value=>{
+    const key=typeof value==='string'?value:'';
+    if(cache.has(key))return cache.get(key);
+    const normalized=usageModelKey(key);
+    if(cache.size<512)cache.set(key,normalized);
+    return normalized;
+  };
+}
 const stamp=value=>typeof value==='string'&&/^20\d\d-\d\d-\d\dT/.test(value)&&Number.isFinite(Date.parse(value))?Date.parse(value):null;
 const sum=r=>keys.reduce((n,k)=>n+(r[k]??0),0);
 function mergeUsageRow(row,old){const record={...row,at:row.at??old?.at??null,timeBasis:row.at===null&&old?.at!==null&&old?.at!==undefined?old.timeBasis:row.timeBasis};for(const key of keys)record[key]=row[key]??old?.[key]??null;return record;}
@@ -262,12 +273,14 @@ export class UsageLedger{
         for(const r of record.records){const previous=seen.get(r.id);if(!previous||sum(r)>sum(previous))seen.set(r.id,r);}
       }catch{unreadable++;}
     }
+    const normalizeModel=createUsageModelNormalizer();
     for(const r of seen.values()){
-      models.add(r.model);if(r.partial)partialRequests++;
+      const model=normalizeModel(r.model);
+      models.add(model);if(r.partial)partialRequests++;
       if(r.at===null){unknownTokens+=sum(r);unknownRequests++;continue;}
       const date=dateKey(r.at,this.timeZone);if(!daily.has(date))daily.set(date,{date,models:{}});
-      const day=daily.get(date);day.models[r.model]||={uncached:0,cacheRead:0,cacheWrite:0,output:0,total:0,requests:0};
-      const bucket=day.models[r.model];for(const key of keys)bucket[key]+=r[key]??0;bucket.total+=sum(r);bucket.requests++;
+      const day=daily.get(date);if(!Object.hasOwn(day.models,model))Object.defineProperty(day.models,model,{value:{uncached:0,cacheRead:0,cacheWrite:0,output:0,total:0,requests:0},enumerable:true,writable:true,configurable:true});
+      const bucket=day.models[model];for(const key of keys)bucket[key]+=r[key]??0;bucket.total+=sum(r);bucket.requests++;
     }
     const days=[...daily.values()].sort((a,b)=>a.date.localeCompare(b.date));
     const total=day=>Object.values(day.models).reduce((n,r)=>n+r.total,0);

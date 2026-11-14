@@ -5,7 +5,7 @@ import {createReadStream} from 'node:fs';
 import {lstat,stat,readdir,unlink} from 'node:fs/promises';
 import {join} from 'node:path';
 import {TrajectoryJson} from './trajectory-json.mjs';
-import {dateKey,weekStart} from './usage.mjs';
+import {dateKey,weekStart,createUsageModelNormalizer} from './usage.mjs';
 const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:workerData.timeZone||'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'});
 const recordDate=time=>{const parts=formatter.formatToParts(time),get=k=>parts.find(p=>p.type===k).value;return get('year')+'-'+get('month')+'-'+get('day');};
 const keys=['uncached','cacheRead','cacheWrite','output'],HASH=/^[a-f0-9]{64}$/;
@@ -63,8 +63,8 @@ async function summarize(){
   for(const name of names){if(name.endsWith('.json')&&disks.has(name.slice(0,-5)))continue;check();db.exec('SAVEPOINT source');try{await rows(join(workerData.directory,name),row=>{const previous=get.get(row.id);if(!previous||total(row)>total(JSON.parse(previous.j)))put.run(row.id,JSON.stringify(row));});db.exec('RELEASE source');}catch(e){db.exec('ROLLBACK TO source;RELEASE source');check();unreadable++;}}
   db.exec('BEGIN;CREATE TABLE buckets(day TEXT,model TEXT,uncached INTEGER,cacheRead INTEGER,cacheWrite INTEGER,output INTEGER,total INTEGER,requests INTEGER,PRIMARY KEY(day,model));CREATE TABLE models(model TEXT PRIMARY KEY);');
   const bucket=db.prepare('INSERT INTO buckets VALUES(?,?,?,?,?,?,?,1) ON CONFLICT(day,model) DO UPDATE SET uncached=uncached+excluded.uncached,cacheRead=cacheRead+excluded.cacheRead,cacheWrite=cacheWrite+excluded.cacheWrite,output=output+excluded.output,total=total+excluded.total,requests=requests+1');
-  const model=db.prepare('INSERT OR IGNORE INTO models VALUES(?)');let unknownTokens=0,unknownRequests=0,partialRequests=0;
-  for(const {j} of db.prepare('SELECT j FROM records ORDER BY rowid').iterate()){check();const r=JSON.parse(j);model.run(r.model);if(r.partial)partialRequests++;if(r.at===null){unknownTokens+=total(r);unknownRequests++;continue;}bucket.run(recordDate(r.at),r.model,...keys.map(k=>r[k]??0),total(r));}
+  const model=db.prepare('INSERT OR IGNORE INTO models VALUES(?)'),normalizeModel=createUsageModelNormalizer();let unknownTokens=0,unknownRequests=0,partialRequests=0;
+  for(const {j} of db.prepare('SELECT j FROM records ORDER BY rowid').iterate()){check();const r=JSON.parse(j),name=normalizeModel(r.model);model.run(name);if(r.partial)partialRequests++;if(r.at===null){unknownTokens+=total(r);unknownRequests++;continue;}bucket.run(recordDate(r.at),name,...keys.map(k=>r[k]??0),total(r));}
   db.exec('COMMIT');
   const days=[],models=[];let used=0;
   for(const row of db.prepare('SELECT * FROM buckets ORDER BY day,model').iterate()){check();used+=Buffer.byteLength(JSON.stringify(row));if(used>4*1024*1024)throw Error('Usage summary exceeds result budget');let day=days.at(-1);if(day?.date!==row.day){day={date:row.day,models:{}};days.push(day);}const {day:_,model,...values}=row;Object.defineProperty(day.models,model,{value:values,enumerable:true,configurable:true,writable:true});}

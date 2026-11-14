@@ -71,7 +71,89 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   const add=(date,days)=>{const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
   const week=date=>{const d=new Date(date+'T00:00:00Z');return add(date,-((d.getUTCDay()+6)%7));};
   const month=(date,shift)=>{const d=new Date(date.slice(0,7)+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+shift);return d.toISOString().slice(0,10);};
-  const modelName=model=>model.replace(/-n$/,'').replace(/^gemini-/i,'Gemini ').replace(/^claude-/i,'Claude ').replace(/^gpt-/i,'GPT ').replace(/-/g,' ');
+  const modelAliases=new Map([
+    ['model_placeholder_m318','Gemini 3.8 Flash (High)'],
+    ['model_placeholder_m319','Gemini 3.8 Flash (Medium)'],
+    ['model_placeholder_m320','Gemini 3.8 Flash (Low)'],
+    ['model_placeholder_m35','Claude Sonnet 4.6 (Thinking)'],
+    ['model_placeholder_m26','Claude Opus 4.6 (Thinking)'],
+    ['model_openai_gpt_oss_120b_medium','GPT-OSS 120B (Medium)'],
+    ['model_google_gemini_internal_byom','Gemini (Internal BYOM)'],
+    ['gemini-pro-orchestrator-g1-pro','Orchestrator (Argon)'],
+  ]);
+  const EFFORT='n|xhigh|extra-high|extrahigh|extra|high|medium|low|max|thinking';
+  const capWord=s=>s[0].toUpperCase()+s.slice(1);
+  const effortLabel=effort=>{if(!effort||effort==='n')return '';const v=effort.toLowerCase();return v==='xhigh'||v==='extra'||v==='extra-high'||v==='extrahigh'?' (XHigh)':` (${capWord(v)})`;};
+  const perplexityName=slug=>{
+    const trimmed=slug.replace(/@(?:default|\d{8})(?=$|[-_\s()])/gi,'').trim();
+    if(!trimmed)return null;
+    const norm=trimmed.toLowerCase().replace(/(\d)[._-](\d)/g,'$1.$2').replace(/[\s()_]+/g,'-').replace(/-+$/,'');
+    const effortMatch=norm.match(new RegExp(`^(.+?)-(?:(${EFFORT}))$`));
+    const base=effortMatch?effortMatch[1]:norm,effort=effortMatch?effortLabel(effortMatch[2]):'';
+    const words=base.split('-').filter(Boolean).map(p=>/^\d+(?:\.\d+)?$/.test(p)?p:capWord(p));
+    return words.length?`Perplexity ${words.join(' ')}${effort}`:null;
+  };
+  const modelName=model=>{
+    if(typeof model!=='string')return 'Unknown';
+    const name=model.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,120);
+    if(!name)return 'Unknown';
+    const aliased=modelAliases.get(name.toLowerCase())||null;
+    const candidate=(aliased||name).replace(/^word\//i,'');
+    if(/^perplexity\//i.test(candidate)){const p=perplexityName(candidate.slice(11));if(p)return p;}
+    const norm=candidate.toLowerCase().replace(/@(?:default|\d{8})(?=$|[-_\s()])/g,'').replace(/(\d)[._-](\d)/g,'$1.$2').replace(/[\s()_]+/g,'-').replace(/-+$/,'');
+    let m=norm.match(/^gemini-3\.8-flash(?:-(n|high|medium|low|tiered))?$/);
+    if(m)return 'Gemini 3.8 Flash'+effortLabel(m[1]);
+    m=norm.match(new RegExp(`^gemini-4-(hydrogen|argon|carbon)(?:-(${EFFORT}))?$`));
+    if(m)return `Gemini 4 ${capWord(m[1])}`+effortLabel(m[2]);
+    m=norm.match(new RegExp(`^orchestrator-argon(?:-(${EFFORT}))?$`));
+    if(m)return 'Orchestrator (Argon)'+effortLabel(m[1]);
+    m=norm.match(new RegExp(`^claude-(sonnet|opus|haiku)-(4\\.5|4\\.6|4\\.7|4\\.8|5\\.5)(?:-\\d{8})?(?:-(${EFFORT}))?(?:-\\d{8})?$`));
+    if(m)return `Claude ${capWord(m[1])} ${m[2]}`+effortLabel(m[3]);
+    m=norm.match(new RegExp(`^model-claude-(4\\.5|4\\.6|4\\.7|4\\.8|5\\.5)-(sonnet|opus|haiku)(?:-\\d{8})?(?:-(${EFFORT}))?$`));
+    if(m)return `Claude ${capWord(m[2])} ${m[1]}`+effortLabel(m[3]);
+    m=norm.match(new RegExp(`^model-claude-(3|3\\.5|3\\.7|4)-(sonnet|opus|haiku)(?:-\\d{8})?(?:-(${EFFORT}))?$`));
+    if(m)return `Claude ${capWord(m[2])} ${m[1]}`+effortLabel(m[3]);
+    m=norm.match(/^gpt-oss-120b(?:-(high|medium|low))?$/);
+    if(m)return 'GPT-OSS 120B'+effortLabel(m[1]);
+    m=norm.match(new RegExp(`^gpt-6\\.1-sol(?:-(${EFFORT}))?$`));
+    if(m)return 'GPT-6.1 Sol'+effortLabel(m[1]);
+    m=norm.match(new RegExp(`^gpt-6-astra(?:-(${EFFORT}))?$`));
+    if(m)return 'GPT-6 Astra'+effortLabel(m[1]);
+    if(aliased)return aliased;
+    if(/^(?:gemini|claude|gpt)-/i.test(candidate))return candidate.replace(/-n$/,'').replace(/^gemini-/i,'Gemini ').replace(/^claude-/i,'Claude ').replace(/^gpt-/i,'GPT ').replace(/-/g,' ');
+    return name;
+  };
+  function normalizeUsageData(data){
+    if(!data||!Array.isArray(data.days))return data;
+    let changed=false;
+    const modelSet=new Set();
+    for(const m of Array.isArray(data.models)?data.models:[]){
+      const canon=modelName(String(m||''));
+      if(canon!==m)changed=true;
+      if(canon)modelSet.add(canon);
+    }
+    const days=data.days.map(day=>{
+      if(!day||!day.models||typeof day.models!=='object')return day;
+      let dayChanged=false;
+      const merged={};
+      for(const [rawModel,r]of Object.entries(day.models)){
+        const canon=modelName(rawModel);
+        if(canon!==rawModel||Object.hasOwn(merged,canon))dayChanged=true;
+        modelSet.add(canon);
+        if(!Object.hasOwn(merged,canon)){
+          Object.defineProperty(merged,canon,{value:{total:0,requests:0,uncached:0,cacheRead:0,cacheWrite:0,output:0},enumerable:true,writable:true,configurable:true});
+        }
+        const target=merged[canon];
+        for(const key of Object.keys(target))target[key]+=Number(r?.[key])||0;
+      }
+      if(dayChanged)changed=true;
+      return dayChanged?{...day,models:merged}:day;
+    });
+    const models=[...modelSet];
+    const sameModels=Array.isArray(data.models)&&data.models.length===models.length&&models.every((m,i)=>m===data.models[i]);
+    if(!changed&&sameModels)return data;
+    return {...data,days,models};
+  }
   const themeSignature=()=>{const s=getComputedStyle(root.host||dialog);return [s.getPropertyValue('--pulse-accent'),s.getPropertyValue('--pulse-background'),root.host?.dataset.pulseTheme].join('|');};
   let paletteKey='',modelColors=new Map();
   const colorCanvas=document.createElement('canvas');colorCanvas.width=colorCanvas.height=1;
@@ -316,10 +398,11 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   for(const type of ['pointerdown','mousedown','click'])document.addEventListener(type,containPointer,true);
   // CSS surfaces update immediately; JS model colors must follow in the same
   // theme change, rather than waiting for the next metrics poll.
-  const themeObserver=new MutationObserver(()=>{if(!disposed&&value&&dialog.open){const key=contentKey(value);if(key!==lastKey){lastKey=key;render();}}});
+  let rawValue=null;
+  const themeObserver=new MutationObserver(()=>{if(!disposed&&rawValue&&dialog.open){const key=contentKey(rawValue);if(key!==lastKey){lastKey=key;render();}}});
   if(root.host)themeObserver.observe(root.host,{attributes:true,attributeFilter:['data-pulse-theme','style']});
-  return {open(data,trigger){if(!data||disposed)return;accountKey=data.accountKey;value=data;opener=trigger;year||=data.today.slice(0,4);anchor||=data.today;lastKey=contentKey(data);render();present();},
-    update(data){if(disposed)return;if(!data){if(!value)return;value=null;lastKey='';if(dialog.open)render();return;}if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}accountKey=data.accountKey;value=data;if(!dialog.open)return;const key=contentKey(data);if(key===lastKey)return;lastKey=key;render();},
+  return {open(data,trigger){if(!data||disposed)return;accountKey=data.accountKey;rawValue=data;value=normalizeUsageData(data);opener=trigger;year||=value.today.slice(0,4);anchor||=value.today;lastKey=contentKey(data);render();present();},
+    update(data){if(disposed)return;if(!data){if(!value)return;rawValue=value=null;lastKey='';if(dialog.open)render();return;}if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}accountKey=data.accountKey;if(!dialog.open){rawValue=data;value=normalizeUsageData(data);return;}const key=contentKey(data);if(key===lastKey)return;lastKey=key;rawValue=data;value=normalizeUsageData(data);render();},
     restoreModal(){if(!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);present();}},
     close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker.dispose();themeObserver.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();closeYear(false);window.removeEventListener('resize',positionYear);document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();dialog.remove();backdrop.remove();},get isOpen(){return dialog.open;}};
 };

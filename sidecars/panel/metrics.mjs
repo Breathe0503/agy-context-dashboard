@@ -1,5 +1,5 @@
 // Pure transforms. No credentials, prompts, or message text enter the public result.
-import { contextMetrics } from './context.mjs';
+import { contextMetrics, formatModelName } from './context.mjs';
 import { classifyRates, RATE_VERSION, RATE_REASONS } from './rate-quality.mjs';
 export function seconds(value) {
   if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? value : null;
@@ -139,9 +139,10 @@ export function trajectoryMetrics(response, storage = null) {
     const toolOnly = planners.length > 0 && planners.every(step=>step.plannerResponse?.toolCalls?.length > 0 &&
       !String(step.plannerResponse?.response || '').trim());
     const basis = visible !== null || thinking !== null ? 'response' : 'all-output';
+    const rawModel = chat.modelDisplayName || chat.responseModel || String(chat.model || usage.model || '');
     const sample = { responseTokens, duration, ttft, reasons, toolOnly,
       tps: responseTokens !== null && duration > 0 ? responseTokens / duration : null,
-      model: chat.modelDisplayName || chat.responseModel || String(chat.model || usage.model || ''), basis,
+      model: formatModelName(rawModel) || '', basis,
       profile: JSON.stringify([usage.apiProvider || '',chat.responseModel || usage.model || chat.model || chat.modelDisplayName || '',basis]) };
     samples.push(sample);
     ids.set(id,{signature,sample});

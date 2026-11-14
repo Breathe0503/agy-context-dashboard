@@ -293,7 +293,9 @@ try {
     await host.locator('[data-group="3p"]').click();await page.waitForTimeout(180);
     assert.equal(await host.locator('#context-card').isVisible(),true);
     assert.equal(await host.locator('.group-menu').isVisible(),false);
-    assert.match(await host.locator('.group-trigger').textContent(),/Claude \/ GPT/);
+    const triggerText=await host.locator('.group-trigger').textContent();
+    assert.match(triggerText,/Claude/);
+    assert.equal(triggerText.includes('GPT'),false);
     assert.match(await host.locator('#five-balance').textContent(),/41\.7%/);
     await host.locator('.group-trigger').focus();await page.keyboard.press('Enter');
     assert.equal(await host.locator('.group-menu').isVisible(),true);

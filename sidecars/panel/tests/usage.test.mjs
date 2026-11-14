@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
@@ -59,4 +59,28 @@ test('IDE usage keeps a separate ledger and source across collector restarts',as
  const tracker=new DesktopUsage(store,ide);await tracker.sync();assert.equal((await tracker.snapshot()).source,'ide-local');assert.equal((await tracker.snapshot()).totalTokens,1100);
  assert.equal((await desktop.summary(account)).totalTokens,0);
  const restarted=new DesktopUsage(store,new UsageLedger(ide.directory,{source:'ide-local'}));await restarted.sync();assert.equal((await restarted.snapshot()).totalTokens,1100);assert.equal((await restarted.snapshot()).requests,1);
+});
+test('legacy JSON usage rows merge canonical model equivalents on read without mutating disk files',async t=>{
+ const ledger=await fixture(t);
+ assert.equal(usageRecords(raw({model:'claude-sonnet-5-5-medium'}),id)[0].model,'Claude Sonnet 5.5 (Medium)');
+ assert.equal(usageRecords(raw({model:'word/claude-opus-4-6-thinking'}),id)[0].model,'Claude Opus 4.6 (Thinking)');
+ assert.equal(usageRecords(raw({model:'MODEL_PLACEHOLDER_M26'}),id)[0].model,'Claude Opus 4.6 (Thinking)');
+ assert.equal(usageRecords(raw({model:'gemini-3.8-flash-tiered'}),id)[0].model,'Gemini 3.8 Flash (Tiered)');
+ const at=Date.parse('2026-10-10T16:05:00Z');
+ const make=(key,model)=>({id:scope(key),at,model,uncached:100,cacheRead:0,cacheWrite:0,output:50,partial:false,timeBasis:'request-start'});
+ const jsonPath=ledger.file(account,id),before=JSON.stringify({schema:1,account,records:[
+  make('m1','claude-sonnet-5-5-medium'),make('m2','Claude Sonnet 5.5 (Medium)'),
+  make('e1','claude-sonnet-5-5'),make('e2','claude-sonnet-5.5'),make('e3','word/claude-sonnet-5-5'),
+  make('o1','MODEL_PLACEHOLDER_M26'),make('o2','word/claude-opus-4-6-thinking'),
+  make('g1','word/gpt-6.1-sol'),make('g2','gpt-6.1-sol'),
+ ]});
+ await mkdir(join(ledger.directory,account),{recursive:true});await writeFile(jsonPath,before);
+ const summary=await ledger.summary(account,Date.parse('2026-10-11T02:00:00Z'));
+ assert.equal(await readFile(jsonPath,'utf8'),before);
+ assert.deepEqual(summary.models.sort(),['Claude Opus 4.6 (Thinking)','Claude Sonnet 5.5','Claude Sonnet 5.5 (Medium)','GPT-6.1 Sol']);
+ const buckets=summary.days[0].models;
+ assert.equal(buckets['Claude Sonnet 5.5 (Medium)'].total,300);assert.equal(buckets['Claude Sonnet 5.5 (Medium)'].requests,2);
+ assert.equal(buckets['Claude Sonnet 5.5'].total,450);assert.equal(buckets['Claude Sonnet 5.5'].requests,3);
+ assert.equal(buckets['Claude Opus 4.6 (Thinking)'].total,300);
+ assert.equal(buckets['GPT-6.1 Sol'].total,300);
 });
