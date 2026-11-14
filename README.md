@@ -2,7 +2,7 @@
 
 <img src="docs/assets/hero.png?v=0.8.0" width="100%" alt="Antigrative Dashboard v0.8.0: current speed, cache and context controls beside the input.">
 
-# AGY Context Dashboard (Antigrative Dashboard)
+# Agy Context Dashboard (Antigrative Dashboard)
 
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
