@@ -26,6 +26,11 @@ test('macOS ps and lsof records isolate user, standalone process, PID and ports'
   assert.deepEqual(ports.get(12),[1234,4321]);
   const rows=await discoverProcesses({platform:'darwin',uid:501,run:async file=>({stdout:file==='/bin/ps'?ps:'p12\nn127.0.0.1:1234\n'})});
   assert.deepEqual(serverFromDiscovery('listening on random port at 1234 for HTTP\n',rows),{port:1234,pid:12,csrf:'test'});
+
+  const nativePs=' 15 501 /Applications/Antigravity.app/Contents/Resources/bin/language_server.native --standalone --csrf_token=native-test\n 16 501 /bin/language_server.native --sidecar';
+  const nativeRows=await discoverProcesses({platform:'darwin',uid:501,run:async file=>({stdout:file==='/bin/ps'?nativePs:'p15\nn127.0.0.1:5678\n'})});
+  assert.equal(nativeRows.length,1);
+  assert.deepEqual(serverFromDiscovery('listening on random port at 5678 for HTTP\n',nativeRows),{port:5678,pid:15,csrf:'native-test'});
 });
 test('Linux /proc TCP parsing accepts only listening sockets with exact owned inodes',()=>{
   const rows=parseProcNet(' sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode\n 0: 0100007F:3039 00000000:0000 0A 00000000:00000000 00:00000000 00000000 1000 0 91234\n 1: 0100007F:303A 00000000:0000 01 0 0 0 1000 0 91235');

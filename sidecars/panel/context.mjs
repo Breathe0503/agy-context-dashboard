@@ -11,24 +11,34 @@ const aliases=new Map([
 ]);
 // Placeholder aliases above were checked against the installed host's model
 // catalog on 2026-10-14. Unknown placeholders stay unknown, not a family guess.
+function formatEffort(effort){
+ if(!effort||effort==='n')return '';
+ return ` (${effort==='xhigh'?'XHigh':effort[0].toUpperCase()+effort.slice(1)})`;
+}
 function identify(model){
  if(typeof model!=='string')return null;
  let name=model.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,256);
  if(!name)return null;name=aliases.get(name.toLowerCase())||name;
  const normalized=name.toLowerCase().replace(/(\d)[._-](\d)/g,'$1.$2').replace(/[\s()_]+/g,'-').replace(/-+$/,'');
  let match=normalized.match(/^gemini-3\.8-flash(?:-(n|high|medium|low))?$/);
- if(match)return {key:'gemini-3.8-flash',display:'Gemini 3.8 Flash'+(match[1]&&match[1]!=='n'?` (${match[1][0].toUpperCase()+match[1].slice(1)})`:'')};
+ if(match)return {key:'gemini-3.8-flash',display:'Gemini 3.8 Flash'+formatEffort(match[1])};
+ match=normalized.match(/^gemini-4-(hydrogen|argon|carbon)(?:-(n|xhigh|high|medium|low))?$/);
+ if(match)return {key:`gemini-4-${match[1]}`,display:`Gemini 4 ${match[1][0].toUpperCase()+match[1].slice(1)}`+formatEffort(match[2])};
  match=normalized.match(/^claude-(sonnet|opus)-(4\.6|5\.5)(?:-(thinking|high|medium|low))?(?:-\d{8})?$/);
- if(match)return {key:`claude-${match[1]}-${match[2]}`,display:`Claude ${match[1][0].toUpperCase()+match[1].slice(1)} ${match[2]}`+(match[3]?` (${match[3][0].toUpperCase()+match[3].slice(1)})`:'')};
+ if(match)return {key:`claude-${match[1]}-${match[2]}`,display:`Claude ${match[1][0].toUpperCase()+match[1].slice(1)} ${match[2]}`+formatEffort(match[3])};
  match=normalized.match(/^gpt-oss-120b(?:-(high|medium|low))?$/);
- if(match)return {key:'gpt-oss-120b',display:'GPT-OSS 120B'+(match[1]?` (${match[1][0].toUpperCase()+match[1].slice(1)})`:'')};
+ if(match)return {key:'gpt-oss-120b',display:'GPT-OSS 120B'+formatEffort(match[1])};
+ match=normalized.match(/^gpt-6\.1-sol(?:-(xhigh|high|medium|low))?$/);
+ if(match)return {key:'gpt-6.1-sol',display:'GPT-6.1 Sol'+formatEffort(match[1])};
  return {key:null,display:name};
 }
 export function formatModelName(model){return identify(model)?.display||null;}
 export function modelContextReference(model){
  const key=identify(model)?.key;
  if(key==='gemini-3.8-flash')return {tokens:1048576,label:'1,048,576',kind:'provider-input-limit',source:'https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash',checkedAt:'2026-10-14'};
+ if(/^gemini-4-(hydrogen|argon|carbon)$/.test(key||''))return {tokens:1048576,label:'1,048,576',kind:'provider-context-window',source:`https://aistudio.google.com/docs/models/${key}`,checkedAt:'2026-11-13'};
  if(key==='gpt-oss-120b')return {tokens:131072,label:'131,072',kind:'provider-context-window',source:'https://developers.openai.com/api/docs/models/gpt-oss-120b',checkedAt:'2026-10-14'};
+ if(key==='gpt-6.1-sol')return {tokens:1050000,label:'1,050,000',kind:'provider-context-window',source:'https://developers.openai.com/api/docs/models/gpt-6.1-sol',checkedAt:'2026-11-13'};
  if(/^claude-(sonnet|opus)-(4\.6|5\.5)$/.test(key||''))return {tokens:null,label:'1M',kind:'provider-context-window',source:`https://platform.claude.com/docs/en/models/${key.slice(7).replace('.', '-')}/overview`,checkedAt:'2026-10-14'};
  // Claude's inspected pages state "1M"; preserve that label rather than
  // inventing a precise 1,048,576-token limit or applying it to this host.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.13 — 2026-11-13
+
+- Community continuation release hosted at `wycocoyu/antigrative-dashboard` under the original MIT License after the upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline.
+- Update the in-app updater (`compat/update-worker.py`), IDE repository metadata (`ide/package.json`), and installation/release links to point to `wycocoyu/antigrative-dashboard`.
+- Match `language_server.native` process names in macOS/POSIX discovery (`sidecars/panel/discovery.mjs`) with regression test coverage.
+- Add model recognition and verified 1M+ provider context-window references (`docs/CONTEXT_LIMITS.md`, `sidecars/panel/context.mjs`) for `Gemini 4 Hydrogen`, `Gemini 4 Argon`, `Gemini 4 Carbon` (`1,048,576`) and `GPT-6.1 Sol` (`1,050,000`), while keeping active occupancy strictly bound to the host-reported `maxContextTokens`.
+
 ## 0.8.12 — 2026-10-29
 
 - Fix [#22](https://github.com/YOU-SHOULD-KNOW-ME/antigrative-dashboard/issues/22): consume a stable, bounded history-import queue across slices so deleted, temporarily unlisted or evicted candidates cannot cause an endless 250 ms continuation loop. Retain failed imports for retry and preserve saved usage.

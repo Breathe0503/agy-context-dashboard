@@ -16,12 +16,16 @@ The collector and this document distinguish the following sources. The compact c
 2. **Provider capacity reference:** a sourced upstream specification for an exactly identified model. It does not promise that this account, host, mode or request can use that capacity. Gemini's published input budget and a combined context window are not interchangeable.
 3. **Compaction threshold:** unknown unless a reliable host-specific source establishes the trigger. `maxContextTokens` alone is not evidence of such a threshold. The current inspected schema provides only `estimatedTokensUsed` and `maxContextTokens`, so this implementation does not claim fixed 256K/160K/80K triggers.
 
-References checked on **2026-10-14**:
+References checked on **2026-10-14** (with Gemini 4 and GPT-6.1 Sol checked on **2026-11-13**):
 
 | Exact model family | Published reference | Source |
 | --- | --- | --- |
 | Gemini 3.8 Flash | Input limit 1,048,576 | [Google model specification](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) |
+| Gemini 4 Hydrogen | Context window 1,048,576 | [Google AI Studio model documentation](https://aistudio.google.com/docs/models/gemini-4-hydrogen) |
+| Gemini 4 Argon | Context window 1,048,576 | [Google AI Studio model documentation](https://aistudio.google.com/docs/models/gemini-4-argon) |
+| Gemini 4 Carbon | Context window 1,048,576 | [Google AI Studio model documentation](https://aistudio.google.com/docs/models/gemini-4-carbon) |
 | GPT-OSS 120B | Context window 131,072 | [OpenAI model specification](https://developers.openai.com/api/docs/models/gpt-oss-120b) |
+| GPT-6.1 Sol | Context window 1,050,000 | [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6.1-sol) |
 | Claude Sonnet 4.6 | 1M | [Anthropic model specification](https://platform.claude.com/docs/en/models/sonnet-4-6/overview) |
 | Claude Opus 4.6 | 1M | [Anthropic context-window documentation](https://platform.claude.com/docs/en/build-with-claude/context-windows) |
 | Claude Sonnet 5.5 | 1M | [Anthropic model specification](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) |
