@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const exec = promisify(execFile);
-const languageServer = command => /(?:^|[\/\\])language_server(?:_(?:linux|macos|darwin)(?:_(?:x64|arm64))?)?(?:\.exe)?(?:\s|$)/.test(command);
+const languageServer = command => /(?:^|[\/\\])language_server(?:\.native)?(?:_(?:linux|macos|darwin)(?:_(?:x64|arm64))?)?(?:\.exe)?(?:\s|$)/.test(command);
 
 export function parsePs(text, uid) {
   return text.split(/\r?\n/).flatMap(line => {
