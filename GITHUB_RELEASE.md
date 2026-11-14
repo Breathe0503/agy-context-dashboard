@@ -1,23 +1,22 @@
-# Antigrative Dashboard v0.8.13
+# AGY Context Dashboard (Antigrative Dashboard) v0.8.14
 
-First community continuation release at `wycocoyu/antigrative-dashboard` under the MIT License after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline. This release preserves existing UI behavior, user settings, `history-v1` snapshots and `usage-v1` ledgers.
+Repository rename and metadata alignment release at [`wycocoyu/agy-context-dashboard`](https://github.com/wycocoyu/agy-context-dashboard) under the MIT License (continuing from `YOU-SHOULD-KNOW-ME/antigrative-dashboard` `v0.8.12`), preserving all `v0.8.13` fixes (`language_server.native`, Gemini 4 & GPT-6.1 Sol 1M+ provider context references), existing UI behavior, user settings, `history-v1` snapshots and `usage-v1` ledgers.
 
-## What changed
+## What changed in v0.8.14
 
-- **Updater & repository retargeting:** Point `compat/update-worker.py`, `ide/package.json`, and installation/release links to `wycocoyu/antigrative-dashboard` so in-app **Check for updates** checks this repository.
-- **macOS native server discovery:** Support `language_server.native` process names in `sidecars/panel/discovery.mjs` and cover it in `sidecars/panel/tests/platform.test.mjs`.
-- **New model recognition & 1M+ provider references:** Add model normalization and verified official context-window references (`docs/CONTEXT_LIMITS.md`, `sidecars/panel/context.mjs`) for `Gemini 4 Hydrogen`, `Gemini 4 Argon`, `Gemini 4 Carbon` (`1,048,576`) and `GPT-6.1 Sol` (`1,050,000`), while keeping active occupancy strictly bound to the host-reported `maxContextTokens`.
+- **Renamed repository & retargeted updater:** Renamed the continuation repository to `wycocoyu/agy-context-dashboard` for better discoverability across Antigravity (`agy`) and DSH communities, and updated `compat/update-worker.py`, `ide/package.json`, READMEs and release links to match the new repository path so in-app **Check for updates** works seamlessly.
+- **Zero-breakage compatibility:** Retained the internal plugin ID (`antigravity-pulse`) and archive naming (`antigrative-dashboard-0.8.14.zip` / `antigrative-dashboard-ide-0.8.14.vsix`) so existing settings and history stay intact.
 
 ## Install or update
 
-- **Antigravity App:** open context details → **⋯ → Check for updates** (available once `v0.8.13` or later is installed). Alternatively, extract `antigrative-dashboard-0.8.13.zip` and run `python manage.py install` (`python3` on Linux/macOS).
-- **Standalone Antigravity IDE:** install `antigrative-dashboard-ide-0.8.13.vsix` using **Install from VSIX…**. This is separate from the App installer.
+- **Antigravity App:** open context details → **⋯ → Check for updates** (available from `v0.8.14` onward). Alternatively, extract `antigrative-dashboard-0.8.14.zip` and run `python manage.py install` (`python3` on Linux/macOS).
+- **Standalone Antigravity IDE:** install `antigrative-dashboard-ide-0.8.14.vsix` using **Install from VSIX…**. This is separate from the App installer.
 - Fully quit and reopen the corresponding host after installation. Keep using the IDE's loopback debugging launch arguments when required.
 - Existing settings, language choices, `history-v1` and `usage-v1` are preserved. SHA-256 checksum files accompany both packages.
 
 ## Verification and limits
 
-Local checks run before tagging `v0.8.13`:
+Local checks run before tagging `v0.8.14`:
 
 - **Node (`npm test`):** 335 passed, 0 failed.
 - **IDE unit tests (`node --test ide/tests/*.test.mjs`):** 11 passed, 0 failed.

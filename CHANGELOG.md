@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.14 — 2026-11-13
+
+- Rename the community continuation repository to `wycocoyu/agy-context-dashboard` for clearer Antigravity (`agy`) and DSH-style discoverability while preserving the internal plugin ID (`antigravity-pulse`) and archive naming compatibility.
+- Retarget `compat/update-worker.py`, `ide/package.json`, READMEs, and documentation links to `wycocoyu/agy-context-dashboard`.
+
 ## 0.8.13 — 2026-11-13
 
 - Community continuation release hosted at `wycocoyu/antigrative-dashboard` under the original MIT License after the upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline.
