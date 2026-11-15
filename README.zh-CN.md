@@ -18,7 +18,7 @@
 
 > **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
 
-**v0.8.15：** 合入上游 `v0.8.20` 优化（基于 `node:sqlite` 的后台流式采集与磁盘用量统计工作线程、Gemini 4 Argon 周额度独立展示、子代理标签页输入框隔离、更新器 `DirectoryAnchor` 路径校验、Windows 端口探测加固与侧栏版本号标签），同时完整保留 `v0.8.13`–`v0.8.14` 分支特性（`wycocoyu/agy-context-dashboard`、`language_server.native` 兼容及 Gemini 4 / GPT-6.1 Sol 1M+ 参考支持）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [变更记录](CHANGELOG.md)。
+**v0.8.15：** 合入上游 `v0.8.20` 优化（基于 `node:sqlite` 的后台流式采集与磁盘用量统计工作线程、Gemini 4 Argon 周额度独立展示、子代理标签页输入框隔离、更新器 `DirectoryAnchor` 路径校验、Windows 端口探测加固与侧栏版本号标签），同时完整保留 `v0.8.13`–`v0.8.14` 分支特性（`wycocoyu/agy-context-dashboard`、`language_server.native` 兼容及 Gemini 4、Claude 4.5 (200K) 与 Claude 4.6/4.7/4.8/5.5 (1M) 上下文参考支持）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -46,7 +46,7 @@
 
 | 看见速度 | 知道余额 | 少一点打扰 |
 | --- | --- | --- |
-| 会话加权 TPS、最近一次请求速率、模型 / 工具用时和首 token 时间。 | Gemini 与 Claude/GPT 的独立 5h、周余额及重置倒计时。 | 缩略条与模型选择同行；悬停展开；新对话尚无请求时不显示空 TPS。 |
+| 会话加权 TPS、最近一次请求速率、模型 / 工具用时和首 token 时间。 | Gemini、Argon 与共享 3p Claude 的独立 5h、周余额及重置倒计时。 | 缩略条与模型选择同行；悬停展开；新对话尚无请求时不显示空 TPS。 |
 
 ### 它还处理了这些细节
 
@@ -257,9 +257,9 @@ Antigravity 的 `inputTokens` 是未缓存输入。缓存率 = 缓存读取 ÷�
 
 </details>
 
-<details><summary><strong>为什么 Gemini 与 Claude/GPT 的余额不同？</strong></summary>
+<details><summary><strong>为什么 Gemini、Argon 与 Claude 的余额不同？</strong></summary>
 
-服务端返回两个独立共享额度组。控件默认跟随当前模型；在额度卡中可以切换查看另一组，手动选择其他组时会显示组名避免混淆。
+服务端会按组返回各自独立的配额：第一方 `Gemini` 组、单独报告的 `Argon` 周额度组，以及共享 `3p` 组（界面统一显示为 `Claude`）。控件默认跟随当前模型；在额度卡中可以切换查看另一组，手动选择其他组时会显示组名避免混淆。
 
 </details>
 

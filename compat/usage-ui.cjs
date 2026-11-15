@@ -97,8 +97,9 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     if(typeof model!=='string')return 'Unknown';
     const name=model.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,120);
     if(!name)return 'Unknown';
-    const aliased=modelAliases.get(name.toLowerCase())||null;
-    const candidate=(aliased||name).replace(/^word\//i,'');
+    const stripped=name.replace(/^word\//i,'');
+    const aliased=modelAliases.get(stripped.toLowerCase())||null;
+    const candidate=aliased||stripped;
     if(/^perplexity\//i.test(candidate)){const p=perplexityName(candidate.slice(11));if(p)return p;}
     const norm=candidate.toLowerCase().replace(/@(?:default|\d{8})(?=$|[-_\s()])/g,'').replace(/(\d)[._-](\d)/g,'$1.$2').replace(/[\s()_]+/g,'-').replace(/-+$/,'');
     let m=norm.match(/^gemini-3\.8-flash(?:-(n|high|medium|low|tiered))?$/);

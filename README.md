@@ -18,7 +18,7 @@ Keep the summary visible. Hover for the details.
 
 > **Community Continuation Fork:** This repository (**`agy-context-dashboard`**) continues maintaining **Antigrative Dashboard** (`antigravity-pulse`) under the original [MIT License](LICENSE) starting from `v0.8.12`, after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline (404). Existing user settings, `history-v1`, `usage-v1`, and IDE storage identities remain unchanged.
 
-**v0.8.15:** Merge upstream `v0.8.20` optimizations (SQLite-backed background collection and `usage-v1` disk workers, Gemini 4 Argon weekly quota tracking, subagent tab composer isolation, `DirectoryAnchor` updater verification, Windows loopback discovery hardening, and panel version badge) while retaining full `v0.8.13`–`v0.8.14` fork features (`wycocoyu/agy-context-dashboard`, `language_server.native`, Gemini 4 & GPT-6.1 Sol 1M+ context references). [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [Changelog](CHANGELOG.md).
+**v0.8.15:** Merge upstream `v0.8.20` optimizations (SQLite-backed background collection and `usage-v1` disk workers, Gemini 4 Argon weekly quota tracking, subagent tab composer isolation, `DirectoryAnchor` updater verification, Windows loopback discovery hardening, and panel version badge) while retaining full `v0.8.13`–`v0.8.14` fork features (`wycocoyu/agy-context-dashboard`, `language_server.native`, Gemini 4 context references, plus Claude 4.5 (200K) and Claude 4.6/4.7/4.8/5.5 (1M) references). [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -46,7 +46,7 @@ Keep the summary visible. Hover for the details.
 
 | See the speed | Know your quota | Stay focused |
 | --- | --- | --- |
-| Weighted session TPS, last-request TPS, model and tool time, and time to first token. | Separate Gemini and Claude/GPT quota groups, with five-hour and weekly reset countdowns. | One compact strip beside the model selector. Hover for details; unused TPS stays hidden in new chats. |
+| Weighted session TPS, last-request TPS, model and tool time, and time to first token. | Separate Gemini, Argon, and shared 3p Claude quota groups, with five-hour and weekly reset countdowns. | One compact strip beside the model selector. Hover for details; unused TPS stays hidden in new chats. |
 
 ### Small details that matter
 
@@ -256,9 +256,9 @@ There are no request metrics yet. TPS is hidden instead of showing the previous 
 
 </details>
 
-<details><summary><strong>Why do Gemini and Claude/GPT have different quotas?</strong></summary>
+<details><summary><strong>Why do Gemini, Argon, and Claude have different quotas?</strong></summary>
 
-The service returns independent groups. The default follows the selected model. Inspect another group from a quota card; an explicit label prevents confusion after manually selecting a different group.
+The service returns independent quota groups: `Gemini`, dedicated `Argon` weekly buckets when reported, and the shared `3p` group (shown uniformly as `Claude`). The default follows the selected model. Inspect another group from a quota card; an explicit label prevents confusion after manually selecting a different group.
 
 </details>
 

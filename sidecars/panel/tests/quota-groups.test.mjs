@@ -25,10 +25,10 @@ test('quota labels and selection agree across IDs, display names and order in al
 
 test('cold-start placeholders and prefixed models resolve to the expected quota group without guessing unknown Mxxx',()=>{
  const ui=createI18n('en'),groups=[gemini,argon,third];
- for(const model of ['MODEL_PLACEHOLDER_M26','MODEL_PLACEHOLDER_M35','word/claude-opus-5-5','perplexity/fable-5.1']){
+ for(const model of ['MODEL_PLACEHOLDER_M26','word/MODEL_PLACEHOLDER_M26','MODEL_PLACEHOLDER_M35','word/claude-opus-5-5','perplexity/fable-5.1']){
   assert.equal(ui.chooseQuotaGroup(groups,model).id,'3p',model);
  }
- for(const model of ['MODEL_PLACEHOLDER_M318','MODEL_PLACEHOLDER_M319','MODEL_PLACEHOLDER_M320','MODEL_GOOGLE_GEMINI_INTERNAL_BYOM']){
+ for(const model of ['MODEL_PLACEHOLDER_M318','word/MODEL_PLACEHOLDER_M318','MODEL_PLACEHOLDER_M319','MODEL_PLACEHOLDER_M320','MODEL_GOOGLE_GEMINI_INTERNAL_BYOM']){
   assert.equal(ui.chooseQuotaGroup(groups,model).id,'gemini',model);
  }
  assert.equal(ui.chooseQuotaGroup(groups,'gemini-pro-orchestrator-g1-pro').id,argon.id);

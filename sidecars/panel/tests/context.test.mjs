@@ -157,6 +157,11 @@ test('Claude 4.5-5.5, enums, word/*, efforts, Orchestrator, BYOM, Perplexity and
  }
  assert.equal(formatModelName('gemini-3.8-flash-tiered'),'Gemini 3.8 Flash (Tiered)');
  assert.equal(modelContextCapacity('gemini-3.8-flash-tiered'),1048576);
+ assert.equal(formatModelName('word/MODEL_PLACEHOLDER_M318'),'Gemini 3.8 Flash (High)');
+ assert.equal(usageModelKey('word/MODEL_PLACEHOLDER_M318'),'Gemini 3.8 Flash (High)');
+ assert.equal(modelContextCapacity('word/MODEL_PLACEHOLDER_M318'),1048576);
+ assert.equal(formatModelName('word/MODEL_PLACEHOLDER_M26'),'Claude Opus 4.6 (Thinking)');
+ assert.equal(modelContextReference('word/MODEL_PLACEHOLDER_M26')?.label,'1M');
  assert.equal(usageModelKey('claude-sonnet-5-5-medium'),'Claude Sonnet 5.5 (Medium)');
  assert.equal(usageModelKey('word/claude-sonnet-5.5-medium@default'),'Claude Sonnet 5.5 (Medium)');
  assert.equal(usageModelKey(' \x00 '),'Unknown');
@@ -170,7 +175,7 @@ test('metrics and history normalize raw placeholder and wrapped model names',asy
  assert.equal((await history.load(scope,id)).metrics.model,'Claude Sonnet 5.5 (Medium)');
 });
 test('unknown/family/specialized model names never inherit another model reference',()=>{
- for(const model of ['Gemini','gemini-3.8-flash-tts','gemini-3.8-flash-lite','gemini-4','gemini-4-hydrogen-tts','Claude','claude-sonnet-4','claude-sonnet-5-5-custom','gpt-oss','gpt-oss-20b','gpt-6.1','gpt-6.1-sol-custom','MODEL_PLACEHOLDER_M317','MODEL_PLACEHOLDER_M322','MODEL_PLACEHOLDER_M421','user-gemini-3.8-flash-custom']){
+ for(const model of ['Gemini','gemini-3.8-flash-tts','gemini-3.8-flash-lite','gemini-4','gemini-4-hydrogen-tts','Claude','claude-sonnet-4','claude-sonnet-5-5-custom','gpt-oss','gpt-oss-20b','gpt-6.1','gpt-6.1-sol-custom','MODEL_PLACEHOLDER_M317','MODEL_PLACEHOLDER_M322','word/MODEL_PLACEHOLDER_M322','MODEL_PLACEHOLDER_M421','user-gemini-3.8-flash-custom']){
   assert.equal(modelContextReference(model),null,model);assert.equal(formatModelName(model),model);
  }
  for(const model of [undefined,null,123,'',' \n\t'])assert.equal(modelContextReference(model),null);

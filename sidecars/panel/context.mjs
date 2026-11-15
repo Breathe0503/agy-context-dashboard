@@ -35,8 +35,9 @@ function identify(model){
  if(typeof model!=='string')return null;
  const name=model.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,256);
  if(!name)return null;
- const aliased=aliases.get(name.toLowerCase())||null;
- const candidate=(aliased||name).replace(/^word\//i,'');
+ const stripped=name.replace(/^word\//i,'');
+ const aliased=aliases.get(stripped.toLowerCase())||null;
+ const candidate=aliased||stripped;
  if(/^perplexity\//i.test(candidate)){
   const formatted=formatPerplexity(candidate.slice(11));
   if(formatted)return {key:null,display:formatted};
