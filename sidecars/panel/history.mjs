@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { safeContext } from './context.mjs';
+import { formatModelName, safeContext } from './context.mjs';
 import { safeTranscriptStats } from './transcript.mjs';
 import { RATE_VERSION, RATE_REASONS } from './rate-quality.mjs';
 import {safeTaskUsage} from './task-usage.mjs';
@@ -73,7 +73,8 @@ export function safeMetrics(value, conversationId) {
   for (const key of ['speedRestoredFromHistory','cacheRestoredFromHistory']) result[key] = value[key] === true;
   for (const key of ['speedSavedAt','cacheSavedAt']) result[key] = typeof value[key] === 'string' && Number.isFinite(Date.parse(value[key])) ? new Date(value[key]).toISOString() : null;
   result.rateBasis = value.rateBasis === 'response' ? 'response' : 'all-output';
-  result.model = typeof value.model === 'string' ? value.model.slice(0,256) : null;
+  const formattedModel = typeof value.model === 'string' ? formatModelName(value.model) : null;
+  result.model = formattedModel ? formattedModel.slice(0,256) : null;
   result.status = typeof value.status === 'string' && /^[A-Z0-9_]+$/.test(value.status) ? value.status : null;
   result.context = safeContext(value.context) || null;
   const task=safeTaskUsage(value.taskUsage);

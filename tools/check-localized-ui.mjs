@@ -66,8 +66,10 @@ try{
       await strip.locator('[data-card=context]').hover();
       await strip.locator('#context-summary').waitFor({state:'visible'});
       assert.match(await strip.locator('#context-summary').textContent(),/44%/);
-      const expected=key.startsWith('legacy')?'Gemini':'Claude / GPT';
-      assert.ok((await strip.locator('.group-trigger').textContent()).includes(expected),'Model selection must read the localized composer control');
+      const expected=key.startsWith('legacy')?'Gemini':'Claude';
+      const triggerText=await strip.locator('.group-trigger').textContent();
+      assert.ok(triggerText.includes(expected),'Model selection must read the localized composer control');
+      if(!key.startsWith('legacy'))assert.equal(triggerText.includes('GPT'),false,'3p group label must not include GPT');
       await strip.locator('.group-trigger').click();assert.equal(await strip.locator('.group-menu').isVisible(),true);
       await page.keyboard.press('Escape');
       // Empty/send/cancel/voice states do not change the structural mount.
