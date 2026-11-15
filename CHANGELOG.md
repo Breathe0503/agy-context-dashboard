@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.16 — 2026-11-15
+
+- **Claude compatibility, alias normalization & unified `3p` quota label ([`#3`](https://github.com/wycocoyu/agy-context-dashboard/issues/3), [`#6`](https://github.com/wycocoyu/agy-context-dashboard/pull/6)):** Add `200K` (Claude 4.5) and `1M` (Claude 4.6–5.5) provider context references (`sidecars/panel/context.mjs`, `docs/CONTEXT_LIMITS.md`) while keeping active context occupancy bound to host-reported `maxContextTokens`; strip `word/` prefixes before alias lookup, normalize `@default` / `@YYYYMMDD` date tags and `perplexity/*` slugs consistently across desktop, usage ledgers (`sidecars/panel/usage.mjs`, `usage-disk-worker.mjs`, `compat/usage-ui.cjs`), and CLI; unify the `3p` shared quota label to `Claude` (`compat/i18n.cjs`).
+- **CLI `statusLine` sync with `v0.8.15` & `agy 1.5.x` ([`#4`](https://github.com/wycocoyu/agy-context-dashboard/issues/4), [`#7`](https://github.com/wycocoyu/agy-context-dashboard/pull/7)):** Sync `cli/metrics.mjs`, `cli/render.mjs`, `cli/statusline.mjs`, and `docs/CLI.md` with `Argon` weekly quota groups (`gemini-argon-wtu` / `gemini-argon-wtu-weekly`), shared `3p` `Claude` display, `zh-TW` localization, `--details` subagent summary, and first-party `agy 1.5.x` (`1.5.5`–`1.5.9`) cache-rate calculation when `cache_creation_input_tokens` is zero.
+- **Unified Desktop + CLI lifecycle sync (`manage.py`, `cli/lifecycle.py`):** Add `install --with-cli`, record installed CLI version metadata (`installation.json`), expose `sourceVersion` and `stale` status in `status` / `status-cli`, and surface upgrade reminders when Desktop updates leave CLI stale.
+
 ## 0.8.15 — 2026-11-14
 
 - Merge upstream `v0.8.20` optimizations and fixes into `wycocoyu/agy-context-dashboard` ([`#2`](https://github.com/wycocoyu/agy-context-dashboard/issues/2)) while preserving all `v0.8.13`–`v0.8.14` fork features (`Gemini 4` & `GPT-6.1 Sol` 1M+ context references with strict host denominator occupancy, macOS `language_server.native` process discovery, and `wycocoyu/agy-context-dashboard` repository/updater targets).
