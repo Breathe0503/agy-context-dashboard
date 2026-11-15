@@ -7,7 +7,7 @@
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
 
-[![Version 0.8.15](https://img.shields.io/badge/version-0.8.15-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.8.16](https://img.shields.io/badge/version-0.8.16-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -18,7 +18,7 @@ Keep the summary visible. Hover for the details.
 
 > **Community Continuation Fork:** This repository (**`agy-context-dashboard`**) continues maintaining **Antigrative Dashboard** (`antigravity-pulse`) under the original [MIT License](LICENSE) starting from `v0.8.12`, after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline (404). Existing user settings, `history-v1`, `usage-v1`, and IDE storage identities remain unchanged.
 
-**v0.8.15:** Merge upstream `v0.8.20` optimizations (SQLite-backed background collection and `usage-v1` disk workers, Gemini 4 Argon weekly quota tracking, subagent tab composer isolation, `DirectoryAnchor` updater verification, Windows loopback discovery hardening, and panel version badge) while retaining full `v0.8.13`–`v0.8.14` fork features (`wycocoyu/agy-context-dashboard`, `language_server.native`, and Gemini 4 context references). [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [Changelog](CHANGELOG.md). Subsequent updates on top of `v0.8.15` add Claude 4.5 (`200K`) and Claude 4.6–5.5 (`1M`) context references, normalized model aliases, and unified `3p` `Claude` / `Argon` quota labels.
+**v0.8.16:** Add Claude 4.5 (`200K`) and Claude 4.6–5.5 (`1M`) context references, cross-surface `word/` / `@tag` / `perplexity/*` model normalization, unified `3p` `Claude` quota labels, `agy 1.5.x` CLI `statusLine` cache-rate & `Argon` weekly quota parity, and `install --with-cli` lifecycle sync ([`#3`](https://github.com/wycocoyu/agy-context-dashboard/issues/3), [`#4`](https://github.com/wycocoyu/agy-context-dashboard/issues/4)) on top of the `v0.8.15` upstream `v0.8.20` merge baseline (SQLite background collection, subagent composer isolation, updater `DirectoryAnchor`, Windows loopback hardening). [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.16) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -70,7 +70,7 @@ Keep the summary visible. Hover for the details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-0.8.15.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-0.8.16.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
