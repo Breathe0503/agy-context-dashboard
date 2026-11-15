@@ -81,7 +81,7 @@ Antigravity 扩展目前尚未兼容。详见 [IDE 安装、更新、诊断和�
 
 ## Antigravity CLI 状态栏
 
-**v0.6.0 新增**独立的 CLI 官方状态栏适配：上下文占用、缓存读取 Token、状态、模型/子代理详情（`--details`）、分组额度（`Gemini`、`Argon` 周额度及共享 `3p` `Claude` 标签）及重置倒计时，支持中英文和终端宽度适配。额度数字和进度条按剩余量显示：**≥70% 绿色、≥30% 且 <70% 黄色、<30% 红色**。预览：`node cli/statusline.mjs --preview --language zh-CN`；安装：`python manage.py install-cli`（或 `python manage.py install --with-cli`；Linux/macOS 用 `python3`）。需要 Node.js 20+ 和支持官方接口的 CLI。历史 CLI 1.3.2/1.3.3 支持已核实的 Sonnet 4.6、GPT-OSS 120B 与 CLI 1.3.3 Gemini 3.8 Flash (High)；**v0.8.15** 扩展支持 **CLI 1.5.x**（含 `1.5.5` / `1.5.9`）下已验证第一方模型族的零缓存写入场景（`word/*`、`perplexity/*`、`GPT-6*`、BYOK、未知占位符及非零 `cache_creation_input_tokens` 维持不可用）。官方输入没有流式耗时，暂不显示 tok/s。详见 [CLI 使用及撤回](docs/CLI.md)。
+**v0.6.0 新增**独立的 CLI 官方状态栏适配：上下文占用、缓存读取 Token、状态、模型/子代理详情（`--details`）、分组额度（`Gemini`、`Argon` 周额度及共享 `3p` `Claude` 标签）及重置倒计时，支持中英文和终端宽度适配。额度数字和进度条按剩余量显示：**≥70% 绿色、≥30% 且 <70% 黄色、<30% 红色**。预览：`node cli/statusline.mjs --preview --language zh-CN`；安装：`python manage.py install-cli`（或 `python manage.py install --with-cli`；Linux/macOS 用 `python3`）。需要 Node.js 20+ 和支持官方接口的 CLI。历史 CLI 1.3.2/1.3.3 支持已核实的 Sonnet 4.6、GPT-OSS 120B 与 CLI 1.3.3 Gemini 3.8 Flash (High)；CLI 1.5.x 适配扩展支持 `1.5.5` / `1.5.9` 下已验证第一方模型族的零缓存写入场景（`word/*`、`perplexity/*`、`GPT-6*`、BYOK、未知占位符及非零 `cache_creation_input_tokens` 维持不可用）。官方输入没有流式耗时，暂不显示 tok/s。详见 [CLI 使用及撤回](docs/CLI.md)。
 
 ![真实 Antigravity CLI 两轮对话及当前请求缓存率](docs/assets/cli-conversation-zh.png?v=0.8.4-cli-1)
 
