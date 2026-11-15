@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalize, countdown, cleanText } from '../metrics.mjs';
+import { normalize, countdown, cleanText, quotaGroupForModel } from '../metrics.mjs';
 import { render, displayWidth, truncate } from '../render.mjs';
 
 const script = fileURLToPath(new URL('../statusline.mjs', import.meta.url));
@@ -334,7 +334,12 @@ test('agy 1.5.5 and 1.5.9 cacheRate policy supports verified ModelUsageStats mod
   }
   const failClosedModels = [
     [{ id: 'word/gemini-4-hydrogen-xhigh' }, 'Gemini 4 Hydrogen (XHigh)'],
+    [{ id: 'word/MODEL_PLACEHOLDER_M318' }, 'Gemini 3.8 Flash (High)'],
+    [{ id: 'word/MODEL_PLACEHOLDER_M35' }, 'Claude Sonnet 4.6 (Thinking)'],
     [{ id: 'perplexity/sonar-pro' }, 'Perplexity Sonar Pro'],
+    [{ id: 'perplexity/sonnet-5-5-high' }, 'Perplexity Sonnet 5.5 (High)'],
+    [{ id: 'perplexity/claude-4-7-opus-extra-high' }, 'Perplexity Claude 4.7 Opus (XHigh)'],
+    [{ id: 'word/perplexity/sonnet-5-5-high' }, 'Perplexity Sonnet 5.5 (High)'],
     [{ id: 'gpt-6.1-sol', effort: 'extra-high' }, 'GPT-6.1 Sol (XHigh)'],
     [{ id: 'gpt-6-astra', effort: 'high' }, 'GPT-6 Astra (High)'],
     [{ id: 'MODEL_PLACEHOLDER_M322' }, 'MODEL_PLACEHOLDER_M322'],
@@ -347,6 +352,9 @@ test('agy 1.5.5 and 1.5.9 cacheRate policy supports verified ModelUsageStats mod
     assert.equal(metrics.cacheRate.percentage, null);
     assert.equal(metrics.cacheRate.reason, 'unverified-model');
   }
+  assert.equal(normalize(cachePayload(200, 1800, 0, { id: 'word/MODEL_PLACEHOLDER_M35' }, '1.3.2')).cacheRate.reason, 'unverified-model');
+  assert.equal(quotaGroupForModel('Perplexity Sonnet 5.5 (High)'), '3p');
+  assert.equal(quotaGroupForModel('word/MODEL_PLACEHOLDER_M318'), 'gemini');
   assert.equal(normalize(cachePayload(200, 1800, 1, { id: 'gemini-4-hydrogen-xhigh' }, '1.5.9')).cacheRate.reason, 'unverified-cache-write');
   for (const version of ['1.4.0', '1.6.0', '1.5', '1.5.9-beta']) {
     assert.equal(normalize(cachePayload(200, 1800, 0, { id: 'gemini-4-hydrogen-xhigh' }, version)).cacheRate.reason, 'unverified-cli-version');

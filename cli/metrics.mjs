@@ -46,17 +46,27 @@ export function identifyModel(rawModel, explicitEffort = null) {
   const raw = cleanText(rawModel, 256);
   if (!raw) return null;
   const effort = cleanText(explicitEffort, 32);
-  let candidate = MODEL_ALIASES.get(raw.toLowerCase()) || raw;
-  const wordPrefixed = /^word\//i.test(candidate);
-  if (wordPrefixed) candidate = candidate.slice(5);
+  const wordPrefixed = /^word\//i.test(raw);
+  let candidate = wordPrefixed ? raw.slice(5).trim() : raw;
+  if (!candidate) return null;
+  candidate = MODEL_ALIASES.get(candidate.toLowerCase()) || candidate;
 
   const perplexity = candidate.match(/^perplexity\/(.+)$/i);
   if (perplexity) {
-    const body = perplexity[1].replace(/@(?:default|\d{8})$/i, '').replace(/(\d)[._-](\d)/g, '$1.$2');
-    return {
-      key: null, quotaGroup: '3p', display: `Perplexity ${titleCase(body)}`,
-      verified132: false, verified133: false, verified15x: false,
-    };
+    const slug = perplexity[1].replace(/@(?:default|\d{8})(?=$|[-_\s()])/gi, '').trim();
+    if (slug) {
+      const norm = slug.toLowerCase().replace(/(\d)[._-](\d)/g, '$1.$2').replace(/[\s()_]+/g, '-').replace(/-+$/, '');
+      const effMatch = norm.match(/^(.+?)-(n|extra-?high|extrahigh|xhigh|extra|high|medium|low|max|thinking)$/);
+      const base = effMatch ? effMatch[1] : norm;
+      const effLabel = formatEffort(effMatch?.[2], effort);
+      const words = base.split('-').filter(Boolean).map(part => /^\d+(?:\.\d+)?$/.test(part) ? part : titleCase(part));
+      if (words.length) {
+        return {
+          key: null, quotaGroup: '3p', display: `Perplexity ${words.join(' ')}${effLabel}`,
+          verified132: false, verified133: false, verified15x: false,
+        };
+      }
+    }
   }
 
   const claudeEnum = candidate.match(/^model_claude_(\d+(?:_\d+)?)_(opus|sonnet|haiku)(?:_\d{8})?(?:_(thinking|high|medium|low|xhigh|max))?(?:_(byok|open_router_byok|databricks))?$/i);
