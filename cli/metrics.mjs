@@ -4,8 +4,161 @@ const number = value => typeof value === 'number' && Number.isFinite(value) && v
 const tokens = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 export const states = ['idle', 'thinking', 'working', 'tool_use', 'initializing'];
 
-// Empirical statusLine policy: Sonnet 4.6 / GPT-OSS 120B / Gemini 3.8 Flash High,
-// cache writes zero. Do not reuse desktop or cumulative token semantics.
+const CLI_15X_VERSION = /^1\.5\.\d+(?:\.\d+)*$/;
+
+const MODEL_ALIASES = new Map([
+  ['model_placeholder_m318', 'Gemini 3.8 Flash (High)'],
+  ['model_placeholder_m319', 'Gemini 3.8 Flash (Medium)'],
+  ['model_placeholder_m320', 'Gemini 3.8 Flash (Low)'],
+  ['model_placeholder_m35', 'Claude Sonnet 4.6 (Thinking)'],
+  ['model_placeholder_m26', 'Claude Opus 4.6 (Thinking)'],
+  ['model_openai_gpt_oss_120b_medium', 'GPT-OSS 120B (Medium)'],
+  ['gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)'],
+]);
+
+const EFFORT_LABELS = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'XHigh',
+  'extra-high': 'XHigh',
+  extrahigh: 'XHigh',
+  extra: 'XHigh',
+  max: 'Max',
+  thinking: 'Thinking',
+  tiered: 'Tiered',
+};
+
+const titleCase = value => value.split(/[-_\s]+/).filter(Boolean)
+  .map(part => /^[a-z]/i.test(part) ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part).join(' ');
+
+function formatEffort(parsedEffort, explicitEffort) {
+  const token = (parsedEffort && parsedEffort !== 'n' ? parsedEffort : explicitEffort || '').toLowerCase();
+  if (!token || token === 'n' || token === 'none' || token === 'default') return '';
+  return EFFORT_LABELS[token] ? ` (${EFFORT_LABELS[token]})` : '';
+}
+
+/**
+ * Normalize CLI and host model strings into canonical display names, quota groups,
+ * and empirically verified cache-rate allowlist flags.
+ */
+export function identifyModel(rawModel, explicitEffort = null) {
+  const raw = cleanText(rawModel, 256);
+  if (!raw) return null;
+  const effort = cleanText(explicitEffort, 32);
+  const wordPrefixed = /^word\//i.test(raw);
+  let candidate = wordPrefixed ? raw.slice(5).trim() : raw;
+  if (!candidate) return null;
+  candidate = MODEL_ALIASES.get(candidate.toLowerCase()) || candidate;
+
+  const perplexity = candidate.match(/^perplexity\/(.+)$/i);
+  if (perplexity) {
+    const slug = perplexity[1].replace(/@(?:default|\d{8})(?=$|[-_\s()])/gi, '').trim();
+    if (slug) {
+      const norm = slug.toLowerCase().replace(/(\d)[._-](\d)/g, '$1.$2').replace(/[\s()_]+/g, '-').replace(/-+$/, '');
+      const effMatch = norm.match(/^(.+?)-(n|extra-?high|extrahigh|xhigh|extra|high|medium|low|max|thinking)$/);
+      const base = effMatch ? effMatch[1] : norm;
+      const effLabel = formatEffort(effMatch?.[2], effort);
+      const words = base.split('-').filter(Boolean).map(part => /^\d+(?:\.\d+)?$/.test(part) ? part : titleCase(part));
+      if (words.length) {
+        return {
+          key: null, quotaGroup: '3p', display: `Perplexity ${words.join(' ')}${effLabel}`,
+          verified132: false, verified133: false, verified15x: false,
+        };
+      }
+    }
+  }
+
+  const claudeEnum = candidate.match(/^model_claude_(\d+(?:_\d+)?)_(opus|sonnet|haiku)(?:_\d{8})?(?:_(thinking|high|medium|low|xhigh|max))?(?:_(byok|open_router_byok|databricks))?$/i);
+  if (claudeEnum) {
+    const version = claudeEnum[1].replace('_', '.');
+    const family = titleCase(claudeEnum[2]);
+    const suffix = formatEffort(claudeEnum[3], effort);
+    const external = Boolean(claudeEnum[4]);
+    return {
+      key: `claude-${claudeEnum[2].toLowerCase()}-${version}`,
+      quotaGroup: '3p',
+      display: `Claude ${family} ${version}${suffix}${external ? ` (${claudeEnum[4].toUpperCase().replace(/_/g, ' ')})` : ''}`,
+      verified132: false, verified133: false, verified15x: !external && !wordPrefixed,
+    };
+  }
+
+  const normalized = candidate.replace(/@(?:default|\d{8})$/i, '')
+    .toLowerCase().replace(/(\d)[._-](\d)/g, '$1.$2').replace(/[\s()_]+/g, '-').replace(/-+$/, '');
+
+  let match = normalized.match(/^gemini-3\.8-flash(?:-(n|high|medium|low|tiered))?$/);
+  if (match) {
+    const label = formatEffort(match[1], match[1] === 'tiered' ? '' : effort);
+    const eff = (match[1] || effort || '').toLowerCase();
+    return {
+      key: 'gemini-3.8-flash', quotaGroup: 'gemini', display: `Gemini 3.8 Flash${label}`,
+      verified132: false, verified133: !wordPrefixed && eff === 'high', verified15x: !wordPrefixed,
+    };
+  }
+
+  match = normalized.match(/^gemini-4-(hydrogen|argon|carbon)(?:-(n|extra-?high|xhigh|extra|high|medium|low|max))?$/);
+  if (match) {
+    const tier = match[1];
+    return {
+      key: `gemini-4-${tier}`, quotaGroup: tier === 'argon' ? 'gemini-argon' : 'gemini',
+      display: `Gemini 4 ${titleCase(tier)}${formatEffort(match[2], effort)}`,
+      verified132: false, verified133: false, verified15x: !wordPrefixed,
+    };
+  }
+
+  if (/^orchestrator(?:-argon)?$/.test(normalized)) {
+    return {
+      key: 'orchestrator-argon', quotaGroup: 'gemini-argon', display: 'Orchestrator (Argon)',
+      verified132: false, verified133: false, verified15x: !wordPrefixed,
+    };
+  }
+
+  match = normalized.match(/^claude-(opus|sonnet|haiku)-(4(?:\.[5678])?|5\.5)(?:-(thinking|extra-?high|xhigh|extra|high|medium|low|max))?(?:-\d{8})?$/);
+  if (match) {
+    const family = match[1], ver = match[2], parsedEffort = match[3];
+    const is132Sonnet = !wordPrefixed && family === 'sonnet' && ver === '4.6' && (!parsedEffort || parsedEffort === 'thinking');
+    return {
+      key: `claude-${family}-${ver}`, quotaGroup: '3p',
+      display: `Claude ${titleCase(family)} ${ver}${formatEffort(parsedEffort, effort)}`,
+      verified132: is132Sonnet, verified133: is132Sonnet, verified15x: !wordPrefixed,
+    };
+  }
+
+  match = normalized.match(/^gpt-oss-120b(?:-(n|high|medium|low))?$/);
+  if (match) {
+    const is132Gpt = !wordPrefixed && (!match[1] || match[1] === 'medium');
+    return {
+      key: 'gpt-oss-120b', quotaGroup: '3p',
+      display: `GPT-OSS 120B${formatEffort(match[1], effort)}`,
+      verified132: is132Gpt, verified133: is132Gpt, verified15x: !wordPrefixed,
+    };
+  }
+
+  if (normalized === 'gemini-flash') {
+    return { key: null, quotaGroup: 'gemini', display: 'Gemini Flash', verified132: false, verified133: false, verified15x: false };
+  }
+  match = normalized.match(/^gpt-(6\.1-sol|6-astra)(?:-(n|extra-?high|xhigh|extra|high|medium|low|max))?$/);
+  if (match) {
+    const label = match[1] === '6.1-sol' ? 'GPT-6.1 Sol' : 'GPT-6 Astra';
+    return { key: null, quotaGroup: '3p', display: `${label}${formatEffort(match[2], effort)}`, verified132: false, verified133: false, verified15x: false };
+  }
+
+  const quotaGroup = /\bargon\b/i.test(candidate) ? 'gemini-argon'
+    : /^(?:gemini\b|model_google_gemini_)/i.test(candidate) ? 'gemini'
+    : /^(?:claude\b|gpt\b|o[134](?:-|$)|perplexity\b)/i.test(candidate) ? '3p'
+    : null;
+  return { key: null, quotaGroup, display: candidate, verified132: false, verified133: false, verified15x: false };
+}
+
+export function quotaGroupForModel(model) {
+  return identifyModel(model)?.quotaGroup ?? null;
+}
+
+// Empirical statusLine policy:
+// - 1.3.2: Sonnet 4.6 / GPT-OSS 120B (Medium), cache writes zero.
+// - 1.3.3: adds Gemini 3.8 Flash (High), cache writes zero.
+// - 1.5.x: binary/PTY verified separate ModelUsageStats counters with cache writes zero
+//   for Gemini 3.8/4, Orchestrator (Argon), Claude, and GPT-OSS 120B.
 function cacheRate(model, version, input, read, write, state) {
   const unavailable = reason => ({ percentage: null, basis: null, reason });
   if ([input, read, write].includes(null)) return unavailable('missing-or-invalid-counts');
@@ -17,13 +170,13 @@ function cacheRate(model, version, input, read, write, state) {
   if (total === 0) return unavailable('empty-input');
   if (read === 0) return { percentage: 0, basis: 'zero-read', reason: null };
   if (write !== 0) return unavailable('unverified-cache-write');
-  if (!['1.3.2', '1.3.3'].includes(version)) return unavailable('unverified-cli-version');
+  const is132 = version === '1.3.2', is133 = version === '1.3.3';
+  const is15x = typeof version === 'string' && CLI_15X_VERSION.test(version);
+  if (!is132 && !is133 && !is15x) return unavailable('unverified-cli-version');
   // A supplied ID is authoritative. A conflicting display name cannot opt in.
   const identity = typeof model.id === 'string' && model.id.trim() ? model.id.trim() : model.display_name;
-  const sonnet = typeof identity === 'string' && /^claude(?:-| )sonnet(?:-| )4(?:-|\.)6(?: \(thinking\))?$/i.test(identity);
-  const gpt = typeof identity === 'string' && /^gpt-oss(?:-| )120b(?:-medium| \(medium\))?$/i.test(identity);
-  const gemini = typeof identity === 'string' && /^(?:gemini-3\.8-flash-high|gemini 3\.8 flash \(high\))$/i.test(identity);
-  const supported = sonnet || gpt || (gemini && version === '1.3.3');
+  const identified = identifyModel(identity, model.effort);
+  const supported = identified && (is15x ? identified.verified15x : is133 ? identified.verified133 : identified.verified132);
   if (!supported) return unavailable('unverified-model');
   return { percentage: read / total * 100, basis: `separate-input-cli-${version}`, reason: null };
 }
@@ -41,6 +194,8 @@ export function normalize(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid status payload');
   const context = object(payload.context_window), usage = object(context.current_usage);
   const model = object(payload.model);
+  const modelLabel = cleanText(model.display_name || model.id, 256);
+  const identifiedModel = identifyModel(modelLabel, model.effort);
   const input = tokens(usage.input_tokens), read = tokens(usage.cache_read_input_tokens);
   const write = tokens(usage.cache_creation_input_tokens);
   const used = number(context.used_percentage), remaining = number(context.remaining_percentage);
@@ -52,8 +207,16 @@ export function normalize(payload) {
       resetInSeconds: number(value.reset_in_seconds), resetTime: Number.isFinite(reset) ? reset : null,
     };
   }).filter(value => value.id);
+  const subagents = (Array.isArray(payload.subagents) ? payload.subagents : []).slice(0, 16).map(raw => {
+    const item = object(raw);
+    const name = cleanText(item.name, 64) || null;
+    const role = cleanText(item.role, 64) || null;
+    const subModel = cleanText(identifyModel(item.model)?.display || item.model, 120) || null;
+    const status = cleanText(item.status, 32).toLowerCase() || null;
+    return name || role || subModel || status ? { name, role, model: subModel, status } : null;
+  }).filter(Boolean);
   return {
-    model: cleanText(model.display_name || model.id) || null,
+    model: cleanText(identifiedModel?.display || modelLabel, 120) || null,
     state: states.includes(payload.agent_state) ? payload.agent_state : null,
     width: Number.isInteger(payload.terminal_width) && payload.terminal_width > 0 ? Math.min(500, payload.terminal_width) : 80,
     context: { usedPercentage: used ?? (remaining !== null && remaining <= 100 ? 100 - remaining : null),
@@ -62,6 +225,7 @@ export function normalize(payload) {
     cacheRate: cacheRate(model, payload.version, input, read, write, payload.agent_state),
     inputTokens: input, outputTokens: tokens(usage.output_tokens),
     quotas,
+    subagents,
   };
 }
 

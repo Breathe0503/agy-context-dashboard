@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalize, countdown, cleanText } from '../metrics.mjs';
+import { normalize, countdown, cleanText, quotaGroupForModel } from '../metrics.mjs';
 import { render, displayWidth, truncate } from '../render.mjs';
 
 const script = fileURLToPath(new URL('../statusline.mjs', import.meta.url));
@@ -193,10 +193,10 @@ test('primary metrics stay on the first row; quota families and windows have sta
     assert.match(rows[0], /Context 14\.2%.*Cache -- · 20\.9K read/);
     assert.doesNotMatch(rows[0], /Gemini|Claude|reset/);
     assert.match(rows[1], /^Gemini\s+left\s+5h 100%.*week 95%/);
-    assert.match(rows[2], /^Claude\/GPT\s+left\s+5h 45%.*week 8% !/);
+    assert.match(rows[2], /^Claude\s+left\s+5h 45%.*week 8% !/);
   }
   metrics.model = 'Claude Sonnet';
-  assert.match(render(metrics, { color: false }).split('\n')[1], /^Claude\/GPT/);
+  assert.match(render(metrics, { color: false }).split('\n')[1], /^Claude\s/);
 });
 
 test('ANSI foreground and weight distinguish key values, alerts and secondary metadata without backgrounds', () => {
@@ -227,13 +227,13 @@ test('remaining quota uses green at 70+, yellow at 30..70, red below 30 for both
   assert.doesNotMatch(missing, /\x1b\[1;31m/);
 });
 
-test('shared Claude/GPT quota has distinct brand labels without splitting or recoloring balances', () => {
+test('shared 3p quota displays unified Claude terracotta label without splitting or recoloring balances', () => {
   const metrics = normalize({ model: { display_name: 'GPT' }, quota: {
     '3p-5h': { remaining_fraction: 0.75 }, '3p-weekly': { remaining_fraction: 0.49 },
   } });
   const colored = render(metrics, { color: true, width: 120 });
-  assert.match(colored, /\x1b\[1;38;2;218;119;86mClaude\x1b\[0m/);
-  assert.match(colored, /\x1b\[1;38;2;248;250;252mGPT\x1b\[0m/);
+  assert.match(colored, /\x1b\[1;38;2;218;119;86mClaude\s+\x1b\[0m/);
+  assert.doesNotMatch(colored, /GPT/);
   assert.match(colored, /\x1b\[1;32m75%/);
   assert.match(colored, /\x1b\[1;33m49%/);
   assert.equal(colored.replace(/\x1b\[[\d;]+m/g, ''), render(metrics, { color: false, width: 120 }));
@@ -244,12 +244,12 @@ test('shared Claude/GPT quota has distinct brand labels without splitting or rec
     }
   }
   const light = render(metrics, { lightBackground: true });
-  assert.match(light, /\x1b\[1;39mGPT/);
   assert.match(light, /\x1b\[1;38;2;218;119;86mClaude/);
   const env = { ...process.env, TERM: 'xterm-256color', COLORFGBG: '0;15' }; delete env.NO_COLOR;
   const result = spawnSync(process.execPath, [script], { input: JSON.stringify({ quota: { '3p-5h': { remaining_fraction: 1 } } }), encoding: 'utf8', env });
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /\x1b\[1;39mGPT/);
+  assert.match(result.stdout, /\x1b\[1;38;2;218;119;86mClaude/);
+  assert.doesNotMatch(result.stdout, /\x1b\[(?:\d+;)*4\d(?:;|m)/);
 });
 
 test('model and bucket labels cannot inject ANSI, control characters or bidi overrides', () => {
@@ -302,4 +302,152 @@ test('language survives separate process runs and explicit override; preview wri
     assert.match(run({},['--preview','--language','zh-TW','--no-color'],env).stdout,/讀取/);
     assert.match(run({},['--preview','--language','en','--no-color'],env).stdout,/Cache/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('agy 1.5.5 and 1.5.9 cacheRate policy supports verified ModelUsageStats models with zero cache writes', () => {
+  const verifiedModels = [
+    [{ id: 'gemini-4-hydrogen-xhigh', effort: 'xhigh' }, 'Gemini 4 Hydrogen (XHigh)'],
+    [{ id: 'gemini-4-hydrogen', effort: 'extra-high' }, 'Gemini 4 Hydrogen (XHigh)'],
+    [{ id: 'gemini-4-argon', effort: 'high' }, 'Gemini 4 Argon (High)'],
+    [{ id: 'gemini-4-carbon-medium' }, 'Gemini 4 Carbon (Medium)'],
+    [{ id: 'Gemini 3.8 Flash (High)', effort: 'high' }, 'Gemini 3.8 Flash (High)'],
+    [{ id: 'MODEL_PLACEHOLDER_M318' }, 'Gemini 3.8 Flash (High)'],
+    [{ id: 'MODEL_PLACEHOLDER_M319' }, 'Gemini 3.8 Flash (Medium)'],
+    [{ id: 'MODEL_PLACEHOLDER_M320' }, 'Gemini 3.8 Flash (Low)'],
+    [{ id: 'gemini-3.8-flash-tiered', effort: 'high' }, 'Gemini 3.8 Flash (Tiered)'],
+    [{ id: 'gemini-pro-orchestrator-g1-pro' }, 'Orchestrator (Argon)'],
+    [{ id: 'MODEL_PLACEHOLDER_M26' }, 'Claude Opus 4.6 (Thinking)'],
+    [{ id: 'MODEL_PLACEHOLDER_M35' }, 'Claude Sonnet 4.6 (Thinking)'],
+    [{ id: 'MODEL_CLAUDE_4_7_SONNET_THINKING' }, 'Claude Sonnet 4.7 (Thinking)'],
+    [{ id: 'MODEL_CLAUDE_5_5_OPUS_MAX' }, 'Claude Opus 5.5 (Max)'],
+    [{ id: 'claude-haiku-4-5-20251001' }, 'Claude Haiku 4.5'],
+    [{ id: 'claude-opus-5-5', effort: 'xhigh' }, 'Claude Opus 5.5 (XHigh)'],
+    [{ id: 'gpt-oss-120b-high' }, 'GPT-OSS 120B (High)'],
+  ];
+  for (const version of ['1.5.5', '1.5.9']) {
+    for (const [model, expectedDisplay] of verifiedModels) {
+      const metrics = normalize(cachePayload(200, 1800, 0, model, version));
+      assert.equal(metrics.model, expectedDisplay);
+      assert.equal(metrics.cacheRate.percentage, 90);
+      assert.equal(metrics.cacheRate.basis, `separate-input-cli-${version}`);
+    }
+  }
+  const failClosedModels = [
+    [{ id: 'word/gemini-4-hydrogen-xhigh' }, 'Gemini 4 Hydrogen (XHigh)'],
+    [{ id: 'word/MODEL_PLACEHOLDER_M318' }, 'Gemini 3.8 Flash (High)'],
+    [{ id: 'word/MODEL_PLACEHOLDER_M35' }, 'Claude Sonnet 4.6 (Thinking)'],
+    [{ id: 'perplexity/sonar-pro' }, 'Perplexity Sonar Pro'],
+    [{ id: 'perplexity/sonnet-5-5-high' }, 'Perplexity Sonnet 5.5 (High)'],
+    [{ id: 'perplexity/claude-4-7-opus-extra-high' }, 'Perplexity Claude 4.7 Opus (XHigh)'],
+    [{ id: 'word/perplexity/sonnet-5-5-high' }, 'Perplexity Sonnet 5.5 (High)'],
+    [{ id: 'gpt-6.1-sol', effort: 'extra-high' }, 'GPT-6.1 Sol (XHigh)'],
+    [{ id: 'gpt-6-astra', effort: 'high' }, 'GPT-6 Astra (High)'],
+    [{ id: 'MODEL_PLACEHOLDER_M322' }, 'MODEL_PLACEHOLDER_M322'],
+    [{ id: 'MODEL_GOOGLE_GEMINI_INTERNAL_BYOM' }, 'MODEL_GOOGLE_GEMINI_INTERNAL_BYOM'],
+    [{ id: 'MODEL_CLAUDE_4_6_OPUS_BYOK' }, 'Claude Opus 4.6 (BYOK)'],
+  ];
+  for (const [model, expectedDisplay] of failClosedModels) {
+    const metrics = normalize(cachePayload(200, 1800, 0, model, '1.5.9'));
+    assert.equal(metrics.model, expectedDisplay);
+    assert.equal(metrics.cacheRate.percentage, null);
+    assert.equal(metrics.cacheRate.reason, 'unverified-model');
+  }
+  assert.equal(normalize(cachePayload(200, 1800, 0, { id: 'word/MODEL_PLACEHOLDER_M35' }, '1.3.2')).cacheRate.reason, 'unverified-model');
+  assert.equal(quotaGroupForModel('Perplexity Sonnet 5.5 (High)'), '3p');
+  assert.equal(quotaGroupForModel('word/MODEL_PLACEHOLDER_M318'), 'gemini');
+  assert.equal(normalize(cachePayload(200, 1800, 1, { id: 'gemini-4-hydrogen-xhigh' }, '1.5.9')).cacheRate.reason, 'unverified-cache-write');
+  for (const version of ['1.4.0', '1.6.0', '1.5', '1.5.9-beta']) {
+    assert.equal(normalize(cachePayload(200, 1800, 0, { id: 'gemini-4-hydrogen-xhigh' }, version)).cacheRate.reason, 'unverified-cli-version');
+  }
+  assert.equal(normalize({ ...cachePayload(200, 0, 0, { id: 'gemini-4-hydrogen-xhigh' }, '1.5.9'), agent_state: 'working' }).cacheRate.reason, 'awaiting-stable-usage');
+});
+
+test('Gemini 4 Argon weekly quota displays alongside Gemini and Claude with active-group ordering', () => {
+  const fullQuota = {
+    'gemini-5h': { remaining_fraction: 0.72, reset_in_seconds: 8100 },
+    'gemini-weekly': { remaining_fraction: 0.94, reset_in_seconds: 560580 },
+    'gemini-argon-wtu-weekly': { remaining_fraction: 0.97, reset_in_seconds: 432000 },
+    '3p-5h': { remaining_fraction: 0.85, reset_in_seconds: 10800 },
+    '3p-weekly': { remaining_fraction: 0.64, reset_in_seconds: 345600 },
+  };
+  const hydrogen = normalize({ ...sample, version: '1.5.9', model: { id: 'gemini-4-hydrogen-xhigh' }, quota: fullQuota });
+  const plainRows = render(hydrogen, { color: false, width: 120 }).split('\n');
+  assert.equal(plainRows.length, 4);
+  assert.match(plainRows[1], /^Gemini     left  5h 72%.*week 94%/);
+  assert.match(plainRows[2], /^Argon      left  week 97%/);
+  assert.match(plainRows[3], /^Claude     left  5h 85%.*week 64%/);
+  assert.doesNotMatch(plainRows.join('\n'), /… \+/);
+
+  const colored = render(hydrogen, { color: true, width: 120 });
+  assert.match(colored, /\x1b\[1;34mArgon      \x1b\[0m/);
+  assert.match(colored, /\x1b\[1;38;2;218;119;86mClaude     \x1b\[0m/);
+
+  const orchestrator = normalize({ ...sample, version: '1.5.9', model: { id: 'gemini-pro-orchestrator-g1-pro' }, quota: fullQuota });
+  assert.equal(orchestrator.model, 'Orchestrator (Argon)');
+  const orchRows = render(orchestrator, { color: false, width: 120 }).split('\n');
+  assert.match(orchRows[1], /^Argon\s+left/);
+  assert.match(orchRows[2], /^Gemini\s+left/);
+  assert.match(orchRows[3], /^Claude\s+left/);
+
+  const sharedUltraQuota = normalize({
+    ...sample, version: '1.5.9', model: { id: 'gemini-pro-orchestrator-g1-pro' },
+    quota: { 'gemini-5h': { remaining_fraction: 0.9 }, '3p-5h': { remaining_fraction: 0.5 } },
+  });
+  assert.match(render(sharedUltraQuota, { color: false, width: 120 }).split('\n')[1], /^Gemini\s+left/);
+
+  const pplx = normalize({ ...sample, model: { id: 'perplexity/sonar-pro' }, quota: fullQuota });
+  assert.match(render(pplx, { color: false, width: 120 }).split('\n')[1], /^Claude\s+left/);
+
+  const withUnknown = normalize({ ...sample, model: { id: 'gemini-4-hydrogen-xhigh' }, quota: { ...fullQuota, 'future-bucket': { remaining_fraction: 0.5 } } });
+  const cappedRows = render(withUnknown, { color: false, width: 120 }).split('\n');
+  assert.equal(cappedRows.length, 4);
+  assert.match(cappedRows[3], /… \+1$/);
+});
+
+test('subagents are sanitized in --json and summarized only when --details is enabled', () => {
+  const payload = {
+    ...sample,
+    version: '1.5.9',
+    model: { id: 'gemini-4-hydrogen-xhigh' },
+    subagents: [
+      { name: 'scout\x1b[31m\n', role: 'research', model: 'MODEL_PLACEHOLDER_M319', status: 'running' },
+      { name: 'helper', model: 'flash_lite', status: 'completed' },
+    ],
+  };
+  const jsonResult = run(payload, ['--json']);
+  assert.equal(jsonResult.status, 0);
+  const parsed = JSON.parse(jsonResult.stdout);
+  assert.deepEqual(parsed.subagents, [
+    { name: 'scout', role: 'research', model: 'Gemini 3.8 Flash (Medium)', status: 'running' },
+    { name: 'helper', role: null, model: 'flash_lite', status: 'completed' },
+  ]);
+
+  assert.doesNotMatch(run(payload, ['--no-color']).stdout, /Subagents|scout/);
+  const detailsEn = run(payload, ['--details', '--language', 'en', '--width', '200', '--no-color']);
+  assert.equal(detailsEn.status, 0);
+  assert.match(detailsEn.stdout, /Subagents 2: scout \(Gemini 3\.8 Flash \(Medium\)\) running, helper \(flash_lite\) completed/);
+  const detailsZh = run(payload, ['--details', '--language', 'zh-CN', '--width', '200', '--no-color']);
+  assert.match(detailsZh.stdout, /子代理 2: scout \(Gemini 3\.8 Flash \(Medium\)\) running, helper \(flash_lite\) completed/);
+  for (const line of run(payload, ['--details', '--width', '50', '--no-color']).stdout.trimEnd().split('\n')) {
+    assert.ok(displayWidth(line) <= 50);
+  }
+});
+
+test('modernized --preview reflects agy 1.5.9, Gemini 4 Hydrogen (XHigh) and Argon weekly quota', () => {
+  const jsonResult = run({}, ['--json', '--preview']);
+  assert.equal(jsonResult.status, 0);
+  const metrics = JSON.parse(jsonResult.stdout);
+  assert.equal(metrics.model, 'Gemini 4 Hydrogen (XHigh)');
+  assert.equal(metrics.context.usedPercentage, 44.2);
+  assert.equal(metrics.cacheRate.basis, 'separate-input-cli-1.5.9');
+  assert.ok(Math.abs(metrics.cacheRate.percentage - 98.91) < 0.05);
+  assert.equal(metrics.quotas.length, 5);
+  assert.ok(metrics.quotas.some(q => q.id === 'gemini-argon-wtu-weekly'));
+
+  const zhResult = run({}, ['--preview', '--language', 'zh-CN', '--no-color']);
+  assert.equal(zhResult.status, 0);
+  assert.match(zhResult.stdout, /上下文 44\.2%.*缓存 98\.9%/);
+  assert.match(zhResult.stdout, /^Gemini\s+剩余/m);
+  assert.match(zhResult.stdout, /^Argon\s+剩余/m);
+  assert.match(zhResult.stdout, /^Claude\s+剩余/m);
 });

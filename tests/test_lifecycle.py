@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -134,5 +135,37 @@ class LifecycleTests(unittest.TestCase):
             manager.package(output)
         with zipfile.ZipFile(output) as bundle:
             self.assertEqual(set(bundle.namelist()), {'antigrative-dashboard/plugin.json', 'antigrative-dashboard/sidecars/panel/main.mjs'})
+
+    def test_desktop_install_keeps_cli_decoupled_and_syncs_when_with_cli_is_requested(self):
+        cli_mod = manager.cli_lifecycle()
+        expected = cli_mod.source_version(ROOT)
+        home = self.home.resolve()
+        with patch.object(manager, 'HOME', home):
+            cli_mod.install(ROOT, home)
+            _, _, cli_root, _ = cli_mod.paths(home)
+            cli_mod.write(cli_root / 'installation.json', {'name': cli_mod.NAME, 'schema': 1, 'version': '0.8.12'})
+            statusline = cli_root / 'cli' / 'statusline.mjs'
+            statusline.write_text('// stale-sentinel\n', encoding='utf-8')
+
+            manager.atomic_json(self.config, {'plugins': {}})
+            output = io.StringIO()
+            with patch('sys.stdout', output):
+                manager.install(panel_only=True)
+            self.assertIn('0.8.12', output.getvalue())
+            self.assertIn('install-cli', output.getvalue())
+            self.assertIn('--with-cli', output.getvalue())
+            self.assertEqual(statusline.read_text(encoding='utf-8'), '// stale-sentinel\n')
+
+            status_out = io.StringIO()
+            with patch('sys.stdout', status_out):
+                manager.status()
+            parsed_status = json.loads(status_out.getvalue())
+            self.assertTrue(parsed_status['cli']['installed'])
+            self.assertTrue(parsed_status['cli']['stale'])
+
+            manager.install(panel_only=True, with_cli=True)
+            self.assertNotEqual(statusline.read_text(encoding='utf-8'), '// stale-sentinel\n')
+            self.assertEqual(cli_mod.read(cli_root / 'installation.json')['version'], expected)
+            self.assertFalse(cli_mod.inspect_status(home, ROOT)['stale'])
 
 if __name__ == '__main__': unittest.main()

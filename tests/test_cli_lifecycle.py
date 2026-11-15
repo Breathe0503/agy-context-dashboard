@@ -172,6 +172,38 @@ class CliLifecycleTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): cli.install(ROOT, self.home)
         self.assertFalse(self.settings.exists())
 
+    def test_install_records_package_version_and_status_reports_staleness(self):
+        expected = cli.source_version(ROOT)
+        self.assertTrue(expected)
+        before = cli.inspect_status(self.home, ROOT)
+        self.assertFalse(before['installed'])
+        self.assertFalse(before['stale'])
+        self.assertIsNone(before['version'])
+
+        cli.install(ROOT, self.home)
+        meta = cli.read(self.runtime / 'installation.json')
+        self.assertEqual(meta['version'], expected)
+
+        fresh = cli.inspect_status(self.home, ROOT)
+        self.assertTrue(fresh['installed'])
+        self.assertEqual(fresh['version'], expected)
+        self.assertEqual(fresh['sourceVersion'], expected)
+        self.assertFalse(fresh['stale'])
+
+        cli.write(self.runtime / 'installation.json', {'name': cli.NAME, 'schema': 1, 'version': '0.8.12'})
+        self.assertTrue(cli.inspect_status(self.home, ROOT)['stale'])
+
+        cli.write(self.runtime / 'installation.json', {'name': cli.NAME, 'schema': 1})
+        self.assertTrue(cli.inspect_status(self.home, ROOT)['stale'])
+
+        output = io.StringIO()
+        with patch('sys.stdout', output):
+            cli.status(self.home, ROOT)
+        reported = json.loads(output.getvalue())
+        self.assertTrue(reported['stale'])
+        self.assertIsNone(reported['version'])
+        self.assertEqual(reported['sourceVersion'], expected)
+
 
 if __name__ == '__main__':
     unittest.main()

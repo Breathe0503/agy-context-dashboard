@@ -85,11 +85,11 @@ See [IDE installation, update, diagnostics and data cleanup](ide/README.md).
 
 ## Antigravity CLI status line
 
-Available in **v0.6.0**: an independent adapter for the official Antigravity CLI `statusLine` interface displays context occupancy, cache read tokens, state and grouped quotas, with English/Chinese and terminal-width adaptation. Remaining quota numbers and bars are **green ≥70%, yellow ≥30% and <70%, red <30%**. Preview: `node cli/statusline.mjs --preview`; install: `python manage.py install-cli` (Linux/macOS: `python3`). Requires Node.js 20+ and a CLI supporting the interface. Version 0.8.4 prioritizes current-request cache percentage for tested CLI 1.3.2/1.3.3 Sonnet 4.6 and GPT-OSS 120B counters, plus Gemini 3.8 Flash (High) on CLI 1.3.3, with zero cache writes; unknown cases stay unavailable. CLI tok/s needs streaming-duration data absent from the documented payload. See [CLI usage and rollback](docs/CLI.md).
+Available in **v0.6.0**: an independent adapter for the official Antigravity CLI `statusLine` interface displays context occupancy, cache read tokens, state, normalized model/subagent details (`--details`), and grouped quotas (`Gemini`, `Argon` weekly, and shared `3p` `Claude`), with English/Chinese and terminal-width adaptation. Remaining quota numbers and bars are **green ≥70%, yellow ≥30% and <70%, red <30%**. Preview: `node cli/statusline.mjs --preview`; install: `python manage.py install-cli` (or `python manage.py install --with-cli`; Linux/macOS: `python3`). Requires Node.js 20+ and a CLI supporting the interface. Historical CLI 1.3.2/1.3.3 support covers tested Sonnet 4.6, GPT-OSS 120B, and CLI 1.3.3 Gemini 3.8 Flash (High); CLI 1.5.x support adds current-request cache percentage for verified first-party model families (including `1.5.5` and `1.5.9`) when `cache_creation_input_tokens` is zero (`word/*`, `perplexity/*`, `GPT-6*`, BYOK, unknown placeholders, and nonzero cache-write cases remain unavailable). CLI tok/s needs streaming-duration data absent from the documented payload. See [CLI usage and rollback](docs/CLI.md).
 
 ![Real Antigravity CLI conversation with current-request cache percentage](docs/assets/cli-conversation.png?v=0.8.4-cli-1)
 
-<sub>Real Linux Antigravity CLI 1.3.3 session after two English replies: current-request cache share 95.7%, 13.1K cached-read tokens; account email masked. macOS signed-in interactive acceptance remains outstanding.</sub>
+<sub>Historical Linux Antigravity CLI 1.3.3 session after two English replies: current-request cache share 95.7%, 13.1K cached-read tokens; account email masked. macOS signed-in interactive acceptance remains outstanding.</sub>
 
 ## Install
 
