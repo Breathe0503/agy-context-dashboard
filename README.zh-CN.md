@@ -18,7 +18,7 @@
 
 > **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
 
-**v0.8.15：** 合入上游 `v0.8.20` 优化（基于 `node:sqlite` 的后台流式采集与磁盘用量统计工作线程、Gemini 4 Argon 周额度独立展示、子代理标签页输入框隔离、更新器 `DirectoryAnchor` 路径校验、Windows 端口探测加固与侧栏版本号标签），同时完整保留 `v0.8.13`–`v0.8.14` 分支特性（`wycocoyu/agy-context-dashboard`、`language_server.native` 兼容及 Gemini 4、Claude 4.5 (200K) 与 Claude 4.6/4.7/4.8/5.5 (1M) 上下文参考支持）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [变更记录](CHANGELOG.md)。
+**v0.8.15：** 合入上游 `v0.8.20` 优化（基于 `node:sqlite` 的后台流式采集与磁盘用量统计工作线程、Gemini 4 Argon 周额度独立展示、子代理标签页输入框隔离、更新器 `DirectoryAnchor` 路径校验、Windows 端口探测加固与侧栏版本号标签），同时完整保留 `v0.8.13`–`v0.8.14` 分支特性（`wycocoyu/agy-context-dashboard`、`language_server.native` 兼容与 Gemini 4 上下文参考）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.15) · [变更记录](CHANGELOG.md)。在此基线之上的后续更新进一步补充 Claude 4.5（`200K`）与 Claude 4.6–5.5（`1M`）上下文参考、模型别名规范化及 `3p` `Claude` / `Argon` 额度标签适配。
 
 ## 看看效果
 
