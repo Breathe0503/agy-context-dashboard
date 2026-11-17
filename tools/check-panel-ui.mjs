@@ -11,10 +11,11 @@ import {trajectoryMetrics} from '../sidecars/panel/metrics.mjs';
 const createTheme=createRequire(import.meta.url)('../compat/theme.cjs');
 const repo=join(dirname(fileURLToPath(import.meta.url)),'..');
 const preview=process.argv.includes('--preview');
+const releaseVersion=JSON.parse(await readFile(join(repo,'plugin.json'),'utf8')).version;
 const html=panelPageSource();
 const code=panelAppSource(),requests=[],errors=[],results=[];
 const id='11111111-1111-1111-1111-111111111111';
-let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7;
+let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7,collectionFixture=null;
 const transcriptSample={version:1,status:'ready',complete:true,userTokens:100,assistantTokens:200,toolTokens:50,systemTokens:10,totalTokens:360,matchedSteps:4,compactionMarkers:1,imageSteps:0};
 const sample=()=>({connection:'live',serverTime:new Date().toISOString(),quotaUpdatedAt:new Date().toISOString(),preferences:prefs,groups:[{id:'gemini',name:'Gemini',windows:{'5h':{available:true,remaining:.8,resetAt:new Date(Date.now()+3600000).toISOString()},weekly:{available:true,remaining:.75,resetAt:new Date(Date.now()+86400000).toISOString()}}}],speed:{transcriptStats:transcriptSample,...trajectoryMetrics({trajectory:{cascadeId:id,steps:[{type:'USER_INPUT'}],generatorMetadata:Array.from({length:23},(_,i)=>({chatModel:{modelDisplayName:'Gemini 3.8 Flash',streamingDuration:(100/rate)+'s',timeToFirstToken:'1.2s',usage:{messageId:'fixture-'+i,inputTokens:100,cacheReadTokens:300,outputTokens:100,responseOutputTokens:100,cacheWriteTokens:0,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:20000,maxContextTokens:100000}}}}))}})}});
 const server=createServer(async(req,res)=>{
@@ -23,7 +24,7 @@ const server=createServer(async(req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
   if(req.method==='OPTIONS'){res.end();return;}
   res.setHeader('Content-Type','application/json');
-  if(path==='/api/metrics'){metricsCalls++;res.statusCode=failMetrics?503:200;res.end(JSON.stringify(failMetrics?{error:'Fixture unavailable'}:sample()));return;}
+  if(path==='/api/metrics'){metricsCalls++;res.statusCode=failMetrics?503:200;const snapshot=sample();if(collectionFixture){snapshot.collection=collectionFixture;if(collectionFixture.freshness==='unavailable')snapshot.speed=null;}res.end(JSON.stringify(failMetrics?{error:'Fixture unavailable'}:snapshot));return;}
   if(req.method==='POST'){let text='';for await(const chunk of req)text+=chunk;prefs={...prefs,...JSON.parse(text),revision:prefs.revision+1};}
   res.end(JSON.stringify(prefs));return;
  }
@@ -56,8 +57,10 @@ try{
   // Provider reference and unknown compaction must not change the fixture's
   // active 100K host window / 20% occupancy in either language.
   await view.locator('#strip-tps').waitFor();
+  assert.equal(await view.locator('#panel-version').textContent(),'v'+releaseVersion);
+  assert.equal(await view.locator('#panel-name').getAttribute('title'),'Antigrative Dashboard v'+releaseVersion);
   await view.locator('#strip-context').filter({hasText:'20%'}).waitFor();
-  assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K tok');
+  assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
   assert.equal(await view.locator('#context-provider-limit,#context-compaction-limit,#context-host-limit,#context-note,#transcript-details').count(),0,'Compact context omits duplicate capacities and diagnostic prose');
   await view.locator('#strip-tps').filter({hasText:'38.7'}).waitFor();
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['Speed','Cache','Context']);
@@ -73,28 +76,37 @@ try{
   }
   await view.locator('#speed-tab').focus();await page.keyboard.press('ArrowRight');assert.equal(await view.locator('#cache-tab').getAttribute('aria-selected'),'true');
   await page.keyboard.press('End');assert.equal(await view.locator('#context-tab').getAttribute('aria-selected'),'true');
-  assert.equal(await view.locator('#context-card').evaluate(e=>e.scrollHeight>e.clientHeight),true,'Long context/quota details scroll inside the stable frame');
-  await view.locator('#context-card').evaluate(e=>e.scrollTop=100);
-  await view.locator('#cache-tab').click();await view.locator('#context-tab').click();assert.ok(await view.locator('#context-card').evaluate(e=>e.scrollTop)>0);
+  assert.equal(await view.locator('#context-card').evaluate(e=>e.scrollHeight<=e.clientHeight+1),true,'Compact context/quota details fit cleanly inside the 580px frame');
+  await view.locator('.widget').evaluate(e=>{e.style.height='340px';});
+  await view.locator('#context-card').evaluate(e=>{e.scrollTop=60;});
+  await view.locator('#cache-tab').click();await view.locator('#context-tab').click();assert.ok(await view.locator('#context-card').evaluate(e=>e.scrollTop)>0,'Long/constrained details preserve scroll inside the stable frame');
+  await view.locator('.widget').evaluate(e=>{e.style.removeProperty('height');});
   if(mode==='opaque-iframe'){
    assert.equal(await view.locator('html').evaluate(()=>self.origin),'null');
    assert.equal(await view.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor===getComputedStyle(document.querySelector('.widget')).backgroundColor),true,'SDK inline body background follows the dashboard theme');
   }
   await view.locator('#language-toggle').click();await view.locator('[data-language-menu] [data-language="zh-CN"]').click();await view.locator('#language-toggle').filter({hasText:'中'}).waitFor();
-  assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K tok');
+  assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
   assert.equal(await view.locator('#strip-context').textContent(),'20%');
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速度','缓存','上下文']);
   assert.deepEqual(await frame(),initialFrame,'Language switches must not resize the frame');
   await view.locator('#language-toggle').click();await page.keyboard.press('End');await page.keyboard.press('Enter');
   await view.locator('#language-toggle').filter({hasText:'繁'}).waitFor();
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速率','快取','上下文']);
-  assert.deepEqual(await frame(),initialFrame);assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K tok');
+  assert.deepEqual(await frame(),initialFrame);assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
   await view.locator('#language-toggle').click();await page.keyboard.press('Escape');
   assert.equal(await view.locator('[data-language-menu]').evaluate(e=>e.matches(':popover-open')),false);
   await view.locator('#language-toggle').click();await view.locator('[data-language-menu] [data-language="zh-CN"]').click();
   await mkdir(join(repo,'.data/sidebar-design'),{recursive:true});
   for(const name of ['speed','cache','context']){await view.locator(`[data-card=${name}]`).click();await view.locator(`#${name}-card`).evaluate(e=>e.scrollTop=0);await page.waitForTimeout(180);await page.screenshot({path:join(repo,`.data/sidebar-design/${mode}-${name}-zh.png`)});}
   rate=51.2;await view.locator('#refresh-button').click();await view.locator('#strip-tps').filter({hasText:'51.2'}).waitFor();
+  collectionFixture={state:'limited',code:'budget-exceeded',kind:'projected-json',freshness:'unavailable'};
+  await view.locator('#refresh-button').click();await view.locator('#strip-model').filter({hasText:'统计受限'}).waitFor();
+  assert.equal(await view.locator('#strip-tps').textContent(),'—');assert.equal(await view.locator('#five-balance').textContent(),'80.0%');
+  assert.equal(await view.locator('#health-note').evaluate(e=>e.classList.contains('warning')),true);
+  collectionFixture={...collectionFixture,freshness:'saved'};await view.locator('#refresh-button').click();
+  await view.locator('#strip-model').filter({hasText:'上次完整统计'}).waitFor();assert.equal(await view.locator('#strip-tps').textContent(),'51.2');
+  collectionFixture=null;await view.locator('#refresh-button').click();await view.locator('#strip-model').filter({hasText:'Gemini'}).waitFor();
   const installed=await view.locator('html').evaluate(()=>window.__agPulsePanelInstalled);assert.equal(installed,true);
   results.push({mode,tokens:true,context:true,language:true,manualRefresh:true});await page.close();
  }
@@ -102,7 +114,30 @@ try{
   const page=await browser.newPage({viewport:{width,height:800}});page.on('pageerror',e=>errors.push(e.message));prefs={language:'en',revision:1};
   await page.goto(base);await page.locator('#strip-tps').filter({hasText:'51.2'}).waitFor();
   const size=()=>page.locator('.widget').evaluate(e=>({width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,overflow:e.scrollWidth>e.clientWidth}));const initial=await size();assert.equal(initial.overflow,false);
+  const header=await page.locator('.widget-header').evaluate(element=>{
+   const rect=element.getBoundingClientRect();
+   const parts=[...element.querySelectorAll('.brand>.icon,#panel-name,#connection-dot,#panel-version,#language-toggle,#quota-group,#refresh-button')]
+    .filter(node=>getComputedStyle(node).display!=='none'&&!node.hidden).map(node=>{
+     const box=node.getBoundingClientRect();return {name:node.id||'brand-icon',left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width};
+    });
+   return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,parts};
+  });
+  for(const part of header.parts){assert.ok(part.width>0,`${width}px header ${part.name} is not squeezed away`);assert.ok(part.left>=header.left&&part.right<=header.right,`${width}px header ${part.name} stays inside`);assert.ok(part.top>=header.top&&part.bottom<=header.bottom);}
+  for(let i=1;i<header.parts.length;i++)assert.ok(header.parts[i-1].right<=header.parts[i].left+.5,`${width}px header controls must not overlap`);
+  assert.equal(await page.locator('#panel-version').isVisible(),width===440,'Badge gives its space back to controls in narrow panels');
+  assert.equal(await page.locator('#panel-name').getAttribute('title'),'Antigrative Dashboard v'+releaseVersion,'Hidden badge remains discoverable through the title');
   for(const name of ['speed','cache','context']){await page.locator(`[data-card=${name}]`).click();assert.deepEqual(await size(),initial);}
+  const badgeColor=()=>page.locator('#panel-version').evaluate(node=>getComputedStyle(node).backgroundColor);
+  const beforeTheme=await badgeColor();
+  await page.evaluate(()=>{const style=document.documentElement.style;style.setProperty('--background','#f7f0e4');style.setProperty('--foreground','#30241d');style.setProperty('--primary','#985322');});
+  await page.waitForFunction(color=>getComputedStyle(document.getElementById('panel-version')).backgroundColor!==color,beforeTheme);
+  assert.equal(await page.locator('html').getAttribute('data-pulse-theme'),'light');
+  const lightBadge=await badgeColor();
+  await page.evaluate(()=>{const style=document.documentElement.style;style.setProperty('--background','#201b18');style.setProperty('--foreground','#f4e8df');style.setProperty('--primary','#db8e59');});
+  await page.waitForFunction(color=>getComputedStyle(document.getElementById('panel-version')).backgroundColor!==color,lightBadge);
+  assert.equal(await page.locator('html').getAttribute('data-pulse-theme'),'dark');
+  assert.deepEqual(await size(),initial,'Host theme changes preserve panel geometry');
+  await page.waitForTimeout(180); // Capture the settled host-theme transition.
   await page.screenshot({path:join(repo,`.data/sidebar-design/width-${width}.png`)});await page.close();
  }
  const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));prefs={language:'en',revision:1};failMetrics=true;

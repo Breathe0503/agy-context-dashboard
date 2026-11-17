@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {selectIdeServer,ideServer,ideRoot,discoverIdeLog,discoverIdeProcesses} from '../discovery.mjs';
+import {createServer} from 'node:net';
+import {selectIdeServer,ideServer,agyServer,ideRoot,discoverIdeLog,discoverIdeLogPorts,discoverIdeProcesses} from '../discovery.mjs';
 import {validIdeTarget} from '../runtime.mjs';
 import {IdeClient} from '../client.mjs';
 const rows=[
@@ -11,6 +12,57 @@ const rows=[
  {ProcessId:50,ParentProcessId:2,Name:'Antigravity IDE.exe',CommandLine:'second IDE'},
  {ProcessId:60,ParentProcessId:50,Name:'language_server_windows_x64.exe',CommandLine:'LS --subclient_type ide --csrf_token other-test'},
 ];
+test('agy hub is a strict language-server candidate, never a renderer root',()=>{
+ const hub={ProcessId:120,ParentProcessId:110,Name:'agy.exe',CommandLine:'C:\\Antigravity\\agy.exe --hub'};
+ const ancestry=[{ProcessId:100,ParentProcessId:1,Name:'Antigravity IDE.exe',CommandLine:'Antigravity IDE'},
+   {ProcessId:110,ParentProcessId:100,Name:'electron-helper.exe',CommandLine:'helper'},hub];
+ assert.equal(agyServer(hub),true);
+ for(const row of [
+   {...hub,CommandLine:'agy.exe'},
+   {...hub,CommandLine:'agy.exe --hubble'},
+   {...hub,CommandLine:'agy.exe --hub=true'},
+   {...hub,CommandLine:'agy.exe --hub --enable_lsp'},
+   {...hub,Name:'other.exe'}
+ ])assert.equal(agyServer(row),false);
+ assert.equal(ideRoot(hub),false);
+ assert.equal(selectIdeServer(ancestry,new Map([[9000,100]]),9000).ProcessId,120);
+ assert.throws(()=>selectIdeServer([{...hub,ParentProcessId:999},...ancestry.slice(0,2)],new Map([[9000,100]]),9000),/Waiting/);
+ assert.throws(()=>selectIdeServer(ancestry,new Map([[9000,120]]),9000),/does not belong/);
+});
+test('Windows discovery selects an agy hub through a bounded helper lineage',async()=>{
+ const processRows=[
+  {ProcessId:100,ParentProcessId:1,Name:'Antigravity IDE.exe',CommandLine:'Antigravity IDE.exe'},
+  {ProcessId:110,ParentProcessId:100,Name:'electron-helper.exe',CommandLine:'helper'},
+  {ProcessId:120,ParentProcessId:110,Name:'agy.exe',CommandLine:'C:\\Antigravity\\agy.exe --hub'},
+  {ProcessId:130,ParentProcessId:100,Name:'agy.exe',CommandLine:'agy.exe'},
+ ];
+ const run=async file=>file==='powershell.exe'
+   ?{stdout:JSON.stringify(processRows)}
+   :{stdout:'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 100\nTCP 127.0.0.1:8000 0.0.0.0:0 LISTENING 120'};
+ const result=await discoverIdeProcesses(9000,{platform:'win32',run});
+ assert.equal(result.ProcessId,120);assert.equal(result.rootPid,100);assert.deepEqual(result.Ports,[8000]);
+});
+test('shared renderer ports across two real IDE roots remain ambiguous',()=>{
+ const roots=[
+  {ProcessId:100,ParentProcessId:1,Name:'Antigravity IDE.exe',CommandLine:'Antigravity IDE.exe'},
+  {ProcessId:200,ParentProcessId:2,Name:'antigravity-ide',CommandLine:'antigravity-ide'},
+  {ProcessId:120,ParentProcessId:100,Name:'agy.exe',CommandLine:'agy.exe --hub'},
+  {ProcessId:220,ParentProcessId:200,Name:'agy',CommandLine:'/opt/agy --hub'},
+ ];
+ assert.throws(()=>selectIdeServer(roots,new Map([[9000,new Set([100,200])]]),9000),/Multiple/);
+ assert.equal(selectIdeServer(roots,new Map([[9000,100]]),9000).ProcessId,120);
+});
+test('POSIX parsing recognizes agy hub and excludes ordinary agy',async()=>{
+ const ps=[
+  '100 1 501 /usr/share/antigravity-ide/antigravity-ide',
+  '110 100 501 /usr/lib/electron-helper',
+  '120 110 501 /opt/agy --hub',
+  '130 100 501 /opt/agy',
+  '140 100 502 /opt/agy --hub',
+ ].join('\n');
+ const result=await discoverIdeProcesses(9000,{platform:'linux',uid:501,run:async()=>({stdout:ps}),linuxPort:async pid=>pid===100?[9000]:pid===120?[8000]:[]});
+ assert.equal(result.ProcessId,120);assert.deepEqual(result.Ports,[8000]);
+});
 test('bind the exact IDE root to its main server, excluding LSP/desktop/other profiles',()=>{
  assert.equal(selectIdeServer(rows,new Map([[9000,10]]),9000).ProcessId,20);
  assert.equal(selectIdeServer(rows,new Map([[9001,50]]),9001).ProcessId,60);
@@ -29,9 +81,145 @@ test('IDE renderer discovery rejects desktop pages, subframes, remote/debug port
  assert.ok(validIdeTarget(t,9000));
  for(const changed of [{type:'iframe'},{url:'http://127.0.0.1:9000/'},{url:t.url.replace('workbench.html','other.html')},{webSocketDebuggerUrl:'ws://example.com:9000/x'},{webSocketDebuggerUrl:'ws://127.0.0.1:9001/x'}])assert.equal(validIdeTarget({...t,...changed},9000),false);
 });
+
 test('Windows discovery retains only exact main process and its listening ports',async()=>{
  const run=async file=>file==='powershell.exe'?{stdout:JSON.stringify(rows)}:{stdout:'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 10\nTCP 127.0.0.1:8000 0.0.0.0:0 LISTENING 20'};
  const r=await discoverIdeProcesses(9000,{platform:'win32',run});assert.equal(r.ProcessId,20);assert.deepEqual(r.Ports,[8000]);
+});
+
+const localSocket=(pid,port,{state=0,local='127.0.0.1',remote='0.0.0.0',remotePort=0}={})=>({
+ OwningProcess:pid,LocalPort:port,LocalAddress:local,RemoteAddress:remote,RemotePort:remotePort,State:state,
+});
+function windowsDiscoveryFixture({processes=rows.slice(0,2),sockets='',fallback=[],netstatError=false}={}){
+ const calls=[];
+ const run=async(file,args,options)=>{
+  calls.push({file,args,options});
+  if(file==='netstat.exe'){
+   if(netstatError)throw Error('native socket table unavailable');
+   return {stdout:sockets};
+  }
+  if(args.at(-1).includes('Get-CimInstance Win32_Process'))return {stdout:JSON.stringify(processes)};
+  assert.equal(file,'powershell.exe');assert.match(args.at(-1),/Get-NetTCPConnection/);
+  return {stdout:'\uFEFF'+JSON.stringify(fallback)};
+ };
+ return {run,calls};
+}
+
+test('Windows TUN pseudo-listeners do not mask IDE renderer and API ports',async()=>{
+ for(const serverOtherPort of [false,true]){
+  const fixture=windowsDiscoveryFixture({
+   sockets:[
+    'TCP 198.18.0.1:60000 198.18.0.20:0 LISTENING 10',
+    'TCP 198.18.0.1:60001 198.18.0.21:0 LISTENING 20',
+    ...(serverOtherPort?['TCP 127.0.0.1:7777 0.0.0.0:0 LISTENING 20']:[]),
+   ].join('\n'),
+   fallback:[localSocket(10,9000),localSocket(20,8000),localSocket(20,8000)],
+  });
+  const result=await discoverIdeProcesses(9000,{platform:'win32',run:fixture.run});
+  assert.equal(result.rootPid,10);assert.equal(result.ProcessId,20);
+  assert.deepEqual(result.Ports,serverOtherPort?[7777,8000]:[8000]);
+  assert.equal(fixture.calls.length,3,'Only one process scan, native snapshot and batch fallback');
+  assert.ok(fixture.calls.every(call=>call.options.windowsHide===true));
+  assert.ok(fixture.calls.every(call=>call.options.timeout<=8000));
+ }
+});
+
+test('Windows missing renderer port falls back even when the root owns another valid listener',async()=>{
+ const fixture=windowsDiscoveryFixture({
+  sockets:'TCP 127.0.0.1:9001 0.0.0.0:0 LISTENING 10\nTCP 127.0.0.1:8000 0.0.0.0:0 LISTENING 20',
+  fallback:[localSocket(10,9000,{local:'::1',remote:'::'})],
+ });
+ const result=await discoverIdeProcesses(9000,{platform:'win32',run:fixture.run});
+ assert.equal(result.rootPid,10);assert.deepEqual(result.Ports,[8000]);
+ assert.equal(fixture.calls.length,3);
+});
+
+test('Windows IDE recovers from native socket snapshot failure with one owned-port fallback',async()=>{
+ const fixture=windowsDiscoveryFixture({netstatError:true,fallback:[
+  localSocket(10,9000,{state:'Listen'}),localSocket(20,8000,{state:2}),
+  localSocket(99,8001),localSocket(10,65536),
+ ]});
+ const result=await discoverIdeProcesses(9000,{platform:'win32',run:fixture.run});
+ assert.equal(result.rootPid,10);assert.deepEqual(result.Ports,[8000]);
+ assert.equal(fixture.calls.length,3);
+});
+
+test('Windows normal IDE discovery keeps the native two-command fast path',async()=>{
+ const fixture=windowsDiscoveryFixture({sockets:
+  'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 10\nTCP [::1]:8000 [::]:0 LISTENING 20\nTCP 198.18.0.1:60000 198.18.0.20:0 LISTENING 99',
+ });
+ const result=await discoverIdeProcesses(9000,{platform:'win32',run:fixture.run});
+ assert.equal(result.rootPid,10);assert.deepEqual(result.Ports,[8000]);
+ assert.equal(fixture.calls.length,2,'Healthy discovery does not launch a PowerShell socket fallback');
+});
+
+test('Windows fallback sockets owned by an Electron helper cannot stand in for the root',async()=>{
+ const fixture=windowsDiscoveryFixture({
+  processes:[...rows.slice(0,2),{ProcessId:70,ParentProcessId:10,Name:'Antigravity IDE.exe',CommandLine:'IDE --type=utility'}],
+  fallback:[localSocket(70,9000),localSocket(20,8000)],
+ });
+ await assert.rejects(discoverIdeProcesses(9000,{platform:'win32',run:fixture.run}),/does not belong/);
+ assert.equal(fixture.calls.length,3);
+});
+
+test('Windows fallback cannot pair another PID socket with the selected server credential',async()=>{
+ const fixture=windowsDiscoveryFixture({
+  sockets:'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 10',
+  fallback:[localSocket(99,8000)],
+ });
+ const result=await discoverIdeProcesses(9000,{platform:'win32',run:fixture.run});
+ assert.equal(result.ProcessId,20);assert.deepEqual(result.Ports,[]);
+ await assert.rejects(discoverIdeLog('profile',result.Ports,{
+  list:async()=>['20261101T100000'],read:async()=> 'listening on random port at 8000 for HTTP\n',
+ }),/Waiting for the IDE local API port/);
+});
+
+test('Windows fallback preserves ambiguity when two IDE roots own the renderer port',async()=>{
+ const fixture=windowsDiscoveryFixture({processes:rows,fallback:[
+  localSocket(10,9000),localSocket(20,8000),localSocket(50,9000),localSocket(60,8001),
+ ]});
+ await assert.rejects(discoverIdeProcesses(9000,{platform:'win32',run:fixture.run}),/Multiple Antigravity IDE/);
+});
+
+test('Windows fallback excludes non-listening and non-local sockets from renderer ownership',async()=>{
+ const closed=createServer();await new Promise(resolve=>closed.listen(0,'127.0.0.1',resolve));
+ const port=closed.address().port;await new Promise(resolve=>closed.close(resolve));
+ for(const invalid of [
+  localSocket(10,port,{state:'Bound'}),localSocket(10,port,{state:100}),
+  localSocket(10,port,{state:1}),localSocket(10,port,{state:5}),
+  localSocket(10,port,{state:null}),localSocket(10,port,{state:''}),
+  localSocket(10,port,{local:'198.18.0.1'}),localSocket(10,port,{remote:'198.18.0.20'}),
+  localSocket(10,port,{remotePort:443}),
+ ]){
+  const fixture=windowsDiscoveryFixture({fallback:[invalid,localSocket(20,8000)]});
+  await assert.rejects(discoverIdeProcesses(port,{platform:'win32',run:fixture.run}),/does not belong/);
+ }
+});
+
+test('IDE accepts explicit blank-state renderer and API targets only while they actually listen',async t=>{
+ const connections=[];
+ const listen=async()=>{
+  const server=createServer(socket=>{connections.push(socket);socket.on('data',()=>assert.fail('Probe must not send credentials or protocol data'));});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>{for(const socket of connections)socket.destroy();server.close();});
+  return server;
+ };
+ const renderer=await listen(),api=await listen(),debugPort=renderer.address().port,apiPort=api.address().port;
+ const fixture=windowsDiscoveryFixture({fallback:[localSocket(10,debugPort,{state:null}),localSocket(20,apiPort,{state:''})]});
+ const result=await discoverIdeProcesses(debugPort,{platform:'win32',run:fixture.run,expectedApiPorts:[apiPort]});
+ assert.equal(result.rootPid,10);assert.equal(result.ProcessId,20);assert.deepEqual(result.Ports,[apiPort]);assert.equal(fixture.calls.length,3);
+ for(const socket of connections)socket.destroy();
+ await new Promise(resolve=>api.close(resolve));
+ const disconnected=await discoverIdeProcesses(debugPort,{platform:'win32',run:fixture.run,expectedApiPorts:[apiPort]});
+ assert.deepEqual(disconnected.Ports,[],'A reachable renderer cannot prove an unavailable API listener');
+});
+
+test('an omitted State field never supplies IDE renderer ownership even on an open port',async t=>{
+ const server=createServer(socket=>socket.destroy());await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ t.after(()=>server.close());const port=server.address().port;
+ const omitted=localSocket(10,port);delete omitted.State;
+ const fixture=windowsDiscoveryFixture({fallback:[omitted,localSocket(20,8000)]});
+ await assert.rejects(discoverIdeProcesses(port,{platform:'win32',run:fixture.run}),/does not belong/);
 });
 test('macOS/Linux fixtures keep UID and PID lineage rather than newest process',async()=>{
  for(const platform of ['darwin','linux']){
@@ -47,8 +235,29 @@ test('macOS/Linux fixtures keep UID and PID lineage rather than newest process',
  }
 });
 test('IDE client keeps credentials in memory and uses the selected main PID',async()=>{
- const client=new IdeClient({profile:'fixture',debugPort:()=>9000,processes:async()=>({...rows[1],Ports:[8000]}),logPort:async()=>8000});
+ const client=new IdeClient({profile:'fixture',debugPort:()=>9000,processes:async()=>({...rows[1],Ports:[8000]}),logPorts:async()=>[8000]});
  assert.deepEqual(await client.discover(),{port:8000,csrf:'test-only',pid:20});
+});
+
+test('IDE client supplies HTTP log hints when a normal gRPC listener masks a missing API port',async()=>{
+ const fixture=windowsDiscoveryFixture({
+  sockets:'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 10\nTCP 127.0.0.1:7777 0.0.0.0:0 LISTENING 20',
+  fallback:[localSocket(20,8000)],
+ });
+ const client=new IdeClient({profile:'fixture',debugPort:()=>9000,logPorts:async()=>[8000],
+  processes:(port,options)=>discoverIdeProcesses(port,{...options,platform:'win32',run:fixture.run})});
+ assert.deepEqual(await client.discover(),{port:8000,pid:20,csrf:'test-only'});
+ assert.equal(fixture.calls.length,3);
+ assert.match(fixture.calls[2].args.at(-1),/@\(20\)/);
+});
+
+test('IDE HTTP log candidates stay newest-first and read at most eight session logs',async()=>{
+ const names=Array.from({length:20},(_,i)=>`202610${String(i+1).padStart(2,'0')}T100000`),readNames=[];
+ const result=await discoverIdeLogPorts('profile',{list:async()=>[...names,'not-a-log'],read:async path=>{
+  const name=path.split(/[\\/]/).at(-2);readNames.push(name);
+  return `listening on random port at ${8000+Number(name.slice(6,8))} for HTTP\nlistening on random port at 7777 for HTTPS\n`;
+ }});
+ assert.deepEqual(result,[8020,8019,8018,8017,8016,8015,8014,8013]);assert.equal(readNames.length,8);
 });
 
 test('inherited sockets never replace the IDE root with its Electron helper or language server',()=>{

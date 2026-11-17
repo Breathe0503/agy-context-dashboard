@@ -65,12 +65,14 @@ try {
           return root?.getElementById(id)?.textContent===text;
         },{inline,id,text});
       };
-      try{await expectText('cache-output','90,629 tok');}catch(error){
+      try{await expectText('cache-output','90.6K');}catch(error){
         console.log(JSON.stringify({inline,lang,errors,output:await scope.locator('#cache-output').textContent(),
           rate:await scope.locator(inline?'#rate-note':'#health-note').textContent(),
           note:await scope.locator('#cache-note').textContent()}));throw error;
       }
-      await expectText('cache-coverage','117,270 tok');
+      await expectText('cache-output-unit',' toks');
+      await expectText('cache-coverage','117,270');
+      await expectText('cache-coverage-unit','toks');
       if(inline)await scope.locator('[data-card=cache]').hover();
       else await scope.locator('[data-card=cache]').click();
       await scope.locator('#cache-card').waitFor({state:'visible'});
@@ -81,43 +83,43 @@ try {
       assert.ok(card&&card.y>=0&&card.y+card.height<=900,'Partial-data explanation stays inside viewport');
       await page.screenshot({path:join(output,`${inline?'inline':'panel'}-${lang}.png`)});
       speed=sample([known,...missing,request('new',{outputTokens:'500'})]);
-      await expectText('cache-output','91,129 tok');
-      await expectText('cache-coverage','117,770 tok');
+      await expectText('cache-output','91.1K');
+      await expectText('cache-coverage','117,770');
       speed=sample([request('output-only',{outputTokens:'200'})]);
-      await expectText('cache-output','200 tok');
+      await expectText('cache-output','200');
       await expectText('cache-miss','—');
       await expectText(inline?'cache-detail-rate':'cache-rate','—');
       speed=sample([request('zero',{outputTokens:'0'})]);
-      await expectText('cache-output','0 tok');
-      await expectText('cache-coverage','0 tok');
+      await expectText('cache-output','0');
+      await expectText('cache-coverage','0');
       const saved=sample([known]);
       const fresh=sample([request('known',{outputTokens:'880'}),request('new',{outputTokens:'500'})]);
       speed=reconcileMetrics(saved,{...fresh,measuredRequests:0},'2026-10-13T00:00:00Z');
-      await expectText('cache-output','1,380 tok');
-      await expectText('cache-coverage','1,380 tok');
+      await expectText('cache-output','1.38K');
+      await expectText('cache-coverage','1,380');
       const legacy=structuredClone(partial);delete legacy.tokens;
       speed=safeMetrics(legacy,id);
-      await expectText('cache-output','90,629 tok');
-      await expectText('cache-coverage','117,270 tok');
+      await expectText('cache-output','90.6K');
+      await expectText('cache-coverage','117,270');
       assert.equal(speed.tokens.coverageUnknown,true,'Legacy/corrupt records keep conservative coverage internally');
       const corrupt=sample([known]);corrupt.tokens.outputTokens=1.5;
       speed=safeMetrics(corrupt,id);
       await expectText('cache-output','—');
-      await expectText('cache-coverage','26,641 tok');
+      await expectText('cache-coverage','26,641');
       assert.equal(speed.tokens.coverageUnknown,true,'Legacy/corrupt records keep conservative coverage internally');
       speed=sample([request('zero-input',{apiProvider:'API_PROVIDER_GOOGLE_GEMINI',inputTokens:'0',outputTokens:'200'})]);
-      await expectText('cache-coverage','200 tok');await expectText('cache-output','200 tok');
-      await expectText('cache-miss','0 tok');await expectText('cache-read','0 tok');
+      await expectText('cache-coverage','200');await expectText('cache-output','200');
+      await expectText('cache-miss','0');await expectText('cache-read','0');
       await expectText(inline?'cache-detail-rate':'cache-rate','—');
       assert.equal(speed.cache.hitRate,null,'A zero denominator stays unavailable, not a fabricated cache percentage');
       assert.equal(await scope.locator('#cache-note').isVisible(),false);
       speed=sample([request('partial-input',{apiProvider:'API_PROVIDER_GOOGLE_GEMINI',inputTokens:'100',cacheReadTokens:'invalid',outputTokens:'200'})]);
-      await expectText('cache-coverage','300 tok');await expectText('cache-output','200 tok');
-      await expectText('cache-miss','100 tok');await expectText('cache-read','—');
+      await expectText('cache-coverage','300');await expectText('cache-output','200');
+      await expectText('cache-miss','100');await expectText('cache-read','—');
       speed=sample([request('cache-only',{apiProvider:'API_PROVIDER_GOOGLE_GEMINI',cacheReadTokens:'40',cacheWriteTokens:'5',outputTokens:'50'})]);
-      await expectText('cache-coverage','95 tok');await expectText('cache-miss','—');
-      await expectText('cache-read','40 tok');await expectText('cache-write','5 tok');
-      await expectText('cache-output','50 tok');
+      await expectText('cache-coverage','95');await expectText('cache-miss','—');
+      await expectText('cache-read','40');await expectText('cache-write','5 toks');
+      await expectText('cache-output','50');
       results.push({renderer:inline?'inline':'panel',language:lang,partial:true,continuedOutput:true,outputOnly:true,zero:true,independentHistory:true,legacyCoverage:true,corruptCounters:true,zeroInput:true,independentInput:true,cacheOnlyInput:true});
     }finally{await page.close();}
   }

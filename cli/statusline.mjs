@@ -7,6 +7,7 @@ const MAX_INPUT = 256 * 1024;
 const help = `Antigrative Dashboard for Antigravity CLI (Node.js 20+)
 Reads the official statusLine JSON from stdin. No network or transcript access.
   --preview           Render synthetic data; does not write statistics
+  --preview-argon     Render synthetic Gemini, Argon weekly and Claude quotas
   --language en|zh-CN|zh-TW  Override shared desktop language preference
   --width 1..500       Override terminal columns
   --details           Include capacity and current request token counts
@@ -19,7 +20,7 @@ function options(args) {
   const result = {};
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (['--preview', '--details', '--json', '--help', '--no-color'].includes(arg)) result[arg.slice(2)] = true;
+    if (['--preview', '--preview-argon', '--details', '--json', '--help', '--no-color'].includes(arg)) result[arg.slice(2)] = true;
     else if (arg === '--language') {
       const value = args[++i];
       if (!['en', 'zh-CN', 'zh-TW'].includes(value)) throw new Error('Invalid option');
@@ -43,8 +44,8 @@ async function input() {
   return JSON.parse(Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, ''));
 }
 
-function preview() {
-  return {
+function preview(argon = false) {
+  const result = {
     version: '1.5.9',
     model: { id: 'gemini-4-hydrogen-xhigh', display_name: 'Gemini 4 Hydrogen (XHigh)', effort: 'xhigh' },
     agent_state: 'working',
@@ -62,13 +63,22 @@ function preview() {
       '3p-weekly': { remaining_fraction: 0.64, reset_in_seconds: 345600 },
     },
   };
+  if (argon) {
+    result.version = '1.4.5';
+    result.model = { id: 'gemini-4-argon-high', display_name: 'Gemini 4 Argon (High)' };
+    result.agent_state = 'idle';
+    result.quota['gemini-argon-wtu-weekly'] = { remaining_fraction: 0.4, reset_in_seconds: 345600 };
+    result.quota['3p-5h'] = { remaining_fraction: 0.82, reset_in_seconds: 3600 };
+    delete result.quota['3p-weekly'];
+  }
+  return result;
 }
 
 try {
   const opts = options(process.argv.slice(2));
   if (opts.help) process.stdout.write(help);
   else {
-    const metrics = normalize(opts.preview ? preview() : await input());
+    const metrics = normalize(opts.preview || opts['preview-argon'] ? preview(opts['preview-argon']) : await input());
     const saved = await new PreferencesStore().snapshot();
     const language = opts.language || saved.language || 'en';
     process.stdout.write((opts.json ? JSON.stringify(metrics) : render(metrics, {

@@ -27,6 +27,13 @@ export function validatedInput(value) {
   // Historical usage import is an explicit, user-visible action. It must not
   // be started by the high-frequency inline metrics poll.
   if (value.usageSync === true) result.usageSync = true;
+  if (value.usageOnly === true) result.usageOnly = true;
+  if (value.usageScope === 'local' || value.usageScope === 'account') result.usageScope = value.usageScope;
+  if (value.quotaRefresh === true) result.quotaRefresh = true;
+  if (typeof value.composerModel === 'string') {
+    const composerModel = value.composerModel.replace(/[\x00-\x1f\x7f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (composerModel) result.composerModel = composerModel;
+  }
   return result;
 }
 
@@ -153,6 +160,7 @@ export class RuntimeUi {
     this.updater=updater;
     this.owner=owner;this.owns=owns;
     this.binding=owner?BINDING+'_'+owner.replaceAll('-',''):BINDING;
+    this.rendererTheme={};
   }
   async setHealth(state, message) {
     this.health = { state, mode: 'runtime', message, windows: this.sessions.size, checkedAt: new Date().toISOString() };
@@ -210,7 +218,7 @@ export class RuntimeUi {
       }
       else if (input.type === 'preferences' && this.preferences) {
         const value=input.input;
-        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed'].includes(key)))throw new Error('Invalid preferences request');
+        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','usageScope'].includes(key)))throw new Error('Invalid preferences request');
         result=Object.keys(value).length?await this.preferences.set(value):await this.preferences.get();
       }
       else if (input.type === 'diagnostic' && ['boot', 'mounted', 'mount-error'].includes(input.input?.stage)) {
@@ -282,6 +290,7 @@ export class RuntimeUi {
       }
       for (const target of targets) if (!this.sessions.has(target.webSocketDebuggerUrl)) this.sessions.set(target.webSocketDebuggerUrl, await this.attach(target));
       if (this.stopping||!await this.owns()) { await this.detachAll(); return; }
+      let sampledTheme={};
       for (const [url, connection] of this.sessions) {
         try {
           // Cold-start navigation may replace the top frame or lose its context
@@ -297,10 +306,12 @@ export class RuntimeUi {
             await connection.command('Runtime.evaluate',{expression:this.rendererGuard('window.__agPulseRuntimeBridge?.reconnect?.();')});
           }
           const result = await connection.command('Runtime.evaluate', { returnByValue: true,
-            expression: '({mounted:Boolean(document.getElementById("ag-pulse-status-bar")?.isConnected),installed:Boolean(window.__agPulseInlineInstalled),bridge:Boolean(window.__agPulseRuntimeBridge && window.agPulseHost'+(this.owner?' && window.__agPulseRuntimeBridge.binding==='+JSON.stringify(this.binding):'')+')})' });
+            expression: '(()=>{const mounted=Boolean(document.getElementById("ag-pulse-status-bar")?.isConnected),installed=Boolean(window.__agPulseInlineInstalled),bridge=Boolean(window.__agPulseRuntimeBridge && window.agPulseHost'+(this.owner?' && window.__agPulseRuntimeBridge.binding==='+JSON.stringify(this.binding):'')+');let fontFamily=null,monoFontFamily=null;try{const pick=(els,vars)=>{for(const el of els){if(!el)continue;for(const v of vars){const s=(el.style?.getPropertyValue?.(v)||getComputedStyle(el).getPropertyValue(v)||"").trim();if(s)return s;}}return null;};const base=[document.querySelector(\'[data-testid="model-selector-trigger"], .rounded-composer, .monaco-workbench\'),document.body,document.documentElement];fontFamily=pick(base,[\'--ui-font-family\',\'--font-sans\',\'--font-family\',\'--vscode-font-family\',\'--antigravity-font-family\']);if(!fontFamily){for(const el of base){if(!el||el.hasAttribute?.("data-ag-pulse-bar"))continue;const f=getComputedStyle(el).fontFamily;if(f){fontFamily=f;break;}}}monoFontFamily=pick(base,[\'--vscode-editor-font-family\',\'--font-mono\']);}catch{}return {mounted,installed,bridge,fontFamily,monoFontFamily};})()' });
           if(result.exceptionDetails)throw new Error('Renderer document is not ready');
           const status = result.result?.value;
           connection.mounted = status?.mounted === true;
+          if(!connection.ideWebview&&(status?.fontFamily||status?.monoFontFamily))sampledTheme={fontFamily:status.fontFamily||undefined,monoFontFamily:status.monoFontFamily||undefined};
+          else if(!sampledTheme.fontFamily&&!sampledTheme.monoFontFamily&&(status?.fontFamily||status?.monoFontFamily))sampledTheme={fontFamily:status.fontFamily||undefined,monoFontFamily:status.monoFontFamily||undefined};
           // Startup can swap the document between discovery and first injection.
           // Reinstall missing hooks rather than waiting forever for a composer.
           if (status && (!status.installed || !status.bridge)) {
@@ -313,6 +324,11 @@ export class RuntimeUi {
           try{if(connection.script)await connection.command('Page.removeScriptToEvaluateOnNewDocument',{identifier:connection.script});}catch{}
           await this.detach(connection);this.sessions.delete(url);
         }
+      }
+      this.rendererTheme={};
+      for(const k of ['fontFamily','monoFontFamily']){
+        const v=typeof sampledTheme[k]==='string'?sampledTheme[k].trim():'';
+        if(v&&v.length<=240&&!/[;{}<>\\/\n\r\0]|url\s*\(|var\s*\(|expression\s*\(|javascript:|@import/i.test(v))this.rendererTheme[k]=v;
       }
       const mounted=[...this.sessions.values()].some(c=>c.mounted);
       await this.setHealth(mounted ? 'mounted' : this.sessions.size ? 'waiting-for-composer' : 'waiting',
@@ -336,7 +352,7 @@ export class RuntimeUi {
   }
   async detachAll() {
     for (const connection of this.sessions.values()) await this.detach(connection);
-    this.sessions.clear();
+    this.sessions.clear();this.rendererTheme={};
   }
   start() {
     if (this.running) return; this.running = true; this.stopping = false;

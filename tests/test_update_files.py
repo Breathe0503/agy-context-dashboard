@@ -19,11 +19,11 @@ spec.loader.exec_module(worker)
 CRASH_SCRIPT = '''import importlib.util,os,sys
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('w',sys.argv[1]);w=importlib.util.module_from_spec(spec);spec.loader.exec_module(w)
-target,stage,backup=map(Path,sys.argv[2:5]);point=sys.argv[5];target_root=target.resolve()
+target,stage,backup=map(Path,sys.argv[2:5]);point=sys.argv[5]
 replace=w.os.replace
 def crash_replace(source,destination):
     replace(source,destination)
-    try:relative=Path(destination).resolve().relative_to(target_root).as_posix()
+    try:relative=Path(destination).relative_to(target).as_posix()
     except ValueError:return
     if point=='after:'+relative:os._exit(93)
 def fault(name):
@@ -37,7 +37,9 @@ class FileUpdateTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix='ag-file-update-')
         self.addCleanup(temporary.cleanup)
-        self.home = Path(temporary.name)
+        # Fault hooks compare paths emitted by the canonicalized updater. macOS
+        # /var aliases and Windows 8.3 TEMP names must use the same spelling.
+        self.home = Path(temporary.name).resolve()
         self.target = self.home / '.gemini/config/plugins/antigravity-pulse'
         for name in worker.REQUIRED:
             self.write(self.target / name, self.content(name, '0.8.8'))
@@ -117,7 +119,7 @@ class FileUpdateTests(unittest.TestCase):
         replace = worker.os.replace
         failed = []
         def fail_once(source, destination):
-            if Path(destination).resolve() == (self.target / 'sidecars/panel/main.mjs').resolve() and not failed:
+            if Path(destination) == self.target / 'sidecars/panel/main.mjs' and not failed:
                 failed.append(True)
                 raise PermissionError('simulated open file')
             return replace(source, destination)
@@ -135,7 +137,7 @@ class FileUpdateTests(unittest.TestCase):
         replace = worker.os.replace
         restored = []
         def fail_once(source, destination):
-            if Path(destination).resolve() == (self.target / 'compat/i18n.cjs').resolve() and not restored:
+            if Path(destination) == self.target / 'compat/i18n.cjs' and not restored:
                 restored.append(True)
                 raise PermissionError('recovery interrupted')
             return replace(source, destination)

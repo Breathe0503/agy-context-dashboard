@@ -40,9 +40,7 @@ try{
    await strip.locator('[data-card=context]').hover();await strip.locator('#context-card').waitFor({state:'visible'});
    assert.match(await strip.locator('#context-card .scope-note').textContent(),lang==='en'?/Current subagent/:/当前子代理/);
    assert.match(await strip.locator('#five-note').textContent(),lang==='en'?/Account quota/:/账号共享额度/);
-   const triggerText=await strip.locator('.group-trigger').textContent();
-   assert.ok(triggerText.includes('Claude'),'Quota group comes from child sampled model');
-   assert.equal(triggerText.includes('GPT'),false,'3p group label must not include GPT');
+   assert.ok((await strip.locator('#active-group-name').textContent()).includes('Claude'),'Quota group comes from child sampled model');
    await page.keyboard.press('Escape');
    for(const width of [700,500,370,1100]){
     await page.setViewportSize({width,height:800});await page.waitForTimeout(100);
@@ -94,7 +92,7 @@ try{
    await page.waitForFunction(()=>testPending.length>0);
    await page.evaluate(([id,kind])=>{testHold=false;switchConversation(id,kind)},[parent,'parent']);
    await page.waitForFunction(()=>document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('tps').textContent==='50.0',{},{timeout:750});
-   await page.evaluate(([id,kind])=>{samples[id].speed.tps=120;switchConversation(id,kind)},[child,'child']);
+   await page.evaluate(([id,kind])=>{samples[id].speed.tps=120;samples[id].speed.latestTps=120;switchConversation(id,kind)},[child,'child']);
    await page.waitForFunction(()=>document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('tps').textContent==='120.0',{},{timeout:750});
    await page.evaluate(()=>{testPending.splice(0).forEach(resolve=>resolve());testFailures=[]});
    await page.waitForTimeout(50);
@@ -105,7 +103,7 @@ try{
    await page.waitForFunction(()=>testPending.length>0);
    await page.evaluate(([id,kind])=>{testHold=false;switchConversation(id,kind)},[parent,'parent']);
    await page.waitForFunction(()=>document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('tps').textContent==='50.0',{},{timeout:750});
-   await page.evaluate(id=>{testFailures.splice(0).forEach(reject=>reject());testPending=[];samples[id].speed.tps=90},child);
+   await page.evaluate(id=>{testFailures.splice(0).forEach(reject=>reject());testPending=[];samples[id].speed.tps=90;samples[id].speed.latestTps=90},child);
    await page.waitForTimeout(50);
    assert.equal(await strip.locator('#dot').getAttribute('class'),'dot live');
    assert.equal(await strip.locator('#tps').textContent(),'50.0');

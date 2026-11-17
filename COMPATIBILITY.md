@@ -11,6 +11,8 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
+2026-11-16 / **v0.9.1**：合入上游 `v0.9.1` 更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)）：新增额度消耗速率预测与周期 Token 参考估算、`minimal` / `cat` 双样式速度卡片、用量弹窗「本机全部 / 当前账号」切换与未登录本地记账、多输入框多实例 + React Fiber 会话 ID 回退、宿主字体同步，以及完整 Antigravity IDE `2.6.0`（`agy --hub` + `jetski-frame` 嵌套 Webview）支持；同时完整保留 `v0.8.13`–`v0.8.16` 全部新模型识别、`language_server.native` 与 `agy 1.5.x` CLI 适配。
+
 2026-11-15 / **v0.8.16**：新增 Claude 4.5（`200K`）与 Claude 4.6–5.5（`1M`）上下文参考、跨端 `word/` / `@` 日期标签 / `perplexity/*` 模型归一化、统一 `3p` `Claude` 额度标签，并将 CLI `statusLine` 对齐至 `Argon` 周额度、`agy 1.5.x` 缓存口径与 `install --with-cli` 版本同步校验（`#3`、`#4`、`#6`、`#7`）；macOS 桌面 App `2.32.1` 重启后已实测 `sidecar` 在线挂载（`mounted` / `live`）与本地接口统计，`agy 1.5.9` 已通过 CLI 生命周期与模型规范化检查，独立 IDE `.vsix` 与 Linux 登录态界面仍待另行实机验收。
 
 2026-11-14 / **v0.8.15**：合入上游 `v0.8.20` 优化（`node:sqlite` 后台流式采集与磁盘 `usage-v1` 账本、`Argon` 周额度独立分组、子代理标签页隔离、更新器 `DirectoryAnchor` 与 Windows 端口探测加固、侧栏版本号显示），保留 `v0.8.13`–`v0.8.14` 全部特性与 `wycocoyu/agy-context-dashboard` 身份。
@@ -25,8 +27,8 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 ## Antigravity 自带 IDE
 
-专用包为 `antigrative-dashboard-ide-0.8.16.vsix`，安装入口与桌面 App 独立。
-Windows 11 / IDE 2.5.5（VS Code base 1.107.0）已用真实对话验证速率、缓存、上下文、重启历史恢复和窄宽布局。
+专用包为 `antigrative-dashboard-ide-0.9.1.vsix`，安装入口与桌面 App 独立。
+Windows 11 / IDE 2.5.5（VS Code base 1.107.0）与 IDE 2.6.0（`agy --hub` 及嵌套 Agent Webview）已支持并具备完整自动化覆盖；Linux/macOS 登录后的 IDE GUI 仍待实机验收。
 Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 浏览器 fixture 纳入 CI；登录后的 IDE GUI 仍待实机验收。
 当前仅支持默认用户 profile；私有 Preact/DOM 或 RPC 变化可能需要适配，不能保证未来 IDE 版本无需维护。
 插件需通过 loopback renderer 端口挂载：完整退出后带 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数启动。普通启动不会自动打开此端口。

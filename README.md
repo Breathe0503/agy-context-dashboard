@@ -7,7 +7,7 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.8.16](https://img.shields.io/badge/version-0.8.16-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.1](https://img.shields.io/badge/version-0.9.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -20,7 +20,7 @@
 >
 > **配套侧边栏插件推荐：** 如果你还希望在 Antigravity 左侧会话栏按需求聚合会话、使用类似收件箱的待办确认工作流，欢迎一并体验 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)。它采用同样的无侵入 Sidecar + CDP 架构，与本仪表盘完全共存、互不干扰。
 
-**v0.8.16：** 在 `v0.8.15`（上游 `v0.8.20` 后台采集与子代理隔离基线）之上，正式发布 Claude 4.5（`200K`）与 Claude 4.6–5.5（`1M`）上下文参考、跨端 `word/` 与 `@` 日期标签及 `perplexity/*` 模型别名规范化、统一 `3p` `Claude` 额度标签、`agy 1.5.x` 命令行缓存率与 `Argon` 周额度适配，以及 `install --with-cli` 同步安装与过期提醒（[`#3`](https://github.com/wycocoyu/agy-context-dashboard/issues/3)、[`#4`](https://github.com/wycocoyu/agy-context-dashboard/issues/4)）。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.16) · [变更记录](CHANGELOG.md)。
+**v0.9.1：** 完整合入上游 `v0.9.1` 功能更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)），新增**额度消耗速率预测与周期 Token 估算**、**简约折线 / 像素猫双样式速度卡片**、**三段缓存占比条**、**「本机全部 / 当前账号」用量范围切换与未登录本地记账**、**多输入框多实例隔离与宿主字体同步**，以及**独立 Antigravity IDE 2.6.0（`agy --hub` + 嵌套 Webview）完整适配**；同时完整保留本仓 `v0.8.13`–`v0.8.16` 的 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 模型与上下文兼容、`word/` 与 `perplexity/*` 归一化、`3p` 统一 `Claude` 标签、`language_server.native` 发现及 `agy 1.5.x` CLI 适配。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -68,7 +68,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.8.16.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.9.1.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带
@@ -76,7 +76,7 @@
 参数的启动方式打开；将参数加到快捷方式目标末尾，后续继续使用该快捷方式。
 窄栏显示三个可交互图标，拉宽后显示数值；悬停或点击即可查看详情。
 
-Windows IDE **2.5.5** 已验证真实对话。Linux/macOS IDE 有自动化覆盖，登录后的
+Windows IDE **2.5.5** 与 **2.6.0** 已适配并提供自动化验证（`agy --hub` 与嵌套 Webview）。Linux/macOS IDE 有自动化覆盖，登录后的
 实机 GUI 验收尚未完成。VS Code、Visual Studio、JetBrains、Zed、Xcode 中的
 Antigravity 扩展目前尚未兼容。详见 [IDE 安装、更新、诊断和数据清理](ide/README.md)。
 上方演示图是桌面 App 控件，不是 IDE 界面截图。
@@ -262,7 +262,7 @@ python3 manage.py install
 
 当前实机验证：**Windows 11 / Antigravity App 2.21.1、2.22.0**；2.22.0 的真实上下文读取和合并悬浮卡已验收。Linux/macOS 的完整登录界面仍需用户实机验证，自动化覆盖范围见兼容性文档。
 
-独立 Antigravity IDE 2.5.5 提供单独 VSIX，Windows 已实机验证。其他编辑器扩展和 DSH 暂不支持。Linux/macOS 桌面版已适配原生路径、后台发现和 shell 安装器；IDE 有自动化覆盖，完整登录界面仍待实机验收，详见兼容性文档。
+独立 Antigravity IDE 2.5.5 / 2.6.0 提供单独 VSIX，Windows 已实机验证。其他编辑器扩展和 DSH 暂不支持。Linux/macOS 桌面版已适配原生路径、后台发现和 shell 安装器；IDE 有自动化覆盖，完整登录界面仍待实机验收，详见兼容性文档。
 参考 DSH Rail Music 的项目组织与文档风格，但安装接口不同，不能使用 `dsh plugin add` 安装 Antigrative Dashboard。
 
 [完整边界与更新策略 →](COMPATIBILITY.md)
@@ -311,4 +311,4 @@ Antigrative Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 An
 
 ## App 手动更新
 
-在**上下文详情 → 右下角 ⋯ → 检查更新**中手动检查稳定发行版。更新器只更新 App 插件，校验官方包与 SHA-256，保留设置和用量记录；安装完成后可重新加载插件。失败或中断时保留回滚与恢复材料。IDE 和 CLI 仍使用各自安装方式。[校验、恢复及边界说明](docs/UPDATES.md)。
+在**上下文详情 → 右下角「检查更新」**中手动检查稳定发行版。更新器只更新 App 插件，校验官方包与 SHA-256，保留设置和用量记录；安装完成后可重新加载插件。失败或中断时保留回滚与恢复材料。IDE 和 CLI 仍使用各自安装方式。[校验、恢复及边界说明](docs/UPDATES.md)。

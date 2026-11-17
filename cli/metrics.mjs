@@ -3,6 +3,7 @@ const object = value => value && typeof value === 'object' && !Array.isArray(val
 const number = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 const tokens = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 export const states = ['idle', 'thinking', 'working', 'tool_use', 'initializing'];
+const knownQuotaIds = new Set(['gemini-5h', 'gemini-weekly', '3p-5h', '3p-weekly', 'gemini-argon-wtu-weekly']);
 
 const CLI_15X_VERSION = /^1\.5\.\d+(?:\.\d+)*$/;
 
@@ -199,11 +200,14 @@ export function normalize(payload) {
   const input = tokens(usage.input_tokens), read = tokens(usage.cache_read_input_tokens);
   const write = tokens(usage.cache_creation_input_tokens);
   const used = number(context.used_percentage), remaining = number(context.remaining_percentage);
-  const quotas = Object.entries(object(payload.quota)).slice(0, 16).map(([key, raw]) => {
+  const quotaEntries = Object.entries(object(payload.quota));
+  const selectedQuotas = [...quotaEntries.filter(([key]) => knownQuotaIds.has(key)), ...quotaEntries.filter(([key]) => !knownQuotaIds.has(key))].slice(0, 16);
+  const quotas = selectedQuotas.map(([key, raw]) => {
     const value = object(raw), fraction = number(value.remaining_fraction);
     const reset = typeof value.reset_time === 'string' ? Date.parse(value.reset_time) : NaN;
     return {
-      id: cleanText(key, 64), remaining: fraction !== null && fraction <= 1 ? fraction * 100 : null,
+      id: cleanText(key, 64), bucketId: knownQuotaIds.has(key) ? key : null, disabled: value.disabled === true,
+      remaining: value.disabled !== true && fraction !== null && fraction <= 1 ? fraction * 100 : null,
       resetInSeconds: number(value.reset_in_seconds), resetTime: Number.isFinite(reset) ? reset : null,
     };
   }).filter(value => value.id);
@@ -217,6 +221,7 @@ export function normalize(payload) {
   }).filter(Boolean);
   return {
     model: cleanText(identifiedModel?.display || modelLabel, 120) || null,
+    modelId: cleanText(model.id, 120) || null,
     state: states.includes(payload.agent_state) ? payload.agent_state : null,
     width: Number.isInteger(payload.terminal_width) && payload.terminal_width > 0 ? Math.min(500, payload.terminal_width) : 80,
     context: { usedPercentage: used ?? (remaining !== null && remaining <= 100 ? 100 - remaining : null),
@@ -231,8 +236,13 @@ export function normalize(payload) {
 
 export function compact(value) {
   if (value === null) return '--';
-  const [scaled, suffix] = value >= 1e6 ? [value / 1e6, 'M'] : value >= 1e3 ? [value / 1e3, 'K'] : [value, ''];
-  return `${Number(scaled.toFixed(suffix ? 1 : 0))}${suffix}`;
+  for (const [base, suffix, nextBase, nextSuffix] of [[1e12, 'T', 0, ''], [1e9, 'B', 1e12, 'T'], [1e6, 'M', 1e9, 'B'], [1e3, 'K', 1e6, 'M']]) {
+    if (value >= base) {
+      const rounded = Number((value / base).toFixed(1));
+      return nextBase && rounded * base >= nextBase ? `1${nextSuffix}` : `${rounded}${suffix}`;
+    }
+  }
+  return String(Math.round(value));
 }
 
 export function percentage(value) {

@@ -26,13 +26,13 @@ export function truncate(text, width) {
 
 const labels = {
   en: { context: 'Context', shortContext: 'Ctx', cache: 'Cache', read: 'read', capacity: 'Capacity', created: 'Cache write', input: 'Input', output: 'Output',
-    left: 'left', reset: 'reset', quota: 'Quota', week: 'week', unknown: 'Unknown', idle: 'Ready', thinking: 'Thinking',
+    left: 'left', reset: 'reset', quota: 'Quota', week: 'week', disabled: 'Unavailable', unknown: 'Unknown', idle: 'Ready', thinking: 'Thinking',
     working: 'Working', tool_use: 'Tool', initializing: 'Starting', subagents: 'Subagents' },
   'zh-CN': { context: '上下文', shortContext: '上下文', cache: '缓存', read: '读取', capacity: '容量', created: '缓存写入', input: '输入', output: '输出',
-    left: '剩余', reset: '重置', quota: '额度', week: '周', unknown: '未知', idle: '就绪', thinking: '思考中',
+    left: '剩余', reset: '重置', quota: '额度', week: '周', disabled: '不可用', unknown: '未知', idle: '就绪', thinking: '思考中',
     working: '生成中', tool_use: '工具', initializing: '启动中', subagents: '子代理' },
   'zh-TW': { context: '上下文', shortContext: '上下文', cache: '快取', read: '讀取', capacity: '容量', created: '快取寫入', input: '輸入', output: '輸出',
-    left: '剩餘', reset: '重設', quota: '配額', week: '週', unknown: '未知', idle: '就緒', thinking: '思考中',
+    left: '剩餘', reset: '重設', quota: '配額', week: '週', disabled: '無法使用', unknown: '未知', idle: '就緒', thinking: '思考中',
     working: '生成中', tool_use: '工具', initializing: '啟動中', subagents: '子代理' },
 };
 
@@ -86,28 +86,27 @@ export function render(metrics, { language = 'en', width = metrics.width, color 
   const known = {
     'gemini-5h': ['gemini', 'Gemini', '5h', 36],
     'gemini-weekly': ['gemini', 'Gemini', l.week, 36],
-    'gemini-argon-5h': ['gemini-argon', 'Argon', '5h', 34],
-    'gemini-argon-wtu': ['gemini-argon', 'Argon', l.week, 34],
-    'gemini-argon-weekly': ['gemini-argon', 'Argon', l.week, 34],
     'gemini-argon-wtu-weekly': ['gemini-argon', 'Argon', l.week, 34],
     '3p-5h': ['3p', 'Claude', '5h', '38;2;218;119;86'],
     '3p-weekly': ['3p', 'Claude', l.week, '38;2;218;119;86'],
   };
   const groups = new Map();
   for (const quota of metrics.quotas) {
-    const [id, name, window, code] = known[quota.id] || [quota.id, quota.id, null, 36];
-    if (!groups.has(id)) groups.set(id, { id, name, code, known: !!known[quota.id], windows: [] });
-    groups.get(id).windows.push({ ...quota, window });
+    const mapping = known[quota.bucketId];
+    const [id, name, window, code] = mapping || [quota.id, quota.id, null, 36];
+    const key = (mapping ? 'family:' : 'bucket:') + id;
+    if (!groups.has(key)) groups.set(key, { id, name, code, known: !!mapping, windows: [] });
+    groups.get(key).windows.push({ ...quota, window });
   }
-  const targetGroup = quotaGroupForModel(metrics.model);
-  const active = targetGroup && groups.has(targetGroup)
+  const targetGroup = quotaGroupForModel(metrics.modelId || metrics.model);
+  const active = targetGroup && groups.has('family:' + targetGroup)
     ? targetGroup
-    : targetGroup === 'gemini-argon' && groups.has('gemini')
+    : targetGroup === 'gemini-argon' && groups.has('family:gemini')
       ? 'gemini'
       : null;
   const order = { gemini: 0, 'gemini-argon': 1, '3p': 2 };
   const sorted = [...groups.values()].sort((a, b) =>
-    (b.id === active ? 1 : 0) - (a.id === active ? 1 : 0) ||
+    (b.known && b.id === active ? 1 : 0) - (a.known && a.id === active ? 1 : 0) ||
     (b.known ? 1 : 0) - (a.known ? 1 : 0) ||
     (order[a.id] ?? 99) - (order[b.id] ?? 99) ||
     a.name.localeCompare(b.name));
@@ -120,10 +119,10 @@ export function render(metrics, { language = 'en', width = metrics.width, color 
       if (quota.window) row.push(part(`${quota.window} `));
       const alert = quota.remaining !== null && quota.remaining < 30;
       const code = quota.remaining === null ? 39 : quota.remaining >= 70 ? 32 : quota.remaining >= 30 ? 33 : 31;
-      row.push(part(percentage(quota.remaining), code, true));
+      row.push(part(quota.disabled ? l.disabled : percentage(quota.remaining), code, true));
       if (alert) row.push(part(' !', code, true));
       if (bars && quota.remaining !== null) row.push(subtle(' '), ...bar(quota.remaining, code, 5));
-      const reset = countdown(quota, now);
+      const reset = quota.disabled ? null : countdown(quota, now);
       if (resets && reset !== null) row.push(subtle(`  ↻ ${reset}`));
     }
     return row;

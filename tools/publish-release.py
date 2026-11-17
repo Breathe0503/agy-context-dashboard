@@ -8,6 +8,16 @@ import urllib.request
 import zipfile
 
 
+LARGE_CONVERSATION_MODULES = tuple('sidecars/panel/' + name + '.mjs' for name in (
+    'collection-state', 'background-statistics', 'background-worker',
+    'disk-statistics', 'usage-disk-worker',
+))
+IDE_RUNTIME_MODULES = tuple('ide/' + name for name in (
+    'main.mjs', 'runtime.mjs', 'webview-targets.mjs', 'client.mjs',
+    'discovery.mjs', 'surface.cjs',
+))
+
+
 def checked_assets(root, tag):
     version = json.loads((root / 'plugin.json').read_text(encoding='utf-8'))['version']
     if tag != f'v{version}':
@@ -23,15 +33,17 @@ def checked_assets(root, tag):
             raise ValueError('Packaged version differs')
         for required in ['ide/package.json', 'ide/manage.py', 'ide/package.py', 'ide/README.md']:
             archive.getinfo(prefix + required)
+        for required in IDE_RUNTIME_MODULES:
+            archive.getinfo(prefix + required)
         for required in ['compat/usage-ui.cjs', 'sidecars/panel/rate-quality.mjs', 'sidecars/panel/usage.mjs']:
+            archive.getinfo(prefix + required)
+        for required in LARGE_CONVERSATION_MODULES:
             archive.getinfo(prefix + required)
         archive.getinfo(prefix + 'sidecars/panel/panel-source.mjs')
         archive.getinfo(prefix + 'sidecars/panel/trajectory-json.mjs')
         archive.getinfo(prefix + 'sidecars/panel/trajectory-reader.mjs')
         archive.getinfo(prefix + 'sidecars/panel/transcript.mjs')
-        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs',
-                         'collection-state.mjs', 'background-statistics.mjs', 'background-worker.mjs',
-                         'disk-statistics.mjs', 'usage-disk-worker.mjs']:
+        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs']:
             archive.getinfo(prefix + 'sidecars/panel/' + required)
         for required in ['compat/update-ui.cjs', 'compat/update-worker.py', 'compat/update-lock.py',
                          'sidecars/panel/updater.mjs', 'sidecars/panel/local-conversations.mjs', 'docs/UPDATES.md']:
@@ -49,18 +61,20 @@ def checked_assets(root, tag):
         package = json.loads(archive.read('extension/package.json'))
         if package['version'] != version or package['name'] != 'antigrative-dashboard-ide':
             raise ValueError('Packaged IDE identity/version differs')
-        for name in ['extension/ide/extension.cjs', 'extension/ide/host.cjs', 'extension/ide/main.mjs',
-                     'extension/ide/surface.cjs', 'extension/ide/manage.py', 'extension/compat/inline-widget.cjs',
+        for name in ['extension/ide/extension.cjs', 'extension/ide/host.cjs',
+                     'extension/ide/manage.py', 'extension/compat/inline-widget.cjs',
                      'extension/README.md', 'extension/LICENSE']:
             archive.getinfo(name)
+        for name in IDE_RUNTIME_MODULES:
+            archive.getinfo('extension/' + name)
         for name in ['compat/usage-ui.cjs', 'sidecars/panel/rate-quality.mjs', 'sidecars/panel/usage.mjs']:
+            archive.getinfo('extension/' + name)
+        for name in LARGE_CONVERSATION_MODULES:
             archive.getinfo('extension/' + name)
         archive.getinfo('extension/sidecars/panel/trajectory-json.mjs')
         archive.getinfo('extension/sidecars/panel/trajectory-reader.mjs')
         archive.getinfo('extension/sidecars/panel/transcript.mjs')
-        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs',
-                         'collection-state.mjs', 'background-statistics.mjs', 'background-worker.mjs',
-                         'disk-statistics.mjs', 'usage-disk-worker.mjs']:
+        for required in ['delegation.mjs', 'task-usage.mjs', 'delegated-usage.mjs']:
             archive.getinfo('extension/sidecars/panel/' + required)
         archive.getinfo('extension/sidecars/panel/local-conversations.mjs')
     return [bundle, checksum, ide, ide_checksum]

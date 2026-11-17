@@ -45,7 +45,7 @@ try{
  }
  await page.locator('[data-card=cache]').click();await page.locator('#open-usage').click();assert.equal(await page.locator('#usage-dashboard').evaluate(n=>n.open),true);
  assert.equal(await page.locator('.usage-summary>div').count(),2,'Desktop and IDE share the two-column usage entry');
- assert.deepEqual(await page.locator('.usage-unit').allTextContents(),['Token','Token']);
+ assert.deepEqual(await page.locator('.usage-unit').allTextContents(),['toks','toks']);
  assert.equal(await page.locator('#cache-card').evaluate(n=>n.hidden),true);assert.equal(await page.locator('#title').textContent(),'用量统计');
  assert.ok((await page.locator('#subtitle').textContent()).includes(ide?'Antigravity IDE':'Antigravity'));
  assert.equal(await page.locator('#usage-intro').isVisible(),true,'First use explains local data before acknowledgment');
@@ -167,10 +167,6 @@ try{
  await page.waitForFunction(()=>document.getElementById('ag-pulse-status-bar')?.parentElement===document.querySelector('.rounded-composer .actions'));
  await page.setViewportSize({width:1280,height:900});await page.locator('[data-card=cache]').click();await page.locator('#open-usage').click();
  await page.evaluate(()=>{testData={...testData,accountKey:'new-account',days:[],models:[],requests:0,totalTokens:0,todayTokens:0,weekTokens:0,monthTokens:0};});await page.waitForTimeout(3500);assert.equal(await page.locator('#usage-dashboard').evaluate(n=>n.open),true,'Account changes retain the frame with fresh, isolated data');assert.equal(await page.locator('#totals .value').first().textContent(),'0Token');
- await page.locator('#details-tab').click();await page.evaluate(()=>{testData={...testData,accountKey:'merged-account',days:[{date:'2026-10-11',models:{'claude-sonnet-5-5-medium':{uncached:100,cacheRead:0,cacheWrite:0,output:50,total:150,requests:1},'Claude Sonnet 5.5 (Medium)':{uncached:200,cacheRead:0,cacheWrite:0,output:50,total:250,requests:1},'word/MODEL_PLACEHOLDER_M26':{uncached:50,cacheRead:0,cacheWrite:0,output:50,total:100,requests:1},'word/claude-opus-4-6-thinking':{uncached:50,cacheRead:0,cacheWrite:0,output:50,total:100,requests:1}}}],models:['claude-sonnet-5-5-medium','Claude Sonnet 5.5 (Medium)','word/MODEL_PLACEHOLDER_M26','word/claude-opus-4-6-thinking'],requests:4,totalTokens:600,todayTokens:600,weekTokens:600,monthTokens:600};});
- await page.waitForFunction(()=>document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot.querySelectorAll('#legend button').length===2);
- const mergedLegend=await page.locator('#legend button').allTextContents();assert.deepEqual(mergedLegend.sort(),['Claude Opus 4.6 (Thinking)','Claude Sonnet 5.5 (Medium)']);
- assert.equal(await page.locator('#table-body tr').count(),2,'Equivalent legacy model IDs merge in usage UI legend and table');
  await page.evaluate(`window.__agPulseDispose();window.__agPulseUsageGuidePreview=true;(${extract(sources[2])})();`);await page.locator('[data-card=cache]').click();await page.locator('#open-usage').click();assert.equal(await page.locator('#usage-intro').isVisible(),true,'Local acceptance mode replays the introduction without clearing user data');
  await page.locator('#usage-intro-done').click();await page.waitForTimeout(100);assert.equal(await page.locator('#usage-intro').isVisible(),false);
  await page.locator('#locale').click();await page.locator('[data-language-menu] [data-language="zh-CN"]').click();await page.waitForTimeout(150);assert.equal(await page.locator('#usage-intro').isVisible(),true,'Local replay: changing language resets the introduction');

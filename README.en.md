@@ -7,7 +7,7 @@
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
 
-[![Version 0.8.16](https://img.shields.io/badge/version-0.8.16-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.1](https://img.shields.io/badge/version-0.9.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -20,7 +20,7 @@ Keep the summary visible. Hover for the details.
 >
 > **Companion Sidebar Plugin:** If you also want multi-select `Group By` (such as `Status + Requirement`) and a decoupled **Inbox / Follow-up / Snooze / 24h Auto-retire** workflow in Antigravity's left conversation sidebar, check out [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar). It uses the same non-invasive Sidecar + CDP architecture and coexists cleanly alongside this dashboard.
 
-**v0.8.16:** Add Claude 4.5 (`200K`) and Claude 4.6–5.5 (`1M`) context references, cross-surface `word/` / `@tag` / `perplexity/*` model normalization, unified `3p` `Claude` quota labels, `agy 1.5.x` CLI `statusLine` cache-rate & `Argon` weekly quota parity, and `install --with-cli` lifecycle sync ([`#3`](https://github.com/wycocoyu/agy-context-dashboard/issues/3), [`#4`](https://github.com/wycocoyu/agy-context-dashboard/issues/4)) on top of the `v0.8.15` upstream `v0.8.20` merge baseline (SQLite background collection, subagent composer isolation, updater `DirectoryAnchor`, Windows loopback hardening). [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.16) · [Changelog](CHANGELOG.md).
+**v0.9.1:** Integrate upstream `v0.9.1` updates ([`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)) — quota pace forecasting & per-window token estimates, minimal/pixel-cat speed card styles, 3-segment cache breakdown bars, `All local` / `Current account` usage scope switching with unauthenticated local persistence, multi-composer strips with host font sync, and full standalone Antigravity IDE `2.6.0` (`agy --hub` + nested Webview) support — while retaining all `v0.8.13`–`v0.8.16` `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` model & context normalization, unified `3p` `Claude` labels, macOS `language_server.native` discovery, and `agy 1.5.x` CLI `statusLine` parity. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -72,7 +72,7 @@ Keep the summary visible. Hover for the details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-0.8.16.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-0.9.1.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
@@ -80,7 +80,7 @@ Fully quit the IDE, then start it with
 Add these flags to your IDE shortcut for subsequent launches. Narrow panes show
 three icons; wider panes show values. Hover/click opens the same metric details.
 
-Windows IDE **2.5.5** has been tested with real conversations. Linux/macOS IDE
+Windows IDE **2.5.5** and **2.6.0** (`agy --hub` + nested Webview) are supported with automated verification. Linux/macOS IDE
 have automated coverage; signed-in GUI acceptance is still outstanding.
 VS Code, Visual Studio, JetBrains, Zed and Xcode integrations are not implemented.
 See [IDE installation, update, diagnostics and data cleanup](ide/README.md).
@@ -257,7 +257,7 @@ python3 manage.py install
 
 ## Compatibility
 
-Desktop verified on **Windows 11 / Antigravity App 2.21.1 and 2.22.0**, including real context readings and the combined hover card. A separate VSIX supports standalone Antigravity IDE 2.5.5 on Windows. Other editor extensions and DSH are unsupported. Linux/macOS have automated checks; full signed-in desktop/IDE GUI verification is still open. See COMPATIBILITY.md.
+Desktop verified on **Windows 11 / Antigravity App 2.21.1 and 2.22.0**, including real context readings and the combined hover card. A separate VSIX supports standalone Antigravity IDE 2.5.5 and 2.6.0 on Windows. Other editor extensions and DSH are unsupported. Linux/macOS have automated checks; full signed-in desktop/IDE GUI verification is still open. See COMPATIBILITY.md.
 Repository presentation is inspired by [DSH Rail Music](https://github.com/YOU-SHOULD-KNOW-ME/dsh-rail-music); installation APIs differ. `dsh plugin add` cannot install this project.
 
 [Full compatibility and recovery details →](COMPATIBILITY.md)
@@ -311,4 +311,4 @@ Source is available under [MIT](LICENSE). Antigravity binaries, SDK resources, a
 
 ## Manual App updates
 
-Open **context details → bottom-right ⋯ → Check for updates**. The App-only updater checks stable official Releases after a click, verifies the archive and checksum, preserves settings/usage, and offers plugin reload after installation. Installation failures retain rollback/recovery material. IDE/CLI packages are installed separately. See [verification, recovery and limitations](docs/UPDATES.md).
+Open **context details → bottom-right Check for updates**. The App-only updater checks stable official Releases after a click, verifies the archive and checksum, preserves settings/usage, and offers plugin reload after installation. Installation failures retain rollback/recovery material. IDE/CLI packages are installed separately. See [verification, recovery and limitations](docs/UPDATES.md).

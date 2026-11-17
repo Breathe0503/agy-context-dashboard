@@ -1,6 +1,6 @@
 # Manual App updates
 
-Open the context card, choose **⋯ → Check for updates**. Checking starts only
+Open the context card and click **Check for updates**. Checking starts only
 after a click. It checks stable GitHub Releases, not commits on `main`, and does
 not change the installed version merely because unpublished source has changed.
 
@@ -15,6 +15,40 @@ they do not invent an overall percentage. The fill follows the host accent and
 uses transform-only motion. A stage change does not animate a completed check
 backwards into a new download. Worker progress is optional, bounded, allowlisted
 metadata on stderr; the verified final result remains a separate stdout message.
+
+## Relocated user directories (Issue #23)
+
+A user-owned ancestor such as `%USERPROFILE%\.gemini` may be a Windows NTFS
+junction to another disk. The updater accepts both the configured path and the
+physical module path supplied by Node when they resolve to the native App plugin
+installation. The plugin directory itself, runtime entries, staging and recovery
+directories must still be real directories, with no redirected files inside the
+managed runtime. Installation, locking and recovery use the captured physical
+directory, and recheck directory identity before filesystem changes. Recovery
+journals bind to that installation; a changed destination is rejected.
+
+Older sidecars may store their data inside `sidecars/panel/data`. In that case,
+update backups are placed in `.antigravity-pulse-update-backups` beside the plugin
+directory, so a backup cannot recursively copy itself into its source. The actual
+data directory stays in place. Transaction and backup roots cannot overlap.
+
+Local installation-path errors now have their own localized message instead of
+appearing as an invalid package. A plan older than 15 minutes or superseded by
+another installation asks for a fresh check. A failed or malformed worker reply
+does not automatically rerun installation or promise that old files were kept;
+check again to establish the installed version before retrying.
+
+**Existing affected installations:** v0.8.12 and earlier can reject a junction
+before contacting GitHub, so a new release alone cannot repair their online
+updater. Install a package containing this fix once with `python manage.py install`
+(`python3` on Linux/macOS), then completely reopen Antigravity. Use the App ZIP
+from **v0.8.13** or later. Keep the `.gemini` junction and saved data; removing
+either is unnecessary.
+
+`npm run test:update-process` covers a real worker started through the Windows
+command launcher (or POSIX subprocess), both logical and physical relocated paths,
+and runtime-local data. Synthetic homes and packages keep these checks separate
+from installed software and personal records.
 
 ## Widget lifecycle after host updates
 
@@ -36,7 +70,7 @@ library could keep the host API, disk ledger and Node heap busy even when the us
 was only viewing the current conversation.
 
 **v0.8.12** completes the history-import protections and fixes the three runtime
-problems reported in [#22](https://github.com/YOU-SHOULD-KNOW-ME/antigrative-dashboard/issues/22):
+problems reported in [#22](https://github.com/wycocoyu/agy-context-dashboard/issues/22):
 
 - Opening **View token usage**, or clicking the usage window's top-right circular
   arrow **Refresh usage**, requests historical synchronization. Ordinary metrics
@@ -64,15 +98,43 @@ problems reported in [#22](https://github.com/YOU-SHOULD-KNOW-ME/antigrative-das
   ledger revision. Candidate, page and memory/time limits retain partial coverage
   instead of implying that every historical record was read.
 
+## IDE 2.6.0 compatibility (Issue #26)
+
+Antigravity IDE 2.6.0 uses `agy --hub` for its language-service backend. The
+IDE adapter recognizes that form and the older `language_server_*` form while
+keeping the renderer port tied to the real IDE root. Renderer attachment does
+not wait for metrics discovery, so the composer controls stay mounted during a
+temporary metrics outage. Ordinary `agy`, LSP and ambiguous multi-instance
+processes are rejected.
+
+In v0.9.1 the 2.6.0 Agent Webview and its owned hub HTTP port are
+recognized as well. This fixes a connected collector remaining at
+`waiting-for-composer` and missing metrics after upgrading the IDE. The
+previous workbench-based IDE adapter remains supported.
+
 Current-conversation requests continue to be recorded during ordinary polling.
 The collector preserves existing usage records and settings. Usage is local
 observed consumption, not provider billing.
 
-Install **v0.8.12** through **Context details → ⋯ → Check for updates**, then fully
+## Windows TUN port discovery (Issue #27)
+
+**v0.8.18** excludes fake-IP `LISTENING` rows that can hide the real local API
+port. The Windows fallback queries candidate PIDs once and revalidates socket
+addresses, ports and states. It accepts the reported nonstandard `State: 0`
+only with a local binding and an unconnected remote endpoint; `Bound`, `Closed`
+and other processes remain excluded.
+
+App and IDE share this fallback. Missing current HTTP/CDP ports trigger a
+supplementary query even when another listener or a reused historical HTTP port
+is visible. Log ports remain hints, not proof of ownership. Native discovery
+keeps its fast path; timeout/output budgets, concurrent-request coalescing and
+failure backoff remain in place. No VPN setting changes or data reset are needed.
+
+Install **v0.9.1** through **Context details → Check for updates**, then fully
 quit and reopen the host once. A plugin-only restart cannot revoke old callbacks
 already recreated in the open page. If an older updater already fails installation,
-use `antigrative-dashboard-0.8.12.zip` for a one-time manual repair; standalone IDE
-users should install `antigrative-dashboard-ide-0.8.12.vsix` and reopen the IDE.
+use `antigrative-dashboard-0.9.1.zip` for a one-time manual repair; standalone IDE
+users should install `antigrative-dashboard-ide-0.9.1.vsix` and reopen the IDE.
 Existing release tags remain available. No statistics reset or manual deletion of
 checkpoint/ledger files is required for this upgrade.
 

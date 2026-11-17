@@ -40,8 +40,8 @@ implemented. The desktop App and CLI retain their separate installers.
 
 ## Install a downloaded VSIX
 
-Download `antigrative-dashboard-ide-0.8.16.vsix` and its `.vsix.sha256` from the
-[release](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.8.16).
+Download `antigrative-dashboard-ide-0.9.1.vsix` and its `.vsix.sha256` from the
+[release](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1).
 In Antigravity IDE, open Extensions, choose **Install from VSIX…** from the
 Extensions menu and select the file. No desktop App installation is required.
 
@@ -66,12 +66,12 @@ The debugger binds to localhost only; do not expose it to the network.
 
 ## Install / launch / uninstall from the source ZIP
 
-Download and extract `antigrative-dashboard-0.8.16.zip`, and download the VSIX to a
+Download and extract `antigrative-dashboard-0.9.1.zip`, and download the VSIX to a
 known location. Python 3.10+ is needed for this optional helper; it uses the IDE's
 bundled runtime and needs no separately installed Node.js or third-party packages.
 
 ```powershell
-python ide/manage.py install --exe 'D:\Antigravity IDE\Antigravity IDE.exe' --vsix 'C:\Downloads\antigrative-dashboard-ide-0.8.16.vsix'
+python ide/manage.py install --exe 'D:\Antigravity IDE\Antigravity IDE.exe' --vsix 'C:\Downloads\antigrative-dashboard-ide-0.9.1.vsix'
 python ide/manage.py launch --exe 'D:\Antigravity IDE\Antigravity IDE.exe'
 python ide/manage.py uninstall --exe 'D:\Antigravity IDE\Antigravity IDE.exe'
 ```
@@ -85,7 +85,11 @@ Developers can build their own version with `python ide/package.py`.
 The extension owns the collector lifecycle. Multiple windows elect one collector
 per default IDE profile; each renderer supplies its own current conversation ID.
 Reloading reconnects automatically. The adapter checks PID lineage and socket
-ownership before attaching to a workbench. Credentials stay in collector memory.
+ownership before attaching to a workbench. Antigravity IDE 2.5.5's
+`language_server_* --subclient_type ide` and 2.6.0's strict `agy --hub` process
+forms are recognized. Renderer attachment remains available while the metrics
+service is reconnecting, so an unavailable backend does not remove the three
+composer controls. Credentials stay in collector memory.
 No proprietary app files or CSP policies are modified.
 
 ## Diagnostics and saved data
@@ -124,6 +128,11 @@ layouts. Three-platform CI runs discovery fixtures, installer/package tests and
 the production widget in Chromium with enforced Trusted Types. Linux/macOS
 signed-in IDE GUI acceptance remains outstanding.
 
+IDE **2.6.0** moves the Agent into a nested Webview. The adapter verifies the
+native Agent pane, official wrapper and its child frame before mounting. A real
+conversation in Windows IDE 2.6.0 has been checked by the user. Earlier
+workbench-based layouts remain supported.
+
 This is an unofficial adapter using private DOM/RPC interfaces. Later IDE builds
 may need an adapter update. Named/custom user profiles are not yet supported;
 use the default profile. It is distributed on GitHub, not an editor marketplace.
@@ -135,5 +144,5 @@ use the default profile. It is distributed on GitHub, not an editor marketplace.
 普通启动方式未开启连接端口时，插件无法挂载。更新后继续使用带参数的快捷方式。
 
 窄栏显示三个图标，拉宽后显示数值；语言入口仍在上下文详情底部。
-Windows IDE 2.5.5 已实机测试，Linux/macOS 的 IDE 登录界面尚待实机确认。
+Windows IDE 2.5.5 和 2.6.0 已进行真实对话验证；Linux/macOS 的 IDE 登录界面尚待实机确认。
 VS Code、Visual Studio、JetBrains、Zed、Xcode 中的 Antigravity 扩展目前尚未适配。
