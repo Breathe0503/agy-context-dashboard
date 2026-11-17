@@ -16,10 +16,6 @@ Keep the summary visible. Hover for the details.
 
 </div>
 
-> **Community Continuation Fork:** This repository (**`agy-context-dashboard`**) continues maintaining **Antigrative Dashboard** (`antigravity-pulse`) under the original [MIT License](LICENSE) starting from `v0.8.12`, after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline (404). Existing user settings, `history-v1`, `usage-v1`, and IDE storage identities remain unchanged.
->
-> **Companion Sidebar Plugin:** If you also want multi-select `Group By` (such as `Status + Requirement`) and a decoupled **Inbox / Follow-up / Snooze / 24h Auto-retire** workflow in Antigravity's left conversation sidebar, check out [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar). It uses the same non-invasive Sidecar + CDP architecture and coexists cleanly alongside this dashboard.
-
 **v0.9.1:** Integrate upstream `v0.9.1` updates ([`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)) — quota pace forecasting & per-window token estimates, minimal/pixel-cat speed card styles, 3-segment cache breakdown bars, `All local` / `Current account` usage scope switching with unauthenticated local persistence, multi-composer strips with host font sync, and full standalone Antigravity IDE `2.6.0` (`agy --hub` + nested Webview) support — while retaining all `v0.8.13`–`v0.8.16` `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` model & context normalization, unified `3p` `Claude` labels, macOS `language_server.native` discovery, and `agy 1.5.x` CLI `statusLine` parity. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [Changelog](CHANGELOG.md).
 
 ## Preview
@@ -312,3 +308,10 @@ Source is available under [MIT](LICENSE). Antigravity binaries, SDK resources, a
 ## Manual App updates
 
 Open **context details → bottom-right Check for updates**. The App-only updater checks stable official Releases after a click, verifies the archive and checksum, preserves settings/usage, and offers plugin reload after installation. Installation failures retain rollback/recovery material. IDE/CLI packages are installed separately. See [verification, recovery and limitations](docs/UPDATES.md).
+
+---
+
+> **Community Continuation Fork:** This repository (**`agy-context-dashboard`**) continues maintaining **Antigrative Dashboard** (`antigravity-pulse`) under the original [MIT License](LICENSE) starting from `v0.8.12`, after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline (404). Existing user settings, `history-v1`, `usage-v1`, and IDE storage identities remain unchanged.
+>
+> **Companion Sidebar Plugin:** If you also want multi-select `Group By` (such as `Status + Requirement`) and a decoupled **Inbox / Follow-up / Snooze / 24h Auto-retire** workflow in Antigravity's left conversation sidebar, check out [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar). It uses the same non-invasive Sidecar + CDP architecture and coexists cleanly alongside this dashboard.
+

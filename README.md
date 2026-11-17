@@ -16,10 +16,6 @@
 
 </div>
 
-> **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
->
-> **配套侧边栏插件推荐：** 如果你还希望在 Antigravity 左侧会话栏按需求聚合会话、使用类似收件箱的待办确认工作流，欢迎一并体验 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)。它采用同样的无侵入 Sidecar + CDP 架构，与本仪表盘完全共存、互不干扰。
-
 **v0.9.1：** 完整合入上游 `v0.9.1` 功能更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)），新增**额度消耗速率预测与周期 Token 估算**、**简约折线 / 像素猫双样式速度卡片**、**三段缓存占比条**、**「本机全部 / 当前账号」用量范围切换与未登录本地记账**、**多输入框多实例隔离与宿主字体同步**，以及**独立 Antigravity IDE 2.6.0（`agy --hub` + 嵌套 Webview）完整适配**；同时完整保留本仓 `v0.8.13`–`v0.8.16` 的 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 模型与上下文兼容、`word/` 与 `perplexity/*` 归一化、`3p` 统一 `Claude` 标签、`language_server.native` 发现及 `agy 1.5.x` CLI 适配。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
@@ -312,3 +308,10 @@ Antigrative Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 An
 ## App 手动更新
 
 在**上下文详情 → 右下角「检查更新」**中手动检查稳定发行版。更新器只更新 App 插件，校验官方包与 SHA-256，保留设置和用量记录；安装完成后可重新加载插件。失败或中断时保留回滚与恢复材料。IDE 和 CLI 仍使用各自安装方式。[校验、恢复及边界说明](docs/UPDATES.md)。
+
+---
+
+> **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
+>
+> **配套侧边栏插件推荐：** 如果你还希望在 Antigravity 左侧会话栏按需求聚合会话、使用类似收件箱的待办确认工作流，欢迎一并体验 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)。它采用同样的无侵入 Sidecar + CDP 架构，与本仪表盘完全共存、互不干扰。
+
