@@ -38,7 +38,8 @@ const browser=await chromium.launch(process.platform==='win32'&&!process.env.CI?
 const errors=[],results=[];
 try{
  for(const lang of ['en','zh']){
-  const page=await browser.newPage({viewport:{width:1440,height:900}});page.on('pageerror',error=>errors.push(error.message));
+   // Leave room for full strips with wider host fonts on every platform.
+   const page=await browser.newPage({viewport:{width:1600,height:900}});page.on('pageerror',error=>errors.push(error.message));
   try{
    await page.goto(`http://127.0.0.1:${server.address().port}/?lang=${lang}`);
    const bars=page.locator('[data-ag-pulse-bar]');
