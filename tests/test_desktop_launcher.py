@@ -116,14 +116,16 @@ class DesktopLauncherTests(unittest.TestCase):
         self.assertEqual((dest / 'Contents' / 'Resources' / 'icon.icns').read_bytes(), b'icns-fixture')
 
         script_path = dest / 'Contents' / 'MacOS' / 'launcher'
-        self.assertTrue(script_path.stat().st_mode & stat.S_IXUSR)
+        if os.name == 'posix':
+            self.assertTrue(script_path.stat().st_mode & stat.S_IXUSR)
         script = script_path.read_text(encoding='utf-8')
+        escaped_bundle = str(bundle).replace('\\', '\\\\').replace('"', '\\"')
         self.assertIn('unset ELECTRON_RUN_AS_NODE', script)
         self.assertIn('ps axo pid=,command=', script)
         self.assertIn('--type=', script)
         self.assertIn('--remote-debugging-port=0 --remote-debugging-address=127.0.0.1', script)
         self.assertIn('osascript', script)
-        self.assertIn(f'tell application "{bundle}" to quit', script)
+        self.assertIn(f'tell application "{escaped_bundle}" to quit', script)
         self.assertIn('kill -0', script)
         self.assertIn('kill -TERM', script)
         self.assertIn('sleep 0.3', script)
@@ -197,10 +199,12 @@ class DesktopLauncherTests(unittest.TestCase):
         l_res = launcher.install_launcher(self.home, self.local, l_asar, platform='linux')
         l_dest = Path(l_res['path'])
         self.assertTrue(l_dest.is_file())
-        self.assertTrue(l_dest.stat().st_mode & stat.S_IXUSR)
+        if os.name == 'posix':
+            self.assertTrue(l_dest.stat().st_mode & stat.S_IXUSR)
         l_text = l_dest.read_text(encoding='utf-8')
+        escaped_l_exe = str(l_exe).replace('\\', '\\\\').replace('"', '\\"')
         self.assertIn('X-Antigravity-Pulse-Launcher=true', l_text)
-        self.assertIn(f'Exec="{l_exe}" --remote-debugging-port=0 --remote-debugging-address=127.0.0.1 %U', l_text)
+        self.assertIn(f'Exec="{escaped_l_exe}" --remote-debugging-port=0 --remote-debugging-address=127.0.0.1 %U', l_text)
         self.assertTrue(launcher.inspect_launcher(self.home, self.local, platform='linux')['installed'])
         self.assertTrue(launcher.uninstall_launcher(self.home, self.local, platform='linux')['removed'])
         self.assertFalse(l_dest.exists())
@@ -349,7 +353,8 @@ class DesktopLauncherTests(unittest.TestCase):
         )
         self.assertTrue(relaunch_res['relaunched'])
         self.assertEqual(relaunch_res['stoppedPids'], [5001])
-        self.assertIn(['osascript', '-e', f'tell application "{bundle}" to quit'], run_calls)
+        escaped_bundle = str(bundle).replace('\\', '\\\\').replace('"', '\\"')
+        self.assertIn(['osascript', '-e', f'tell application "{escaped_bundle}" to quit'], run_calls)
         self.assertEqual(sleeps, [0.2, 0.2, 0.3])
         self.assertEqual(len(popen_calls), 1)
 
