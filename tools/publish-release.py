@@ -48,7 +48,7 @@ def checked_assets(root, tag):
         for required in ['compat/update-ui.cjs', 'compat/update-worker.py', 'compat/update-lock.py',
                          'sidecars/panel/updater.mjs', 'sidecars/panel/local-conversations.mjs', 'docs/UPDATES.md']:
             archive.getinfo(prefix + required)
-        for required in ['install.sh', 'uninstall.sh', 'install.ps1', 'compat/runtime-ui.mjs', 'compat/theme.cjs', 'compat/host-theme.mjs', 'compat/preferences.mjs', 'compat/sidecar-owner.mjs', 'sidecars/panel/context.mjs', 'cli/statusline.mjs', 'cli/metrics.mjs', 'cli/render.mjs', 'cli/lifecycle.py', 'docs/CLI.md', 'docs/assets/cli-conversation.png', 'docs/assets/cli-conversation-zh.png']:
+        for required in ['install.sh', 'uninstall.sh', 'install.ps1', 'compat/desktop_launcher.py', 'compat/debug-relaunch.mjs', 'compat/debug-relaunch-worker.mjs', 'compat/runtime-ui.mjs', 'compat/theme.cjs', 'compat/host-theme.mjs', 'compat/preferences.mjs', 'compat/sidecar-owner.mjs', 'sidecars/panel/context.mjs', 'cli/statusline.mjs', 'cli/metrics.mjs', 'cli/render.mjs', 'cli/lifecycle.py', 'docs/CLI.md', 'docs/assets/cli-conversation.png', 'docs/assets/cli-conversation-zh.png']:
             archive.getinfo(prefix + required)
     ide_version = json.loads((root / 'ide/package.json').read_text(encoding='utf-8'))['version']
     if ide_version != version:

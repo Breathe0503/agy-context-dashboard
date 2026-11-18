@@ -7,16 +7,16 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.9.1](https://img.shields.io/badge/version-0.9.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.2](https://img.shields.io/badge/version-0.9.2-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
-[![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
+[![Antigravity 2.21.1 / 2.22.0 / 2.33.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
 [看看效果](#看看效果) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-状态栏) · [开始安装](#安装) · [启用与停用](#可插拔) · [配套侧边栏](#配套侧边栏) · [兼容性](#兼容性) · [常见问题](#常见问题) · [English](README.en.md)
 
 </div>
 
-**v0.9.1：** 完整合入上游 `v0.9.1` 功能更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)），新增**额度消耗速率预测与周期 Token 估算**、**简约折线 / 像素猫双样式速度卡片**、**三段缓存占比条**、**「本机全部 / 当前账号」用量范围切换与未登录本地记账**、**多输入框多实例隔离与宿主字体同步**，以及**独立 Antigravity IDE 2.6.0（`agy --hub` + 嵌套 Webview）完整适配**；同时完整保留本仓 `v0.8.13`–`v0.8.16` 的 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 模型与上下文兼容、`word/` 与 `perplexity/*` 归一化、`3p` 统一 `Claude` 标签、`language_server.native` 发现及 `agy 1.5.x` CLI 适配。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [变更记录](CHANGELOG.md)。
+**v0.9.2：** 适配 **Antigravity 桌面端 `2.33.0+`** 默认关闭调试端口及 `quitAndInstall()` 更新重启丢失命令行参数的变更（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)、[`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)）：新增跨平台调试启动器（`manage.py install --with-launcher` / `install-launcher` / `launch [--relaunch]`）、`missing-debug-port` 精准诊断，以及官方侧边栏一键重启与可选 `autoRelaunchDebug`（60 秒冷却保护）自动恢复；完整保留 `v0.9.1` 额度消耗速率预测、`minimal` / `cat` 双样式卡片、多输入框隔离、`IDE 2.6.0` 与 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` / `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.2) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -64,7 +64,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.9.1.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.9.2.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带

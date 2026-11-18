@@ -11,7 +11,7 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
-2026-11-17（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)）：**Antigravity 桌面 App 2.33.0+** 默认关闭渲染器远程调试端口，且在未传 `--remote-debugging-port` 启动时会主动删除 `<profile>/DevToolsActivePort`；同时常规 Dock/快捷方式启动及 `autoUpdater.quitAndInstall()` 自动更新重启都会丢弃启动参数，macOS 的 `ElectronAsarIntegrity` 与 Hardened Runtime 代码签名也不允许改写 `app.asar`。为此插件保持 `app.asar` 原封不动，并提供：
+2026-11-17 / **v0.9.2**（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)、[`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)）：针对 **Antigravity 桌面 App 2.33.0+** 默认关闭渲染器远程调试端口并在无参启动时删除 `<profile>/DevToolsActivePort`、且常规 Dock/快捷方式及 `autoUpdater.quitAndInstall()` 自动更新重启会丢弃命令行参数的机制变化，在不修改受 `ElectronAsarIntegrity` 与 Hardened Runtime 保护的 `app.asar` 前提下新增：
 - 可选调试启动器生命周期：`python3 manage.py install --with-launcher`、`install-launcher`、`uninstall-launcher` 与 `launch [--relaunch]`（传入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`），生成 macOS `~/Applications/Antigravity (Debug).app`、Windows `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd`、Linux `~/.local/share/applications/antigravity-pulse-debug.desktop`；
 - `missing-debug-port` 精准诊断（`compat/runtime-ui.mjs`、`manage.py status` 与原生侧边栏面板），侧边栏（**＋ → Extensions → Antigrative Dashboard**）支持一键调试重开（等待旧主进程 PID 全部退出后再拉起）及默认关闭的可选 `autoRelaunchDebug` 开关（60 秒冷却防重入），用于宿主自动更新重启后按需恢复。
 
@@ -31,7 +31,7 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 ## Antigravity 自带 IDE
 
-专用包为 `antigrative-dashboard-ide-0.9.1.vsix`，安装入口与桌面 App 独立。
+专用包为 `antigrative-dashboard-ide-0.9.2.vsix`，安装入口与桌面 App 独立。
 Windows 11 / IDE 2.5.5（VS Code base 1.107.0）与 IDE 2.6.0（`agy --hub` 及嵌套 Agent Webview）已支持并具备完整自动化覆盖；Linux/macOS 登录后的 IDE GUI 仍待实机验收。
 Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 浏览器 fixture 纳入 CI；登录后的 IDE GUI 仍待实机验收。
 当前仅支持默认用户 profile；私有 Preact/DOM 或 RPC 变化可能需要适配，不能保证未来 IDE 版本无需维护。

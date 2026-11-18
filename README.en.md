@@ -7,16 +7,16 @@
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
 
-[![Version 0.9.1](https://img.shields.io/badge/version-0.9.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.2](https://img.shields.io/badge/version-0.9.2-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
-[![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
+[![Antigravity 2.21.1 / 2.22.0 / 2.33.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
 [Preview](#preview) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-status-line) · [Install](#install) · [Enable or remove](#plug-and-unplug) · [Companion Sidebar](#companion-sidebar) · [Compatibility](#compatibility) · [FAQ](#faq) · [中文](README.md)
 
 </div>
 
-**v0.9.1:** Integrate upstream `v0.9.1` updates ([`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)) — quota pace forecasting & per-window token estimates, minimal/pixel-cat speed card styles, 3-segment cache breakdown bars, `All local` / `Current account` usage scope switching with unauthenticated local persistence, multi-composer strips with host font sync, and full standalone Antigravity IDE `2.6.0` (`agy --hub` + nested Webview) support — while retaining all `v0.8.13`–`v0.8.16` `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` model & context normalization, unified `3p` `Claude` labels, macOS `language_server.native` discovery, and `agy 1.5.x` CLI `statusLine` parity. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [Changelog](CHANGELOG.md).
+**v0.9.2:** Support **Antigravity Desktop `2.33.0+`** opt-in `--remote-debugging-port` and `quitAndInstall()` post-update relaunch ([`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17), [`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)): adds the cross-platform debug launcher (`manage.py install --with-launcher` / `install-launcher` / `launch [--relaunch]`), `missing-debug-port` diagnostics, and a Side Panel 1-click relaunch button plus opt-in `autoRelaunchDebug` toggle (60s cooldown guard) while retaining all `v0.9.1` and `v0.8.13`–`v0.8.16` quota-pace, `minimal`/`cat`, multi-composer, IDE `2.6.0`, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.2) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -68,7 +68,7 @@ Keep the summary visible. Hover for the details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-0.9.1.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-0.9.2.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
