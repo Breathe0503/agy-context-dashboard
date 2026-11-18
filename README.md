@@ -7,7 +7,7 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.9.3](https://img.shields.io/badge/version-0.9.3-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.5](https://img.shields.io/badge/version-0.9.5-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0 / 2.33.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -20,10 +20,11 @@
 > **Antigravity Desktop `2.33.0+` 启动与更新后自动注入说明（[`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)、[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)）**
 >
 > - **为什么 `2.33.0+` 原版默认没有调试端口**：Antigravity `2.33.0` 将 `--remote-debugging-port` 改为命令行显式开关，无参启动会主动删除 `<profile>/DevToolsActivePort`；应用内自动更新（`quitAndInstall()`）重启后同样会丢弃命令行参数；同时 `app.asar` 受 `ElectronAsarIntegrity` 与代码签名保护，本插件不篡改应用包。
-> - **`v0.9.3+` 已默认开启自动恢复注入**：只要安装了桌面内嵌状态栏，插件随宿主启动后若检测到缺少调试端口（无论是直接点击原版图标打开，还是应用内更新重启后），都会**默认自动温和重拉一次**带 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 的 Antigravity 并挂载状态栏（内置 60 秒冷却与 PID 去重防死循环）。
-> - **可选零二次重启直启与关闭开关**：平时日常使用通过 `python3 manage.py install --with-launcher` 生成的调试启动器（如 macOS 的 `~/Applications/Antigravity (Debug).app`）打开即可一次到位、零二次重启；如需关闭自动重拉，在官方侧边栏（**＋ → Extensions → Antigrative Dashboard**）取消勾选「缺少调试端口时自动重启恢复（如更新后）」即可。
+> - **Windows / Linux 快捷方式直启自愈**：执行 `manage.py install`（非 `--panel-only`）以及后台 Sidecar 运行时会自动为 Windows 用户 `.lnk` 快捷方式和 Linux `.desktop` 入口写入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`（并在卸载或 `--panel-only` 时干净撤回），日常点原图标即可一次直启、零重开注入。
+> - **`v0.9.5` 默认开启启动期自动重拉恢复（涵盖 macOS 点原图标打开与三端更新重启后）**：内嵌模式下默认启用 `autoRelaunchDebug`。当插件在 Sidecar 启动后前 `20` 秒内检测到缺少调试端口（如 macOS 直接点原版图标，或三端应用内更新重启丢参后），会自动温和重拉一次带调试参数的宿主并恢复状态栏；同一组 PID 永不重复，不同 PID 在 `60` 秒滑窗内最多允许 `2` 次（间距 `>= 5` 秒，防循环熔断），超过启动 `20` 秒绝不在对话途中杀窗。
+> - **可选零二次重启直启与关闭开关**：macOS 日常使用通过 `python3 manage.py install --with-launcher` 生成的 `~/Applications/Antigravity (Debug).app`（或终端 `python3 manage.py launch`）打开即可零重开秒注入；如需关闭自动重拉，在官方侧边栏（**＋ → Extensions → Antigrative Dashboard**）取消勾选「缺少调试端口时自动重启恢复（如更新后）」即可。
 
-**v0.9.3：** 将 **Antigravity Desktop `2.33.0+`** 内嵌模式的缺失调试端口自动重拉恢复（`autoRelaunchDebug`）改为**默认开启（可随时在侧边栏取消关闭）**，并在 README 顶部新增机制说明（[`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)），让直接启动与更新重启后开箱自动挂载状态栏；完整保留 `v0.9.2` 跨平台调试启动器、`v0.9.1` 额度消耗速率预测、`minimal` / `cat` 双样式卡片、多输入框隔离、`IDE 2.6.0` 与 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` / `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.3) · [变更记录](CHANGELOG.md)。
+**v0.9.5：** 合并上游 `v0.9.2`–`v0.9.5` 重大性能优化与快捷方式自愈（仅元数据历史补录、`192 MiB` 内存上限、`256 KiB` 尾部读日志、`inspectHostArchive` 检测、Windows `.lnk` 与 Linux `.desktop` 启动参数自愈及 Windows CI 防抖），同时将 **Antigravity Desktop `2.33.0+`** 内嵌模式的自动重拉恢复（`autoRelaunchDebug`）改为**默认开启（启动 `20` 秒窗单次自愈 + `60` 秒滑窗防环）**并在 README 顶部置顶说明（[`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)、[`#20`](https://github.com/wycocoyu/agy-context-dashboard/pull/20)），完整保留 `v0.9.2` 调试启动器、`v0.9.1` 额度预测、`IDE 2.6.0`、`Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 与 `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.5) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -71,7 +72,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.9.3.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.9.5.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带
@@ -171,7 +172,7 @@ python manage.py install --with-launcher
 如果 Antigravity Desktop `2.33.0+` 通过常规 Dock / 快捷方式启动，或因 `quitAndInstall()` 自动更新重启而丢失了命令行参数，内嵌条会进入 `missing-debug-port` 诊断状态。此时侧边栏面板仍可直接打开，并在顶部提示条提供：
 
 - **一键以调试模式重开 Antigravity**：自动温和退出当前宿主、等待所有旧主进程退出后再以 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 拉起。
-- **自动重开开关（`autoRelaunchDebug`，默认开启）**：内嵌模式下默认启用（可取消勾选保存 `autoRelaunchDebug: false` 至 `preferences.json` 关闭）；当直接打开无参原版或宿主自动更新重启后检测到缺少调试端口时，在 60 秒冷却防重入保护下自动触发重开恢复。
+- **自动重开开关（`autoRelaunchDebug`，默认开启）**：内嵌模式下默认启用（可取消勾选保存 `autoRelaunchDebug: false` 至 `preferences.json` 关闭）；当直接打开无参原版或宿主自动更新重启后在启动 `20` 秒窗内检测到缺少调试端口时，在 `60` 秒滑窗防环保护下自动触发重开恢复。
 
 更新插件代码后请完整退出并重新打开 App，让采集进程加载新模块；重启前已经打开的面板可能仍由旧采集进程提供页面。
 
@@ -313,7 +314,7 @@ python3 manage.py install
 
 <details><summary><strong>升级 Antigravity 后怎么办？</strong></summary>
 
-App 更新不会覆盖用户插件目录中的适配器。在 2.32 及更早版本中，后台会自动重新发现端口、凭据和渲染窗口并重连。在 **Antigravity 2.33.0+** 中，应用内自动更新调用 `quitAndInstall()` 重启时会像普通 Dock / 快捷方式一样丢失 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数：从 `v0.9.3` 起内嵌模式已默认开启 `autoRelaunchDebug`，后台检测到 `missing-debug-port` 后会自动帮你带参重拉并重新挂载；如需关闭自动重拉，可在侧边栏面板（**＋ → Extensions → Antigrative Dashboard**）取消勾选自动恢复选项，并改用一键调试重开、`python3 manage.py launch --relaunch` 或生成的调试启动器打开。未显示时检查 `python3 manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
+App 更新不会覆盖用户插件目录中的适配器。在 2.32 及更早版本中，后台会自动重新发现端口、凭据和渲染窗口并重连。在 **Antigravity 2.33.0+** 中，应用内自动更新调用 `quitAndInstall()` 重启时会丢弃 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数：从 `v0.9.5` 起，Sidecar 会同步自愈 Windows / Linux 启动快捷方式，且内嵌模式已默认开启 `autoRelaunchDebug`（启动前 `20` 秒窗内单次自愈 + `60` 秒滑窗最多放行 `2` 次防循环），更新重启后会自动帮你带参重拉并重新挂载；如需关闭自动重拉，可在侧边栏面板（**＋ → Extensions → Antigrative Dashboard**）取消勾选自动恢复选项，并改用一键调试重开、`python3 manage.py launch --relaunch` 或生成的调试启动器打开。未显示时检查 `python3 manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
 
 </details>
 
