@@ -93,21 +93,32 @@ Available in **v0.6.0**: an independent adapter for the official Antigravity CLI
 
 The commands below install the **desktop App adapter**. IDE users should use the [separate VSIX instructions above](#antigravity-ide).
 
-Supported: **Windows, Linux and macOS; Antigravity desktop App 2.21.1 / 2.22.0; Python 3.10+**. The same release ZIP works on all three systems. No third-party pip or npm packages are needed to install or run the plugin. The sidecar uses the app's bundled Node.js runtime. See [COMPATIBILITY.md](COMPATIBILITY.md) for the per-platform verification scope.
+Supported: **Windows, Linux and macOS; Antigravity desktop App (2.21.1 / 2.22.0 and 2.33.0+); Python 3.10+**. The same release ZIP works on all three systems. No third-party pip or npm packages are needed to install or run the plugin. The sidecar uses the app's bundled Node.js runtime. See [COMPATIBILITY.md](COMPATIBILITY.md) for the per-platform verification scope.
 
 > The inline model-row position has no public plugin mounting API. A standard Antigravity sidecar now attaches the widget through the existing local renderer debugging endpoint. Default installation does not modify `resources/app.asar`. This is unofficial; future changes to the host DOM, debugging channel, SDK or metrics API may require an adapter update. The native side panel remains a fallback.
+
+### Antigravity Desktop 2.33.0+ debugging-port requirement
+
+Starting in **Antigravity Desktop 2.33.0**, the host no longer enables the renderer remote debugging port by default and actively deletes `<profile>/DevToolsActivePort` at startup when `--remote-debugging-port` is absent. In addition, normal Dock or shortcut launches—and automatic restart updates via `autoUpdater.quitAndInstall()`—drop CLI flags. Because macOS enforces `ElectronAsarIntegrity` and Hardened Runtime code signing on `app.asar`, the plugin leaves the application archive untouched and instead provides an **opt-in desktop debug launcher** and a **Side Panel relaunch action** passing `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`:
+
+- Generate the debug launcher during installation with `python3 manage.py install --with-launcher` (use `python` on Windows), or create it anytime with `python3 manage.py install-launcher`.
+- Generated debug launcher paths:
+  - **macOS**: `~/Applications/Antigravity (Debug).app` (can be pinned to the Dock)
+  - **Windows**: `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd`
+  - **Linux**: `~/.local/share/applications/antigravity-pulse-debug.desktop`
+- You can also launch or relaunch from a terminal via `python3 manage.py launch` (add `--relaunch` to wait for any existing main process to exit before relaunching with debug flags).
 
 Download the ZIP from the [latest release](https://github.com/wycocoyu/agy-context-dashboard/releases/latest), extract it to a permanent folder, or clone the repository:
 
 ```powershell
 git clone https://github.com/wycocoyu/agy-context-dashboard.git
 cd agy-context-dashboard
-python manage.py install
+python manage.py install --with-launcher
 ```
 
-On Linux / macOS, use `python3 manage.py install` or `sh install.sh` (and `python3` for the lifecycle commands below). Never run the installer with sudo.
+On Linux / macOS, use `python3 manage.py install --with-launcher` or `sh install.sh` (and `python3` for the lifecycle commands below). Never run the installer with sudo.
 
-Fully quit and reopen Antigravity. Open a conversation: the strip appears beside the model selector. PowerShell users can also run `./install.ps1`.
+On Antigravity 2.33.0+, fully quit and launch via the generated debug launcher (such as `~/Applications/Antigravity (Debug).app` on macOS) or `python3 manage.py launch --relaunch`; on 2.32 and earlier, a regular quit and reopen is enough. Open a conversation: the strip appears beside the model selector. PowerShell users can also run `./install.ps1` (or omit `--with-launcher` when running `python manage.py install`).
 
 The installer copies and enables the plugin and restores any exactly verified legacy patch during migration. The runtime discovers the current renderer port and reconnects automatically. **Keep the extracted source folder** for enable, disable, update, and uninstall commands.
 
@@ -132,7 +143,9 @@ Repository: https://github.com/wycocoyu/agy-context-dashboard
    extracted source in a permanent directory. Do not install the host itself or
    upgrade, downgrade or replace it without separate confirmation.
 4. Use Python 3.10+ (python3 on Linux/macOS) and the selected instructions:
-   - App: check python manage.py status, then python manage.py install.
+   - App: check python manage.py status, then python manage.py install (on
+     Antigravity 2.33.0+, pass --with-launcher if a desktop debug launcher is
+     wanted and start via that launcher or python3 manage.py launch --relaunch).
    - CLI: check agy --version and Node.js 20+, then python manage.py install-cli.
      Do not run manage.py install. Preserve any existing statusLine using the
      documented backup/override flow. CLI cache percentage is conditional; check
@@ -157,17 +170,25 @@ Repository: https://github.com/wycocoyu/agy-context-dashboard
 
 Open the right auxiliary pane using its top-right toggle, then choose **+ → Extensions → Antigrative Dashboard** in that pane's toolbar. The panel keeps speed, cache, context and quota summaries visible. Click a metric card to select its detail tab; pointer departure does not hide it. Long details scroll inside a stable frame. Arrow/Home/End keys select tabs. The Token usage window opened from the input strip is a separate view.
 
+If Antigravity Desktop `2.33.0+` was launched from a regular Dock/shortcut icon—or lost CLI flags after an automatic `quitAndInstall()` update restart—the inline strip enters the `missing-debug-port` diagnostic state. The Side Panel stays open and displays:
+
+- **1-click Relaunch with Debug Port**: gracefully quits the host, waits until all old main PIDs exit, and relaunches Antigravity with `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`.
+- **Optional `autoRelaunchDebug` toggle (off by default)**: persisted in `preferences.json`; when enabled, it automatically triggers a debug relaunch (protected by a 60s cooldown guard) if `missing-debug-port` is detected after a host update restart.
+
 Fully quit and reopen the App after updating plugin code so its collector loads the new modules. A panel that was already open may still be served by the previous collector until restart.
 
-Run these commands from the project directory:
+Run these commands from the project directory (use `python3` on Linux / macOS):
 
 | Action | Command | What happens |
 | --- | --- | --- |
-| Install or update | `python manage.py install` | Copy runtime adapter; preserve other settings and saved statistics |
+| Install or update | `python manage.py install` | Copy runtime adapter; preserve other settings and saved statistics; add `--with-launcher` to also create the debug launcher |
+| Install debug launcher | `python3 manage.py install-launcher` | Create the platform opt-in debug launcher (`--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`) |
+| Remove debug launcher | `python3 manage.py uninstall-launcher` | Verify ownership marker and remove only the plugin-created debug launcher |
+| Launch or relaunch in debug mode | `python3 manage.py launch` | Start desktop App with debug flags; add `--relaunch` to quit the old main process first |
 | Disable | `python manage.py disable` | Disable the plugin and hide the strip on its next poll |
 | Enable | `python manage.py enable` | Start the plugin and show the strip again |
-| Inspect | `python manage.py status` | Check installation, enabled state, and runtime attachment health |
-| Uninstall | `python manage.py uninstall` | Remove this plugin; retain saved statistics and verified legacy backups |
+| Inspect | `python manage.py status` | Check installation, enabled state, runtime health, `debugPortAvailable`, `launcher`, and `debugPortHint` |
+| Uninstall | `python manage.py uninstall` | Remove this plugin and any owned debug launcher; retain saved statistics and verified legacy backups |
 
 First installation, plugin code updates, and uninstall require a full app restart. Enable and disable do not require reinstalling or rewriting the archive. `./uninstall.ps1` runs the uninstall command.
 
@@ -266,7 +287,7 @@ Open context details and choose **English / 简体中文 / 繁體中文** at the
 
 <details><summary><strong>The strip did not appear after installation.</strong></summary>
 
-Fully quit the main app process and reopen it. Run `python manage.py status`. Inspect `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` and `data/integration-state.json`. Review raw host logs for local information before publishing them.
+Fully quit the main app process and reopen it. Run `python3 manage.py status` (use `python` on Windows) and inspect `debugPortAvailable`, `inlineIntegration`, and `debugPortHint`. On Antigravity 2.33.0+, if it reports `missing-debug-port`, reopen via the launcher created by `python3 manage.py install-launcher` (e.g., `~/Applications/Antigravity (Debug).app` on macOS), run `python3 manage.py launch --relaunch`, or click the 1-click relaunch button inside **+ → Extensions → Antigrative Dashboard**. Also inspect `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` and `data/integration-state.json`. Review raw host logs for local information before publishing them.
 
 </details>
 
@@ -284,7 +305,7 @@ The service returns independent quota groups: `Gemini`, dedicated `Argon` weekly
 
 <details><summary><strong>What happens after an Antigravity update?</strong></summary>
 
-App updates cannot overwrite the runtime adapter in the user plugin directory. It rediscovers ports, credentials and the renderer automatically. If the inline strip is missing, inspect `python manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
+App updates cannot overwrite the runtime adapter in the user plugin directory. On 2.32 and earlier, it rediscovers ports, credentials and the renderer automatically. On **Antigravity 2.33.0+**, in-app updates restart via `autoUpdater.quitAndInstall()`, which drops `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` just like regular Dock or shortcut launches: use the 1-click relaunch button in the Side Panel (**+ → Extensions → Antigrative Dashboard**), run `python3 manage.py launch --relaunch`, or reopen the generated debug launcher (and optionally enable `autoRelaunchDebug` in the Side Panel to recover automatically after future host updates). If the inline strip is missing, inspect `python3 manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
 
 </details>
 

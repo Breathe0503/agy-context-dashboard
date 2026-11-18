@@ -11,6 +11,10 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
+2026-11-17（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)）：**Antigravity 桌面 App 2.33.0+** 默认关闭渲染器远程调试端口，且在未传 `--remote-debugging-port` 启动时会主动删除 `<profile>/DevToolsActivePort`；同时常规 Dock/快捷方式启动及 `autoUpdater.quitAndInstall()` 自动更新重启都会丢弃启动参数，macOS 的 `ElectronAsarIntegrity` 与 Hardened Runtime 代码签名也不允许改写 `app.asar`。为此插件保持 `app.asar` 原封不动，并提供：
+- 可选调试启动器生命周期：`python3 manage.py install --with-launcher`、`install-launcher`、`uninstall-launcher` 与 `launch [--relaunch]`（传入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`），生成 macOS `~/Applications/Antigravity (Debug).app`、Windows `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd`、Linux `~/.local/share/applications/antigravity-pulse-debug.desktop`；
+- `missing-debug-port` 精准诊断（`compat/runtime-ui.mjs`、`manage.py status` 与原生侧边栏面板），侧边栏（**＋ → Extensions → Antigrative Dashboard**）支持一键调试重开（等待旧主进程 PID 全部退出后再拉起）及默认关闭的可选 `autoRelaunchDebug` 开关（60 秒冷却防重入），用于宿主自动更新重启后按需恢复。
+
 2026-11-16 / **v0.9.1**：合入上游 `v0.9.1` 更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)）：新增额度消耗速率预测与周期 Token 参考估算、`minimal` / `cat` 双样式速度卡片、用量弹窗「本机全部 / 当前账号」切换与未登录本地记账、多输入框多实例 + React Fiber 会话 ID 回退、宿主字体同步，以及完整 Antigravity IDE `2.6.0`（`agy --hub` + `jetski-frame` 嵌套 Webview）支持；同时完整保留 `v0.8.13`–`v0.8.16` 全部新模型识别、`language_server.native` 与 `agy 1.5.x` CLI 适配。
 
 2026-11-15 / **v0.8.16**：新增 Claude 4.5（`200K`）与 Claude 4.6–5.5（`1M`）上下文参考、跨端 `word/` / `@` 日期标签 / `perplexity/*` 模型归一化、统一 `3p` `Claude` 额度标签，并将 CLI `statusLine` 对齐至 `Argon` 周额度、`agy 1.5.x` 缓存口径与 `install --with-cli` 版本同步校验（`#3`、`#4`、`#6`、`#7`）；macOS 桌面 App `2.32.1` 重启后已实测 `sidecar` 在线挂载（`mounted` / `live`）与本地接口统计，`agy 1.5.9` 已通过 CLI 生命周期与模型规范化检查，独立 IDE `.vsix` 与 Linux 登录态界面仍待另行实机验收。
@@ -37,9 +41,9 @@ Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 
 
 ## 安装与自定义位置
 
-Windows：`python manage.py install` / `./install.ps1`。
-Linux/macOS：`python3 manage.py install` / `sh install.sh`。
-启停、状态、卸载同样使用 `python3 manage.py <action>`，或 `sh uninstall.sh`。不要使用 sudo，否则会安装到错误用户目录。
+Windows：`python manage.py install` / `./install.ps1`（加 `--with-launcher` 一并创建调试启动器）。
+Linux/macOS：`python3 manage.py install` / `sh install.sh`（加 `--with-launcher` 一并创建调试启动器）。
+启停、状态、卸载与调试启动器管理同样使用 `python3 manage.py <action>`（`install-launcher`、`uninstall-launcher`、`launch [--relaunch]`、`uninstall` 会同时清理本插件创建的调试启动器），或 `sh uninstall.sh`。不要使用 sudo，否则会安装到错误用户目录。
 
 默认查找 Windows 用户安装目录、macOS `/Applications/Antigravity.app` 与 `~/Applications/Antigravity.app`、Linux `/opt/Antigravity`、`/opt/antigravity`、`/usr/share/antigravity`，以及 PATH 中启动器所在目录。
 自定义安装：`python3 manage.py install --app-path '/path/to/resources/app.asar'`；安装器记住资源位置供 SDK 发现。
@@ -56,6 +60,7 @@ Linux/macOS：`python3 manage.py install` / `sh install.sh`。
 | 插件设置 | `%LOCALAPPDATA%/AntigravityPulse/settings.json` | `${XDG_DATA_HOME:-~/.local/share}/AntigravityPulse/settings.json` | `~/Library/Application Support/AntigravityPulse/settings.json` |
 | 语言选择 | `%LOCALAPPDATA%/AntigravityPulse/preferences.json` | `${XDG_DATA_HOME:-~/.local/share}/AntigravityPulse/preferences.json` | `~/Library/Application Support/AntigravityPulse/preferences.json` |
 | 备份 | `%LOCALAPPDATA%/AntigravityPulseBackups` | `${XDG_DATA_HOME:-~/.local/share}/AntigravityPulseBackups` | `~/Library/Application Support/AntigravityPulseBackups` |
+| 调试启动器（可选） | `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` | `~/.local/share/applications/antigravity-pulse-debug.desktop` | `~/Applications/Antigravity (Debug).app` |
 
 三系统插件均在 `~/.gemini/config/plugins/antigravity-pulse`；历史均在 `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/data/history-v1/<account-hash>/<conversation-id>.json`（宿主可覆盖 data 目录）。
 更新、重装、卸载保留统计数据，不保留已卸载的运行代码。设置开关保留其他插件和自定义字段。
@@ -67,7 +72,7 @@ Linux/macOS：`python3 manage.py install` / `sh install.sh`。
 
 ## 更新与失败恢复
 
-默认安装不修改 `resources/app.asar`，由用户插件中的运行时适配器通过宿主现有 loopback 调试通道挂载。每 3 秒重试端口变化、文档替换与窗口重启。只允许 loopback 主 frame，通过受限桥接传递白名单统计。后台凭据仅在内存使用，匹配当前 PID 所属 HTTP 端口。
+默认安装不修改 `resources/app.asar`，由用户插件中的运行时适配器通过宿主现有 loopback 调试通道挂载。每 3 秒重试端口变化、文档替换与窗口重启。只允许 loopback 主 frame，通过受限桥接传递白名单统计。后台凭据仅在内存使用，匹配当前 PID 所属 HTTP 端口。在 Antigravity 桌面 App `2.33.0+` 中，宿主必须带 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 启动才会写入 `<profile>/DevToolsActivePort`；普通 Dock/快捷方式打开及 `quitAndInstall()` 自动更新重启都会丢弃该参数，此时可通过上述可选调试启动器、`python3 manage.py launch --relaunch` 或侧边栏面板一键重开（以及可选的 `autoRelaunchDebug` 60 秒冷却自动恢复）重建调试会话。
 
 三系统共用同一套合并布局和 V4 桥接协议。每个宿主后台具有独立实例标识与绑定；data 目录中的 `active-sidecar.json` 由新实例原子接管，文件变更通知使旧实例的同步所有权缓存失效，每 2 秒的异步检查作为兜底，确认接管后解绑退出。采集和分页热路径只读取内存布尔值，不反复读取所有权／设置文件；运行边界仍异步复核。启动接管用短期文件锁串行化，异常退出的锁可恢复；不终止无关 PID。退出时只清理自身脚本和绑定，提交前取消旧实例的排队统计写入；已经交给操作系统的原子提交无法撤回。首次从没有接管保护的旧版升级，仍应完全退出宿主并清理已确认的旧插件后台；之后新实例可自动退役旧实例。
 
@@ -85,7 +90,7 @@ v0.5.2 的发布检查在三系统分别运行 Node 数据/路径/后台接管�
 
 v0.6.1 子代理展示：在 `[data-testid="agent-input-box"]` 内定位唯一编辑器、发送按钮和静态子代理身份标签，校验其水平操作行与编辑器的邻近关系后挂载。标签文字允许汉化，右侧文件面板的 combobox 不作为子代理锚点。数据请求使用当前 `/c/<id>`，只接收该 ID 的统计；切换父/子会话立即清空旧值，晚到或 ID 不匹配的响应被拒绝。窄窗口先保留速度、缓存和上下文三个图标，仍可打开各自详情；语言可在上下文卡中切换，详情注明“当前子代理统计”和账号共享额度。尚不支持任意浮动子代理窗口或同一页面多个会话同时展示各自监控条。
 
-`python[3] manage.py status` 显示运行模式与健康状态：`mounted`、`waiting-for-composer`、`reconnecting`；检查 `checkedAt` 是否新鲜，历史文件不能证明当前后台仍在运行。原生侧面板是 SDK 兼容时的回退。
+`python[3] manage.py status` 显示运行模式、健康状态与调试启动诊断：`mounted`、`waiting-for-composer`、`reconnecting`（当 `<profile>/DevToolsActivePort` 缺失时附带 `reason: 'missing-debug-port'`），同时返回 `debugPortAvailable`、`launcher` 安装状态与 `debugPortHint`；检查 `checkedAt` 是否新鲜，历史文件不能证明当前后台仍在运行。原生侧面板是 SDK 兼容时的回退，也可直接用于触发调试重开。
 
 未来关闭调试通道、改变 DOM、SDK 或 RPC 仍可能需要适配，不保证所有未来版本无故障。`--legacy-loader` 仅为 Windows 2.19.1 历史迁移，不用于 Linux/macOS。未知归档修改不会被覆盖。
 
