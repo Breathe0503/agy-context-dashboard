@@ -24,7 +24,7 @@ let snapshot = null, selectedGroup = null, group = null, autoGroupId = null, las
 let pending = false, timer = null, serverOffset = 0, lastExpiredRefresh = 0;
 let selectedCard='speed',cardMotion=null;
 let refreshRequest=null,manualRequest=null;
-let relaunchBusy=false,relaunchStatusKey='',autoRelaunchState={busy:false,error:false,revision:-1,value:false};
+let relaunchBusy=false,relaunchStatusKey='',autoRelaunchState={busy:false,error:false,revision:-1,value:true};
 const host = window.sidecar;
 if (!host) document.body.classList.add('standalone');
 const preferenceRequest=async(input)=>{
@@ -424,7 +424,7 @@ function renderIntegrationNote(){
         const saved=await preferenceRequest({autoRelaunchDebug:next});
         const rev=Number.isSafeInteger(saved?.revision)?saved.revision:0;
         autoRelaunchState.revision=Math.max(autoRelaunchState.revision,rev);
-        autoRelaunchState.value=saved?.autoRelaunchDebug===true;
+        autoRelaunchState.value=!saved?.error&&saved?.autoRelaunchDebug!==false;
         if(snapshot)snapshot.preferences=saved;
       }catch{
         autoRelaunchState.value=!next;
@@ -441,9 +441,9 @@ function renderIntegrationNote(){
   if(button){button.disabled=relaunchBusy;button.textContent=t(relaunchBusy?'relaunchingDebug':'relaunchDebugButton');}
   text('auto-relaunch-label',t('autoRelaunchLabel'));
   const prefRev=Number.isSafeInteger(snapshot?.preferences?.revision)?snapshot.preferences.revision:0;
-  if(!autoRelaunchState.busy&&!autoRelaunchState.error&&prefRev>=autoRelaunchState.revision){
+  if(!autoRelaunchState.busy&&!autoRelaunchState.error&&!snapshot?.preferences?.error&&prefRev>=autoRelaunchState.revision){
     autoRelaunchState.revision=prefRev;
-    autoRelaunchState.value=snapshot?.preferences?.autoRelaunchDebug===true;
+    autoRelaunchState.value=snapshot?.preferences?.autoRelaunchDebug!==false;
   }
   const toggle=$('auto-relaunch-toggle');
   if(toggle)toggle.checked=autoRelaunchState.value;

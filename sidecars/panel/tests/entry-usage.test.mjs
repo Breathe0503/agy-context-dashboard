@@ -47,8 +47,14 @@ async function entryFixture(host,url,selection=false){
     const results={};
     if(host==='app'){
       await uiOptions.onMissingDebugPort();
-      results.autoWithoutPref=state.relaunchCalls.length;
-      state.prefs={language:null,autoRelaunchDebug:true,revision:1};
+      results.autoDefault=state.relaunchCalls.map(c=>c.reason);
+      state.prefs={language:null,autoRelaunchDebug:false,revision:1};
+      await uiOptions.onMissingDebugPort();
+      results.autoOptOut=state.relaunchCalls.length;
+      state.prefs={error:'unreadable',revision:0};
+      await uiOptions.onMissingDebugPort();
+      results.autoPrefError=state.relaunchCalls.length;
+      state.prefs={language:null,autoRelaunchDebug:true,revision:2};
       await uiOptions.onMissingDebugPort();
       results.autoWithPref=state.relaunchCalls.map(c=>c.reason);
       results.manualOwner=await apis.get('POST:/api/relaunch-debug')({});
@@ -130,17 +136,19 @@ for(const host of ['app','preview'])test(`${host} real entrypoint keeps unknown 
   if(host==='preview')assert.deepEqual(value.statuses,[200,200,200]);
 });
 
-for(const host of ['app','preview'])test(`${host} real entrypoint guards debug-port relaunch endpoints and auto opt-in`,()=>{
+for(const host of ['app','preview'])test(`${host} real entrypoint guards debug-port relaunch endpoints and default auto-recovery`,()=>{
   const url=new URL('../main.mjs',import.meta.url).href;
   const script=`(${entryFixture.toString()})(${JSON.stringify(host)},${JSON.stringify(url)},'relaunch').then(value=>console.log(JSON.stringify(value)))`;
   const result=spawnSync(process.execPath,['--experimental-vm-modules','--input-type=module','-e',script],{encoding:'utf8',timeout:15000,windowsHide:true});
   assert.equal(result.status,0,result.stderr);
   const value=JSON.parse(result.stdout.trim());
   if(host==='app'){
-    assert.equal(value.autoWithoutPref,0);
-    assert.deepEqual(value.autoWithPref,['auto']);
+    assert.deepEqual(value.autoDefault,['auto']);
+    assert.equal(value.autoOptOut,1);
+    assert.equal(value.autoPrefError,1);
+    assert.deepEqual(value.autoWithPref,['auto','auto']);
     assert.deepEqual(value.manualOwner,{scheduled:true,reason:'manual'});
-    assert.equal(value.autoLostOwner,2);
+    assert.equal(value.autoLostOwner,3);
     assert.equal(value.manualLostOwner,403);
   }else{
     assert.equal(value.getStatus,405);

@@ -85,7 +85,7 @@ const integration = new RuntimeUi({
   onMissingDebugPort: async () => {
     if (ownership && !await ownership.isOwner()) return;
     const prefs = await preferences.snapshot();
-    if (prefs?.autoRelaunchDebug !== true) return;
+    if (!prefs || prefs.error || prefs.autoRelaunchDebug === false) return;
     await relaunchHost('auto');
   },
 });

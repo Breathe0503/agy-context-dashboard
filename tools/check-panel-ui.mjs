@@ -166,9 +166,15 @@ try{
  assert.ok(actionBox.noteHeight>36,'missing-debug-port action block must expand beyond 36px');
  assert.equal(actionBox.noteOverflow,false);assert.equal(actionBox.widgetOverflow,false);
  assert.equal(actionBox.widgetHeight,580);assert.equal(actionBox.btnInside,true);assert.equal(actionBox.chkInside,true);
+ assert.equal(await page.locator('#auto-relaunch-toggle').isChecked(),true);
+ await page.locator('#auto-relaunch-toggle').click();
+ await page.waitForFunction(async()=>{const p=await(await fetch('/api/preferences')).json();return p.autoRelaunchDebug===false;});
+ assert.equal(prefs.autoRelaunchDebug,false);
+ assert.equal(await page.locator('#auto-relaunch-toggle').isChecked(),false);
  await page.locator('#auto-relaunch-toggle').click();
  await page.waitForFunction(async()=>{const p=await(await fetch('/api/preferences')).json();return p.autoRelaunchDebug===true;});
  assert.equal(prefs.autoRelaunchDebug,true);
+ assert.equal(await page.locator('#auto-relaunch-toggle').isChecked(),true);
  await page.locator('#language-toggle').click();await page.locator('[data-language-menu] [data-language="zh-CN"]').click();
  await page.locator('#relaunch-debug-button').filter({hasText:'一键重启并恢复状态栏'}).waitFor();
  await page.locator('#relaunch-debug-button').click();
