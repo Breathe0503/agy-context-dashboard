@@ -13,6 +13,7 @@ import {delegatedIds} from './delegation.mjs';
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LOCAL_SCOPE = createHash('sha256').update('ag-pulse:local-unauthenticated').digest('hex');
 const BACKGROUND_RECHECK_MS=5*60*1000, BACKGROUND_MANUAL_COOLDOWN_MS=10*1000;
+const settledStatus=s=>/IDLE|DONE|COMPLETED|CANCELLED|CANCELED|STOPPED|FAILED|ERROR/.test(String(s||''));
 export class MetricsStore {
   constructor(client = new AntigravityClient(), { history = new SessionHistory(), onTrajectory = null, onBackgroundResult = null, background = undefined, transcripts = new TranscriptReader(), owns=()=>true } = {}) {
     this.client = client; this.history = history; this.onTrajectory=onTrajectory; this.onBackgroundResult=onBackgroundResult; this.transcripts=transcripts; this.owns=owns;
@@ -90,10 +91,12 @@ export class MetricsStore {
 
   async listConversations(force = false) {
     if (!this.owned()) throw new Error('后台已重新连接，请等待刷新');
-    if (!force && Date.now() - this.summariesAt < 5000) return this.summaries;
+    const listTtlMs = this.summaries.length && this.summaries.every(s => settledStatus(s.status)) ? 15000 : 5000;
+    if (!force && Date.now() - this.summariesAt < listTtlMs) return this.summaries;
     const scope = this.identity, epoch = this.epoch;
     const response = await this.client.call('GetAllCascadeTrajectories',{excludeSubtrajectories:false});
     if (!this.owned() || scope !== this.identity || epoch !== this.epoch) throw new Error('后台已重新连接，请等待刷新');
+    this.client.reader?.ingestSummaries?.(response.trajectorySummaries);
     this.summaries = Object.entries(response.trajectorySummaries || {}).map(([id, value]) => ({
       id, title: value.summary || '未命名会话', modifiedAt: value.lastModifiedTime, status: value.status,stepCount:value.stepCount,lastUserInputStepIndex:value.lastUserInputStepIndex,
     })).sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
@@ -155,13 +158,14 @@ export class MetricsStore {
           const age=Date.now()-(entry.backgroundCompletedAt||0);
           if(force&&age<BACKGROUND_MANUAL_COOLDOWN_MS)return entry.data;
           if(!force&&Date.now()-entry.backgroundCheckedAt<30000)return entry.data;
-          const summary=await this.client.reader.summary(id,null,force);if(!current())throw Error('后台已重新连接，请等待刷新');
+          const summary=await this.client.reader.summary(id,null,force,12000);if(!current())throw Error('后台已重新连接，请等待刷新');
           entry.backgroundCheckedAt=Date.now();const revision=JSON.stringify([summary.stepCount??null,summary.lastModifiedTime??null,summary.status??null,summary.lastUserInputStepIndex??null]);
           if(revision===entry.backgroundRevision&&age<(force?BACKGROUND_MANUAL_COOLDOWN_MS:BACKGROUND_RECHECK_MS))return entry.data;
         }
         this.startBackground(scope,id,entry,current);return entry.data||null;
       }
-      const raw = await this.client.trajectory(id,{force,isCurrent:current});
+      const isSettled=Boolean(entry.data?.status&&settledStatus(entry.data.status)&&(!entry.data.taskUsage||entry.data.taskUsage.state==='ready'));
+      const raw = await this.client.trajectory(id,{force,isCurrent:current,summaryTtlMs:isSettled?12000:1800});
       if (!current()) throw new Error('后台已重新连接，请等待刷新');
       if(this.onTrajectory){try{const result=await this.onTrajectory(scope,id,raw,{isCurrent:current,guardKey:entry});if(current()&&result?.deferred!==true)this.setUsagePersistenceError('foreground:'+id,false);}catch{if(current())this.setUsagePersistenceError('foreground:'+id,true);}}
       if (!current()) throw new Error('后台已重新连接，请等待刷新');

@@ -20,14 +20,16 @@ async function entryFixture(host,url,selection=false){
   const fakeProcess={env:host==='ide'?{AG_PULSE_IDE_PROFILE:'fixture'}:host==='app'?{ANTIGRAVITY_SIDECAR_WEB_PORT:'1'}:{},exit(){throw Error('Unexpected exit');},on(){},once(){}};
   const context=createContext({process:fakeProcess,console,URL,URLSearchParams,setInterval:()=>({unref(){}}),clearInterval(){},setTimeout:()=>({unref(){}}),clearTimeout(){}});
   const modules={
-    'node:fs':{readFileSync(file){state.diskReads++;return String(file).endsWith('.cjs')?'module.exports = function() {};':'{}';}},
+    'node:fs':{existsSync:()=>false,readFileSync(file){state.diskReads++;return String(file).endsWith('.cjs')?'module.exports = function() {};':'{}';}},
     'node:fs/promises':{readFile:async()=> 'module.exports = function() {};',mkdir:async()=>{},writeFile:async()=>{}},
     'node:http':{createServer(handler){if(host!=='preview')throw Error('Unexpected preview server');http=handler;return {listen(){}};}},
     'node:module':{createRequire:()=>()=>()=>({css:()=>''})},
     'store.mjs':{MetricsStore:Store},'usage.mjs':{DesktopUsage:Usage,UsageLedger:class{}},
     'sdk.mjs':{loadSidecarSdk:async()=>({SidecarApp:App,Response:FakeResponse})},
     'runtime-ui.mjs':{RuntimeUi:Ui,makeRendererSource:()=>''},
-    'platform.mjs':{platformPaths:()=>({data:'fixture',settings:'settings.json'})},
+    'discovery.mjs':{},
+    'platform.mjs':{agentExecutables:()=>[],platformPaths:()=>({data:'fixture',settings:'settings.json'})},
+    'launch-config.mjs':{ensureDesktopLaunchConfig:async()=>({configured:false,supported:false,entrypoints:[]}),inspectDesktopLaunch:async()=>({configured:false,supported:false,entrypoints:[]}),inspectHostArchive:async()=>({version:'2.33.0',requiresDebugFlag:true})},
     'preferences.mjs':{PreferencesStore:class{async snapshot(){return state.prefs;}async set(v){state.prefs={...state.prefs,...v};return state.prefs;}}},
     'debug-relaunch.mjs':{scheduleHostRelaunch:async input=>{state.relaunchCalls.push(input);return {scheduled:true,reason:input.reason};}},
     'sidecar-owner.mjs':{SidecarOwner:Owner},'host-theme.mjs':{readHostTheme:async()=>({})},
@@ -46,22 +48,25 @@ async function entryFixture(host,url,selection=false){
   if(selection==='relaunch'){
     const results={};
     if(host==='app'){
-      await uiOptions.onMissingDebugPort();
-      results.autoDefault=state.relaunchCalls.map(c=>c.reason);
       state.prefs={language:null,autoRelaunchDebug:false,revision:1};
       await uiOptions.onMissingDebugPort();
       results.autoOptOut=state.relaunchCalls.length;
       state.prefs={error:'unreadable',revision:0};
       await uiOptions.onMissingDebugPort();
       results.autoPrefError=state.relaunchCalls.length;
-      state.prefs={language:null,autoRelaunchDebug:true,revision:2};
-      await uiOptions.onMissingDebugPort();
-      results.autoWithPref=state.relaunchCalls.map(c=>c.reason);
-      results.manualOwner=await apis.get('POST:/api/relaunch-debug')({});
       state.owned=false;
+      state.prefs={language:null,revision:2};
       await uiOptions.onMissingDebugPort();
       results.autoLostOwner=state.relaunchCalls.length;
       results.manualLostOwner=(await apis.get('POST:/api/relaunch-debug')({})).status;
+      state.owned=true;
+      await uiOptions.onMissingDebugPort();
+      results.autoDefault=state.relaunchCalls.map(c=>c.reason);
+      state.prefs={language:null,autoRelaunchDebug:true,revision:3};
+      await uiOptions.onMissingDebugPort();
+      results.singleShotAcrossPrefs=state.relaunchCalls.length;
+      results.manualOwner=await apis.get('POST:/api/relaunch-debug')({});
+      results.reasonsAfterManual=state.relaunchCalls.map(c=>c.reason);
     }else{
       const call=async(method,headers)=>{let status=200,body='';await http({method,url:'/api/relaunch-debug',headers:{host:'127.0.0.1:17891',...headers}},{setHeader(){},writeHead(s){status=s;},end(d){body=d||'';}});return {status,body};};
       results.getStatus=(await call('GET',{})).status;
@@ -143,13 +148,14 @@ for(const host of ['app','preview'])test(`${host} real entrypoint guards debug-p
   assert.equal(result.status,0,result.stderr);
   const value=JSON.parse(result.stdout.trim());
   if(host==='app'){
-    assert.deepEqual(value.autoDefault,['auto']);
-    assert.equal(value.autoOptOut,1);
-    assert.equal(value.autoPrefError,1);
-    assert.deepEqual(value.autoWithPref,['auto','auto']);
-    assert.deepEqual(value.manualOwner,{scheduled:true,reason:'manual'});
-    assert.equal(value.autoLostOwner,3);
+    assert.equal(value.autoOptOut,0);
+    assert.equal(value.autoPrefError,0);
+    assert.equal(value.autoLostOwner,0);
     assert.equal(value.manualLostOwner,403);
+    assert.deepEqual(value.autoDefault,['auto']);
+    assert.equal(value.singleShotAcrossPrefs,1);
+    assert.deepEqual(value.manualOwner,{scheduled:true,reason:'manual'});
+    assert.deepEqual(value.reasonsAfterManual,['auto','manual']);
   }else{
     assert.equal(value.getStatus,405);
     assert.equal(value.noOriginStatus,405);

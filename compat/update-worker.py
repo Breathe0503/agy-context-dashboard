@@ -92,7 +92,8 @@ def transaction_roots(target, working):
 
 PRIVATE = {'data', 'history-v1', 'usage-v1', 'sdk'}
 REQUIRED = ('plugin.json', 'compat/inline-widget.cjs', 'compat/runtime-ui.mjs',
-            'compat/i18n.cjs', 'compat/theme.cjs', 'sidecars/panel/main.mjs',
+            'compat/i18n.cjs', 'compat/theme.cjs', 'compat/launch-config.mjs',
+            'compat/launch_config.py', 'sidecars/panel/main.mjs',
             'sidecars/panel/metrics.mjs', 'sidecars/panel/history.mjs', 'assets/logo.svg')
 MAX_ZIP = 64 * 1024 * 1024
 MAX_EXPANDED = 256 * 1024 * 1024

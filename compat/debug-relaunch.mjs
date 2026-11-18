@@ -9,9 +9,11 @@ import { platformPaths } from './platform.mjs';
 
 export const DEBUG_ARGS = ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'];
 export const DEFAULT_AUTO_COOLDOWN_MS = 60000;
+export const DEFAULT_AUTO_MIN_INTERVAL_MS = 5000;
+export const DEFAULT_MAX_AUTO_ATTEMPTS = 2;
 export const DEFAULT_MANUAL_DEBOUNCE_MS = 5000;
 
-const HELPER_OR_NON_MAIN = /(?:--type=|--import=|language_server|chrome_crashpad_handler|Antigravity Helper|debug-relaunch-worker\.mjs|sidecars[\\/]+panel[\\/]+main\.mjs)/i;
+const HELPER_OR_NON_MAIN = /(?:--type=|--import=|--headless(?:\s|=|$)|language_server|chrome_crashpad_handler|Antigravity Helper|debug-relaunch-worker\.mjs|sidecars[\\/]+panel[\\/]+main\.mjs)/i;
 const REMOTE_DEBUG_PORT_FLAG = /(?:^|\s)--remote-debugging-port(?:=|\s+)\d+(?:\s|$)/;
 const WORKER_PATH = join(dirname(fileURLToPath(import.meta.url)), 'debug-relaunch-worker.mjs');
 
@@ -310,6 +312,8 @@ export async function scheduleHostRelaunch({
   appResources,
   reason = 'manual',
   cooldownMs = DEFAULT_AUTO_COOLDOWN_MS,
+  minAutoIntervalMs = DEFAULT_AUTO_MIN_INTERVAL_MS,
+  maxAutoAttempts = DEFAULT_MAX_AUTO_ATTEMPTS,
   debounceMs = DEFAULT_MANUAL_DEBOUNCE_MS,
   spawnImpl = spawn,
   execFileImpl = execFile,
@@ -342,13 +346,19 @@ export async function scheduleHostRelaunch({
     const currentNow = now();
     const hasLastAt = typeof guard.lastAt === 'number' && Number.isFinite(guard.lastAt);
     const elapsed = hasLastAt && currentNow >= guard.lastAt ? currentNow - guard.lastAt : Infinity;
+    const rawHistory = Array.isArray(guard.history)
+      ? guard.history
+      : (hasLastAt && guard.lastReason !== 'manual' ? [guard.lastAt] : []);
+    const recentHistory = rawHistory.filter(
+      ts => typeof ts === 'number' && Number.isFinite(ts) && currentNow >= ts && currentNow - ts < cooldownMs,
+    );
 
     if (normalizedReason === 'auto') {
-      if (elapsed < cooldownMs) {
-        return { scheduled: false, reason: 'cooldown', state };
-      }
       if (samePidSet(state.pids, guard.pids)) {
-        return { scheduled: false, reason: 'already-scheduled-for-pids', state };
+        return { scheduled: false, reason: elapsed < cooldownMs ? 'cooldown' : 'already-scheduled-for-pids', state };
+      }
+      if (elapsed < minAutoIntervalMs || recentHistory.length >= maxAutoAttempts) {
+        return { scheduled: false, reason: 'cooldown', state };
       }
     } else if (elapsed < debounceMs) {
       return { scheduled: false, reason: 'debounced', state };
@@ -367,6 +377,7 @@ export async function scheduleHostRelaunch({
       lastAt: currentNow,
       lastReason: normalizedReason,
       pids: state.pids,
+      history: normalizedReason === 'auto' ? [...recentHistory, currentNow] : recentHistory,
     });
 
     const workerEnv = { ...env, ELECTRON_RUN_AS_NODE: '1' };

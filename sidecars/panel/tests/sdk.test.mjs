@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,readFile,readdir,rm,utimes} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {extractBundledSdk,validateSdkResources,loadBundledSdk} from '../sdk.mjs';
+import {extractBundledSdk,extractBundledSdkFromFile,validateSdkResources,loadBundledSdk} from '../sdk.mjs';
 const preload='(function() {\nwindow.sidecar = {};\n})();';
 const fixture=(host='BIND_HOST',declaration="const BIND_HOST = '127.0.0.1';",extra='')=>`import { execFileSync } from 'node:child_process';
 import {createServer} from 'node:http';
@@ -84,4 +84,24 @@ test('failed regeneration cannot replace an earlier validated SDK generation',as
  const options={executable,directory:cache};await loadBundledSdk(options);const generation=(await readdir(cache))[0];const saved=await readFile(join(cache,generation,'index.mjs'),'utf8');
  await writeFile(executable,binary(fixture('"0.0.0.0"','')));await utimes(executable,new Date(20000),new Date(30000));
  await assert.rejects(loadBundledSdk(options),/监听地址/);assert.deepEqual(await readdir(cache),[generation]);assert.equal(await readFile(join(cache,generation,'index.mjs'),'utf8'),saved);
+});
+
+test('extractBundledSdkFromFile handles >4 MiB binaries straddling chunk boundaries and sidecar.json caps V8 heap',async t=>{
+ const directory=await mkdtemp(join(tmpdir(),'ag-sdk-chunked-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const source=fixture();
+ const markerOffsetInSdk=source.indexOf('export class SidecarApp');
+ const padLen=2*1024*1024-markerOffsetInSdk-5;
+ const payload=Buffer.concat([
+  Buffer.alloc(padLen,0x41),
+  Buffer.from(source),
+  Buffer.from('\0native-middle\0'+preload),
+  Buffer.alloc(2*1024*1024,0x42),
+ ]);
+ const exe=join(directory,'large.bin');await writeFile(exe,payload);
+ const extracted=await extractBundledSdkFromFile(exe);
+ assert.deepEqual(extracted,{sdk:source,preload});
+ const loaded=await loadBundledSdk({executable:exe,directory:join(directory,'cache')});
+ assert.equal(typeof loaded.SidecarApp,'function');
+ const sidecarConfig=JSON.parse(await readFile(new URL('../sidecar.json',import.meta.url),'utf8'));
+ assert.deepEqual(sidecarConfig.args,['--max-old-space-size=192','main.mjs']);
 });

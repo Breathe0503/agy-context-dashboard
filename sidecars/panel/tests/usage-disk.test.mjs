@@ -454,3 +454,38 @@ test('all-local disk worker aggregates across SQLite and JSON accounts and isola
  assert.equal(result.accountKey,'all-local');assert.equal(result.accountsCount,2);assert.equal(result.requests,3);assert.equal(result.totalTokens,2600);
  assert.equal(result.quotaWindows['gemini:5h'].observedTokens,600);assert.equal(result.quotaWindows['gemini:5h'].estimatedFullTokens,2400);
 });
+
+test('active backfill throttles repeated JSON summary scans and refreshes immediately when complete',async t=>{
+ const {ledger}=await fixture(t),third='33333333-3333-3333-3333-333333333333';
+ await ledger.ingest(scope,id,liveRaw(id,['one']));
+ let reads=0;const origRead=ledger.readSummaryRecord.bind(ledger);
+ ledger.readSummaryRecord=async file=>{reads++;return origRead(file);};
+ let release,entered;
+ const started=new Promise(resolve=>{entered=resolve;}),gate=new Promise(resolve=>{release=resolve;});
+ const store={
+  identity:scope,epoch:1,
+  listConversations:async()=>[{id:other,status:'DONE',modifiedAt:'2026-10-30T00:00:00Z'}],
+  client:{trajectory:async()=>{entered();await gate;return liveRaw(other,['three']);}},
+ };
+ const tracker=new DesktopUsage(store,ledger,{host:'app',continueDelay:0,discoverLocal:async()=>({conversations:[],errors:0})});
+ t.after(()=>tracker.dispose());
+ const first=await tracker.snapshot({sync:false});
+ assert.equal(first.totalTokens,600);
+ reads=0;
+ const pending=tracker.sync(true);
+ await entered;
+ await ledger.ingest(scope,third,liveRaw(third,['two']));
+ const during=await tracker.snapshot({sync:false});
+ assert.equal(during.totalTokens,600);
+ assert.equal(during.summaryStale,true);
+ assert.equal(during.syncing,true);
+ assert.equal(reads,0,'Active backfill should reuse cached JSON summary within throttle window');
+ release();
+ await pending;
+ while(tracker.pending||tracker.continuation)await wait(5);
+ const after=await tracker.snapshot({sync:false});
+ assert.equal(after.summaryStale,undefined);
+ assert.equal(after.syncing,false);
+ assert.equal(after.totalTokens,1800);
+ assert.ok(reads>0);
+});

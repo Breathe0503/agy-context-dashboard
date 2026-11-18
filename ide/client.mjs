@@ -14,6 +14,6 @@ export class IdeClient extends AntigravityClient {
     if(!port)throw Error('Waiting for the IDE local API port');
     const csrf=row.CommandLine.match(/--csrf_token(?:=|\s+)"?([^\s"]+)/)?.[1];
     if(!csrf)throw Error('IDE local API credential unavailable');
-    this.server={port,csrf,pid:row.ProcessId};this.discoveredAt=Date.now();return this.server;
+    this.server={port,csrf,pid:row.ProcessId};this.discoveredAt=this.now();return this.server;
   }
 }

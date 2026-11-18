@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { readFile, writeFile, mkdir, stat, rename, rm } from 'node:fs/promises';
+import { open, readFile, writeFile, mkdir, stat, rename, rm } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -97,6 +97,70 @@ export function extractBundledSdk(binary){
   validateSdkResources(sdk,preload);return {sdk,preload};
 }
 
+async function readRange(handle, start, length) {
+  const buf = Buffer.allocUnsafe(length);
+  let offset = 0;
+  while (offset < length) {
+    const { bytesRead } = await handle.read(buf, offset, length - offset, start + offset);
+    if (!bytesRead) break;
+    offset += bytesRead;
+  }
+  return buf.subarray(0, offset);
+}
+
+export async function extractBundledSdkFromFile(exe, { chunkBytes = 2 * 1024 * 1024 } = {}) {
+  const handle = await open(exe, 'r');
+  try {
+    const { size } = await handle.stat();
+    if (size <= chunkBytes) return extractBundledSdk(await readRange(handle, 0, size));
+    const sdkMarker = Buffer.from('export class SidecarApp');
+    const preloadMarker = Buffer.from('window.sidecar =');
+    const overlap = 64;
+    const buf = Buffer.allocUnsafe(chunkBytes);
+    let pos = 0, markerOffset = -1, preloadMarkerOffset = -1;
+    while (pos < size && (markerOffset < 0 || preloadMarkerOffset < 0)) {
+      const toRead = Math.min(chunkBytes, size - pos);
+      let readTotal = 0;
+      while (readTotal < toRead) {
+        const { bytesRead } = await handle.read(buf, readTotal, toRead - readTotal, pos + readTotal);
+        if (!bytesRead) break;
+        readTotal += bytesRead;
+      }
+      if (!readTotal) break;
+      const slice = buf.subarray(0, readTotal);
+      if (markerOffset < 0) { const idx = slice.indexOf(sdkMarker); if (idx >= 0) markerOffset = pos + idx; }
+      if (preloadMarkerOffset < 0) { const idx = slice.indexOf(preloadMarker); if (idx >= 0) preloadMarkerOffset = pos + idx; }
+      if (pos + readTotal >= size) break;
+      pos += Math.max(1, readTotal - overlap);
+    }
+    if (markerOffset < 0 || preloadMarkerOffset < 0) throw Error('此版本的 Sidecar SDK 格式不兼容；请更新 SDK 适配器');
+    const sdkWinStart = Math.max(0, markerOffset - 16384);
+    const sdkWinEnd = Math.min(size, markerOffset + 32768);
+    const sdkBuf = await readRange(handle, sdkWinStart, sdkWinEnd - sdkWinStart);
+    const localMarker = markerOffset - sdkWinStart;
+    const start = sdkBuf.lastIndexOf("import { execFileSync } from 'node:child_process';", localMarker);
+    const tail = "return provided === this.#token;\n  }\n}\n";
+    const tailIndex = sdkBuf.indexOf(tail, localMarker);
+    const preWinStart = Math.max(0, preloadMarkerOffset - 32768);
+    const preWinEnd = Math.min(size, preloadMarkerOffset + 32768);
+    const preBuf = await readRange(handle, preWinStart, preWinEnd - preWinStart);
+    const localPreload = preloadMarkerOffset - preWinStart;
+    const preloadStart = preBuf.lastIndexOf('(function() {', localPreload);
+    const preloadTail = '\n})();';
+    const preloadEnd = preBuf.indexOf(preloadTail, localPreload);
+    if (start < 0 || localMarker - start > 12000 || tailIndex < localMarker || tailIndex - localMarker > 24000 ||
+        preloadStart < 0 || preloadEnd < localPreload || preloadEnd - preloadStart > 24000) {
+      throw Error('此版本的 Sidecar SDK 格式不兼容；请更新 SDK 适配器');
+    }
+    const sdk = sdkBuf.subarray(start, tailIndex + Buffer.byteLength(tail)).toString('utf8');
+    const preload = preBuf.subarray(preloadStart, preloadEnd + Buffer.byteLength(preloadTail)).toString('utf8');
+    validateSdkResources(sdk, preload);
+    return { sdk, preload };
+  } finally {
+    await handle.close();
+  }
+}
+
 async function atomicWrite(file,data){
   const temporary=file+'.'+process.pid+'.'+randomUUID()+'.tmp';
   try{await writeFile(temporary,data,{flag:'wx',mode:0o600});await rename(temporary,file);}finally{await rm(temporary,{force:true});}
@@ -121,7 +185,7 @@ async function loadBundledNow(exe,directory) {
     if(saved.stamp===stamp&&saved.sdk===hash(sdk)&&saved.preload===hash(preload)){validateSdkResources(sdk,preload);resources={sdk,preload};}
   }catch{}
   if(!resources){
-    resources=extractBundledSdk(await readFile(exe));
+    resources=await extractBundledSdkFromFile(exe);
     await mkdir(root,{recursive:true});
     await atomicWrite(join(root,'index.mjs'),resources.sdk);await atomicWrite(join(root,'preload.js'),resources.preload);
     await atomicWrite(join(root,'manifest.json'),JSON.stringify({stamp,sdk:hash(resources.sdk),preload:hash(resources.preload)})+'\n');

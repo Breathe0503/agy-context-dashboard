@@ -377,11 +377,12 @@ function renderIntegrationNote(){
     if(note.childNodes.length)note.replaceChildren();
     return;
   }
-  if(integration.reason!=='missing-debug-port'){
+  const isMissingPort=integration.reason==='missing-debug-port'||integration.reason==='debug-port-disabled';
+  if(!isMissingPort){
     note.classList.remove('has-action','warning');
     delete note.dataset.mode;
     relaunchStatusKey='';autoRelaunchState.error=false;
-    const msg=t('inlineReconnecting');
+    const msg=t('panelInlineReconnecting');
     if(note.textContent!==msg)note.textContent=msg;
     return;
   }
@@ -436,7 +437,10 @@ function renderIntegrationNote(){
       }
     });
   }
-  text('integration-message',t('missingDebugPort'));
+  const msgKey=integration.reason==='debug-port-disabled'
+    ?(integration.launchConfigured?'panelDebugPortReady':'panelDebugPortManual')
+    :'missingDebugPort';
+  text('integration-message',t(msgKey));
   const button=$('relaunch-debug-button');
   if(button){button.disabled=relaunchBusy;button.textContent=t(relaunchBusy?'relaunchingDebug':'relaunchDebugButton');}
   text('auto-relaunch-label',t('autoRelaunchLabel'));

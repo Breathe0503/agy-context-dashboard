@@ -1,8 +1,8 @@
-import { readFile,stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { request } from 'node:http';
 import {setImmediate as yieldStream} from 'node:timers/promises';
 import { platformPaths } from '../../compat/platform.mjs';
-import { discoverProcesses,httpLogPorts } from './discovery.mjs';
+import { discoverProcesses,httpLogPorts,readLogTail } from './discovery.mjs';
 import { TrajectoryJson } from './trajectory-json.mjs';
 import { TrajectoryReader } from './trajectory-reader.mjs';
 
@@ -19,7 +19,7 @@ function serverFromPorts(logPorts, processes) {
 }
 export function serverFromDiscovery(log, processes) { return serverFromPorts(httpLogPorts(log),processes); }
 export class AntigravityClient {
-  constructor({paths=platformPaths,readLog=readFile,logStat=stat,processes=discoverProcesses,now=Date.now,onRpc=null}={}) {
+  constructor({paths=platformPaths,readLog=readLogTail,logStat=stat,processes=discoverProcesses,now=Date.now,onRpc=null}={}) {
     this.paths=paths;this.readLog=readLog;this.logStat=logStat;this.processes=processes;this.now=now;this.onRpc=onRpc;this.reader=new TrajectoryReader(this);
   }
   server = null;
@@ -125,6 +125,7 @@ export class AntigravityClient {
             if (res.statusCode !== 200) return reject(Object.assign(new Error(`Antigravity 接口 ${method} 返回 ${res.statusCode}`),{status:res.statusCode}));
             try {
               const value=projected?projected.end():JSON.parse(text);
+              if(this.server===server)this.discoveredAt=this.now();
               try{this.onRpc?.({method,bytes,retainedBytes:projected?.retained??Buffer.byteLength(text),ms:this.now()-started});}catch{}
               resolve(value);
             }
@@ -177,6 +178,7 @@ export class AntigravityClient {
         watch=setInterval(()=>{if(isCurrent()!==true)abort(Error('Statistics stream cancelled'));},250);watch.unref();req.end(input);
       });
       if(res.statusCode!==200)throw Object.assign(Error('Statistics stream HTTP '+res.statusCode),{status:res.statusCode});
+      if(this.server===server)this.discoveredAt=this.now();
       res.setEncoding('utf8');
       for await(const chunk of res){
         assertCurrent();bytes+=Buffer.byteLength(chunk);
@@ -191,8 +193,16 @@ export class AntigravityClient {
       }
       assertCurrent();const result=parser.end();
       if(pending){const item=pending;pending=null;await Promise.race([onRecord(item.kind,item.index,item.value),aborted]);assertCurrent();}
+      if(this.server===server)this.discoveredAt=this.now();
       try{this.onRpc?.({method,bytes,retainedBytes:peakRetained,ms:this.now()-started,streamed:true});}catch{}
       return result;
+    } catch(error) {
+      const endpointLost=[401,403].includes(error?.status)||['ECONNREFUSED','ECONNRESET','EPIPE','ENOTCONN'].includes(error?.code);
+      if(endpointLost&&this.server===server){
+        this.server=null;this.discoveryError=error;
+        this.retryAt=Math.max(this.retryAt,this.lastScanAt+3000);
+      }
+      throw error;
     } finally {clearTimeout(deadline);clearInterval(watch);res?.destroy();req?.destroy();}
   }
 

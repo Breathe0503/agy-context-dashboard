@@ -4,7 +4,11 @@ import {createServer} from 'node:http';
 import http from 'node:http';
 import {syncBuiltinESMExports} from 'node:module';
 import {EventEmitter} from 'node:events';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {AntigravityClient} from '../client.mjs';
+import {httpLogPorts,readLogTail} from '../discovery.mjs';
 
 // Synthetic RPC fixtures own every accepted socket. End them explicitly:
 // HTTP keep-alive teardown must not hold the cross-platform test runner open.
@@ -104,4 +108,33 @@ test('a refused old port rediscovers a restarted backend once, without toggling 
  state.port=replacement.address().port;state.pid=43;state.now+=3000;
  assert.deepEqual(await client.call('GetUserStatus'),{});
  assert.equal(client.server.pid,43);assert.equal(state.scans,2);
+});
+
+test('healthy HTTP 200 RPCs renew discovery lease past 15s while auth or socket errors still rediscover',async t=>{
+ const {client,state,server}=await fixture(t);state.status=200;state.now=0;
+ await client.call('GetUserStatus');assert.equal(state.scans,1);
+ state.now=10000;await client.call('GetUserStatus');assert.equal(state.scans,1);
+ state.now=20000;await client.call('GetUserStatus');assert.equal(state.scans,1,'Healthy call at 10s extended lease past 15s');
+ state.now=30000;await client.call('GetUserStatus');assert.equal(state.scans,1);
+ state.status=401;state.now=34000;
+ await assert.rejects(client.call('GetUserStatus'));
+ assert.equal(state.scans,2,'401 invalidates endpoint and triggers rediscovery');
+ state.status=200;state.now=38000;
+ await client.call('GetUserStatus');assert.equal(state.scans,3);
+ await stopServer(server);
+ const replacement=createServer((req,res)=>{req.resume();res.end('{}');});
+ await new Promise(r=>replacement.listen(0,'127.0.0.1',r));t.after(()=>stopServer(replacement));
+ state.port=replacement.address().port;state.pid=43;state.now=42000;
+ assert.deepEqual(await client.call('GetUserStatus'),{});
+ assert.equal(state.scans,4);assert.equal(client.server.pid,43);
+});
+
+test('readLogTail extracts newest HTTP port from >1 MiB logs both at tail and behind >512 KiB of noise',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'ag-log-tail-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const tailFile=join(dir,'tail.log');
+ await writeFile(tailFile,'listening on random port at 1111 for HTTP\n'+'x'.repeat(1100*1024)+'\nlistening on random port at 2222 for HTTP\n');
+ assert.equal(httpLogPorts(await readLogTail(tailFile,'utf8'))[0],2222);
+ const headFile=join(dir,'head.log');
+ await writeFile(headFile,'listening on random port at 3333 for HTTP\n'+'y'.repeat(700*1024)+'\n');
+ assert.deepEqual(httpLogPorts(await readLogTail(headFile,'utf8')),[3333]);
 });

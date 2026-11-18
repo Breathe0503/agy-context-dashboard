@@ -15,6 +15,8 @@ if(process.platform!=='win32'){
     const port=server.address().port,exec=promisify(execFile);
     const {stdout}=await exec('netstat.exe',['-ano','-p','tcp'],{windowsHide:true,timeout:4000,maxBuffer:4194304});
     assert.ok(parseNetstat(stdout).get(process.pid)?.includes(port),'Native netstat must find the test listener');
+    // Warm cold-VM WMI/NetTCPIP providers once before checking production 8s budget.
+    await exec('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | Out-Null`],{windowsHide:true,timeout:30000}).catch(()=>{});
     const commands=[];
     const run=async(file,args,options)=>{
       commands.push(file);

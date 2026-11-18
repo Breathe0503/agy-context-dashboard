@@ -2,7 +2,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {readFile,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
-import {discoverWindowsPorts,parseLsof,linuxPorts,httpLogPorts} from '../sidecars/panel/discovery.mjs';
+import {discoverWindowsPorts,parseLsof,linuxPorts,httpLogPorts,readLogTail} from '../sidecars/panel/discovery.mjs';
 const exec=promisify(execFile);
 // The IDE's 2.5.5 language server is deliberately identified by its native
 // name and its IDE sub-client flag.  Do not match the standalone/LSP server:
@@ -154,7 +154,7 @@ export async function discoverIdeProcesses(debugPort,{platform=process.platform,
   return {...selected,Ports:ports.get(selected.ProcessId)||[]};
 }
 
-export async function discoverIdeLogPorts(profile,{read=readFile,list=readdir}={}) {
+export async function discoverIdeLogPorts(profile,{read=readLogTail,list=readdir}={}) {
   const names=(await list(join(profile,'logs'))).filter(n=>/^\d{8}T\d{6}$/.test(n)).sort().reverse();
   const ports=new Set();
   for(const name of names.slice(0,8)){

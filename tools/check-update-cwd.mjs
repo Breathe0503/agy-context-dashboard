@@ -64,7 +64,7 @@ if(process.argv[2]==='--child'){
   const env={...process.env,HOME:home,USERPROFILE:home,PYTHONDONTWRITEBYTECODE:'1',PULSE_CWD_TARGET:target,PULSE_CWD_HARNESS:harness,PULSE_CWD_DATA:data,PULSE_CWD_ARCHIVE:archive,PULSE_CWD_REAL_WORKER:join(root,'compat','update-worker.py'),PULSE_CWD_NODE:process.execPath,PULSE_CWD_SCRIPT:launcher,PULSE_CWD_SHIM:shim,PULSE_CWD_RELOCATED:relocated?'1':'0',PULSE_CWD_REAL_TARGET:await realpath(target)};
   const build=String.raw`import os,json,zipfile
 from pathlib import Path
-required=('plugin.json','compat/inline-widget.cjs','compat/runtime-ui.mjs','compat/i18n.cjs','compat/theme.cjs','sidecars/panel/main.mjs','sidecars/panel/metrics.mjs','sidecars/panel/history.mjs','assets/logo.svg')
+required=('plugin.json','compat/inline-widget.cjs','compat/runtime-ui.mjs','compat/i18n.cjs','compat/theme.cjs','compat/launch-config.mjs','compat/launch_config.py','sidecars/panel/main.mjs','sidecars/panel/metrics.mjs','sidecars/panel/history.mjs','assets/logo.svg')
 with zipfile.ZipFile(os.environ['PULSE_CWD_ARCHIVE'],'w') as bundle:
  for name in required:bundle.writestr('antigrative-dashboard/'+name,json.dumps({'name':'antigravity-pulse','version':'0.8.12'}) if name=='plugin.json' else 'fixture source')
 `;

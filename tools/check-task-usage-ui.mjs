@@ -184,11 +184,13 @@ try {
       await chooseLanguage('zh-CN');await expectText('cache-note','正在汇总子代理…');
       assert.equal(await scope.locator('#task-own-row dt').textContent(),'当前代理');
       snapshots[ids.root]=task(own,[child,leaf]);
-      await expectText('cache-coverage','12,600');await expectText('cache-coverage-unit','toks');await expectText('task-subagents','7,100 toks');
+      await expectText('cache-coverage','12,600');await expectText('task-subagents','7,100 toks');
       await expectText(inline?'cache-total':'strip-cache-total','12.6K tok');
       await expectText(inline?'cache-detail-rate':'cache-rate','67.6%');
-      await expectText('cache-read','7.5K');await expectText('cache-read-unit',' toks');await expectText('cache-miss','3.5K');await expectText('cache-miss-unit',' toks');
-      await expectText('cache-write','100 toks');await expectText('cache-output','1.5K');await expectText('cache-output-unit',' toks');
+      await expectText('cache-read','7.5K');await expectText('cache-read-unit',' toks');
+      await expectText('cache-miss','3.5K');await expectText('cache-miss-unit',' toks');
+      await expectText('cache-write','100 toks');
+      await expectText('cache-output','1.5K');await expectText('cache-output-unit',' toks');
       assert.equal(await scope.locator('#cache-note').isVisible(),false,'Ready tasks show no explanatory prose');
       assert.equal(await scope.locator('#cache-write-row').isVisible(),true);
       assert.deepEqual(await scope.locator('#cache-card dl>div').evaluateAll(rows=>rows.slice(-2).map(row=>row.id)),['task-own-row','task-subagents-row']);

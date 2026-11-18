@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AntigravityClient } from '../client.mjs';
+import { MetricsStore } from '../store.mjs';
 const id='test-id',summary=(n,status='CASCADE_RUN_STATUS_IDLE',modified='v1')=>({stepCount:n,status,lastModifiedTime:modified});
 function fixture(){
  let now=0;const client=new AntigravityClient({now:()=>now});
@@ -103,4 +104,40 @@ test('reset during an in-flight read rejects late old records and permits a fres
  client.call=async(m,b)=>{if(m==='GetCascadeTrajectorySteps'&&first){first=false;entered();await gate;}return original(m,b);};
  const pending=client.trajectory(id);await begun;client.resetTrajectories();release();await assert.rejects(pending,/重新连接/);assert.equal(client.reader.entries.size,0);
  assert.equal((await client.trajectory(id)).trajectory.steps.length,state.steps.length);
+});
+
+test('MetricsStore shares listConversations summaries and uses 12s summary TTL for settled IDLE sessions',async t=>{
+ let clock=0,listCalls=0,status='CASCADE_RUN_STATUS_IDLE';
+ const cid='11111111-1111-1111-1111-111111111111';
+ const client=new AntigravityClient({now:()=>clock});
+ client.discover=async()=>({pid:1,port:1234,csrf:'fixture'});
+ client.call=async(method,body={})=>{
+  if(method==='GetAllCascadeTrajectories'){listCalls++;return {trajectorySummaries:{[cid]:{stepCount:1,status,lastModifiedTime:'2026-10-30T00:00:00Z'}}};}
+  if(method==='GetCascadeTrajectorySteps')return {steps:[{type:'PLANNER_RESPONSE'}]};
+  if(method==='GetCascadeTrajectoryGeneratorMetadata')return {generatorMetadata:body.generatorMetadataOffset?[{stepIndices:[0],chatModel:{streamingDuration:'1s',usage:{outputTokens:10,responseOutputTokens:10}}}] :[]};
+  return {};
+ };
+ const store=new MetricsStore(client,{history:{load:async()=>null,save:async()=>null},transcripts:null});
+ t.after(()=>store.dispose());
+ await store.listConversations(true);
+ assert.equal(listCalls,1);
+ await store.session(cid);
+ assert.equal(listCalls,1,'session reuses reader summaries populated by listConversations');
+ store.sessions.get(cid).updatedAt=0;
+ clock=2000;
+ await store.session(cid);
+ assert.equal(listCalls,1,'IDLE session uses 12s summary TTL');
+ clock=12000;
+ store.sessions.get(cid).updatedAt=0;
+ await store.session(cid);
+ assert.equal(listCalls,2,'IDLE session refreshes summary after 12s');
+ status='CASCADE_RUN_STATUS_RUNNING';
+ listCalls=0;clock=24000;
+ store.sessions.get(cid).updatedAt=0;
+ await store.session(cid);
+ assert.equal(listCalls,1);
+ clock=26000;
+ store.sessions.get(cid).updatedAt=0;
+ await store.session(cid);
+ assert.equal(listCalls,2,'RUNNING session still rechecks summary after 1.8s');
 });

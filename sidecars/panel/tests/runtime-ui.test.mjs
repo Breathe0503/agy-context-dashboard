@@ -320,6 +320,14 @@ test('ENOENT during discovery marks missing-debug-port, invokes onMissingDebugPo
   await ui.tick();
   assert.equal(calls,1,'must not invoke missing-port hook without ownership');
   owned=true;
+  ui.diagnoseError=async()=>({reason:'debug-port-disabled',hostVersion:'2.33.0',launchConfigured:true,message:'Configured'});
+  ui.discover=async()=>{throw Object.assign(new Error('missing after update'),{code:'ENOENT'});};
+  await ui.tick();
+  assert.equal(ui.health.reason,'debug-port-disabled');
+  assert.equal(ui.health.hostVersion,'2.33.0');
+  assert.equal(ui.health.launchConfigured,true);
+  assert.equal(calls,2);
+  ui.diagnoseError=null;
   ui.discover=async()=>[target()];
   await ui.tick();
   assert.equal(ui.health.state,'mounted');
