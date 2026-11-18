@@ -26,6 +26,7 @@ test('inspectHostDebugState filters helpers/language_server and detects debug po
     '  105 /usr/bin/caffeinate -i -s -w 100',
     '  106 zsh -c /Applications/Antigravity.app/Contents/MacOS/Antigravity',
     '  107 /bin/zsh -c /Applications/Antigravity.app/Contents/MacOS/Antigravity',
+    '  108 /Applications/Antigravity.app/Contents/MacOS/Antigravity --headless --user-data-dir=/tmp/headless',
   ].join('\n');
 
   const macNoDebug = await inspectHostDebugState({
@@ -101,7 +102,7 @@ test('inspectHostDebugState filters helpers/language_server and detects debug po
   assert.deepEqual(parseDesktopProcesses('null', 'win32'), []);
 });
 
-test('scheduleHostRelaunch enforces auto guards, 60s cooldown, same-PID dedupe, 5s manual debounce, and ELECTRON_RUN_AS_NODE=1', async t => {
+test('scheduleHostRelaunch enforces sliding 60s 2-try limit, >=5s interval, same-PID dedupe, 5s manual debounce, and ELECTRON_RUN_AS_NODE=1', async t => {
   const dataDir = await mkdtemp(join(tmpdir(), 'pulse-relaunch-guard-'));
   t.after(() => rm(dataDir, { recursive: true, force: true }));
 
@@ -115,10 +116,9 @@ test('scheduleHostRelaunch enforces auto guards, 60s cooldown, same-PID dedupe, 
     existsSyncImpl: () => true,
     execFileImpl: async () => ({ stdout: psStdout }),
     spawnImpl: (file, args, options) => {
-      let unreffed = false;
       const entry = { file, args, options, unreffed: false };
       spawns.push(entry);
-      return { on() {}, unref() { unreffed = true; entry.unreffed = true; } };
+      return { on() {}, unref() { entry.unreffed = true; } };
     },
     now: () => currentNow,
   };
@@ -152,32 +152,50 @@ test('scheduleHostRelaunch enforces auto guards, 60s cooldown, same-PID dedupe, 
 
   const guard = JSON.parse(await readFile(join(dataDir, 'debug-relaunch-guard.json'), 'utf8'));
   assert.deepEqual(guard.pids, [500]);
+  assert.deepEqual(guard.history, [100000]);
 
-  // Cooldown blocks within 60000ms even for a new PID
-  currentNow += 30000;
-  psStdout = ' 600 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
+  // Same PID within 60000ms returns cooldown
+  currentNow += 2000;
   assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).reason, 'cooldown');
   assert.equal(spawns.length, 1);
 
-  // After 60000ms, same PID 500 is still deduped
-  currentNow += 40000;
-  psStdout = ' 500 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
-  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).reason, 'already-scheduled-for-pids');
+  // Distinct PID within 5000ms minimum spacing returns cooldown
+  psStdout = ' 550 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
+  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).reason, 'cooldown');
   assert.equal(spawns.length, 1);
 
-  // After 60000ms, a different PID 600 is allowed
+  // Distinct PID after >= 5000ms within 60000ms (e.g., immediate Restart to Update) is allowed as 2nd attempt
+  currentNow += 18000; // currentNow = 120000 (20s after first)
   psStdout = ' 600 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
-  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).scheduled, true);
+  const second = await scheduleHostRelaunch({ ...common, reason: 'auto' });
+  assert.equal(second.scheduled, true);
   assert.equal(spawns.length, 2);
 
-  // Manual debounce blocks within 5000ms, allows retry after 5000ms even for same PID 600
+  // 3rd distinct PID within the same 60000ms window trips the circuit breaker
+  currentNow += 10000; // currentNow = 130000 (30s after first)
+  psStdout = ' 700 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
+  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).reason, 'cooldown');
+  assert.equal(spawns.length, 2);
+
+  // Same PID 600 after 60000ms is still deduped
+  currentNow += 55000; // currentNow = 185000 (65s after second)
+  psStdout = ' 600 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
+  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).reason, 'already-scheduled-for-pids');
+  assert.equal(spawns.length, 2);
+
+  // Once oldest entries expire out of 60000ms window, a distinct PID 700 is allowed again
+  psStdout = ' 700 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n';
+  assert.equal((await scheduleHostRelaunch({ ...common, reason: 'auto' })).scheduled, true);
+  assert.equal(spawns.length, 3);
+
+  // Manual debounce blocks within 5000ms, allows retry after 5000ms even for same PID 700
   currentNow += 2000;
   assert.equal((await scheduleHostRelaunch({ ...common, reason: 'manual' })).reason, 'debounced');
-  assert.equal(spawns.length, 2);
+  assert.equal(spawns.length, 3);
 
   currentNow += 4000;
   assert.equal((await scheduleHostRelaunch({ ...common, reason: 'manual' })).scheduled, true);
-  assert.equal(spawns.length, 3);
+  assert.equal(spawns.length, 4);
 });
 
 test('worker strips ELECTRON_RUN_AS_NODE and ANTIGRAVITY_* env, parses payloads, and handles quit/fallback/timeout', async () => {

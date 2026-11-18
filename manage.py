@@ -114,6 +114,13 @@ def cli_lifecycle():
     return module
 
 
+def launch_config():
+    spec = importlib.util.spec_from_file_location('pulse_launch_config', SOURCE / 'compat' / 'launch_config.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def desktop_launcher():
     spec = importlib.util.spec_from_file_location('pulse_desktop_launcher', SOURCE / 'compat' / 'desktop_launcher.py')
     module = importlib.util.module_from_spec(spec)
@@ -167,10 +174,28 @@ def install(panel_only=False, legacy_loader=False, with_cli=False, node=None, la
         settings['appResources'] = str(APP.parent)
     if os.environ.get('AG_PULSE_PROFILE'):
         settings['profile'] = str(_paths['profile'])
+    lc = launch_config()
+    launch_result = {'configured': False, 'supported': False, 'entrypoints': []}
+    if not panel_only and not legacy_loader:
+        launch_result, managed = lc.configure_desktop_launch(home=HOME, local=LOCAL, managed=settings.get('managedLaunch'))
+    else:
+        managed = lc.remove_desktop_launch(home=HOME, local=LOCAL, managed=settings.get('managedLaunch'))
+    if managed:
+        settings['managedLaunch'] = managed
+    else:
+        settings.pop('managedLaunch', None)
     atomic_json(SETTINGS, settings)
     set_enabled(True)
+    host = lc.inspect_host_archive(APP)
     print('Installed:', PLUGIN)
-    print('Fully quit and reopen Antigravity to start the plugin runtime. App updates no longer overwrite the inline adapter.')
+    if not panel_only and not legacy_loader and launch_result['configured']:
+        print('Configured Antigravity launch entry points with loopback debugging flags:', ', '.join(launch_result['entrypoints']))
+        print('Fully quit and reopen Antigravity from your shortcut/launcher to start the plugin runtime. App updates no longer overwrite the inline adapter.')
+    elif not panel_only and not legacy_loader and host['requiresDebugFlag']:
+        print('Note: Antigravity', host['version'] or '2.33+', 'requires --remote-debugging-port=0 --remote-debugging-address=127.0.0.1 for the inline widget.')
+        print('Auto-relaunch recovery is enabled by default for inline installs, or run `python3 manage.py install-launcher` / `python3 manage.py launch`.')
+    else:
+        print('Fully quit and reopen Antigravity to start the plugin runtime. App updates no longer overwrite the inline adapter.')
     if with_cli:
         cli_lifecycle().install(SOURCE, HOME, node, language)
     else:
@@ -206,12 +231,44 @@ def uninstall_launcher():
     return result
 
 
-def launch(relaunch=False, extra_args=()):
-    if not APP.is_file():
-        raise RuntimeError('Antigravity desktop app not found. Use --app-path /path/to/resources/app.asar for a custom installation. See COMPATIBILITY.md.')
-    result = desktop_launcher().launch_desktop(APP, relaunch=relaunch, extra_args=extra_args)
-    print('Launched Antigravity with debug port enabled:', result['executable'])
-    return result
+def launch(workspace=None, exe=None, relaunch=False, extra_args=(), spawn=None):
+    if workspace is None and exe is None and spawn is None:
+        if not APP.is_file():
+            raise RuntimeError('Antigravity desktop app not found. Use --app-path /path/to/resources/app.asar for a custom installation. See COMPATIBILITY.md.')
+        result = desktop_launcher().launch_desktop(APP, relaunch=relaunch, extra_args=extra_args)
+        print('Launched Antigravity with debug port enabled:', result['executable'])
+        return result
+    if relaunch:
+        if not APP.is_file():
+            raise RuntimeError('Antigravity desktop app not found. Use --app-path /path/to/resources/app.asar for a custom installation. See COMPATIBILITY.md.')
+        tail = [*extra_args]
+        if workspace is not None:
+            tail.append(str(Path(workspace).expanduser().resolve()))
+        result = desktop_launcher().launch_desktop(APP, relaunch=True, extra_args=tail)
+        print('Launched Antigravity with debug port enabled:', result['executable'])
+        return result
+    lc = launch_config()
+    if exe is not None:
+        executable = Path(exe).expanduser().resolve()
+        if not executable.is_file():
+            raise RuntimeError(f'Antigravity desktop executable not found: {executable}')
+    else:
+        executable = lc.desktop_executable(APP)
+        if executable is None or not executable.is_file():
+            raise RuntimeError('Antigravity desktop app not found. Use --exe /path/to/Antigravity or --app-path /path/to/resources/app.asar.')
+    env = dict(os.environ)
+    env.pop('ELECTRON_RUN_AS_NODE', None)
+    args = [str(executable), *lc.DEBUG_ARGS, *extra_args]
+    if workspace is not None:
+        args.append(str(Path(workspace).expanduser().resolve()))
+    options = dict(env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if sys.platform == 'win32':
+        options['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+    else:
+        options['start_new_session'] = True
+    process = (spawn or subprocess.Popen)(args, **options)
+    print('Launched Antigravity with loopback debugging flags:', executable)
+    return process
 
 @lifecycle_operation
 def uninstall():
@@ -232,15 +289,34 @@ def uninstall():
             preload = current[base + int(entry['offset']):base + int(entry['offset']) + entry['size']]
             if module.MARKER.encode() in preload:
                 raise RuntimeError('Application changed since patching. Inspect the backup before uninstalling.')
+    settings = json_read(SETTINGS)
+    lc = launch_config()
+    try:
+        managed = lc.remove_desktop_launch(home=HOME, local=LOCAL, managed=settings.get('managedLaunch'))
+    except (OSError, subprocess.CalledProcessError) as error:
+        print(f'Warning: could not revert launch entry points ({error})', file=sys.stderr)
+        managed = {}
     if PLUGIN.exists():
         set_enabled(False)
+        settings = json_read(SETTINGS)
+        settings['enabled'] = False
+        if managed:
+            settings['managedLaunch'] = managed
+        else:
+            settings.pop('managedLaunch', None)
+        atomic_json(SETTINGS, settings)
         resolved = PLUGIN.resolve()
         expected_parent = (HOME / '.gemini' / 'config' / 'plugins').resolve()
         if PLUGIN.is_symlink() or resolved.parent != expected_parent or resolved.name != 'antigravity-pulse':
             raise RuntimeError('Plugin target is outside the expected directory; refusing to delete it.')
         shutil.rmtree(resolved)
     else:
-        atomic_json(SETTINGS, {'enabled': False})
+        settings['enabled'] = False
+        if managed:
+            settings['managedLaunch'] = managed
+        else:
+            settings.pop('managedLaunch', None)
+        atomic_json(SETTINGS, settings)
     launcher_mod = desktop_launcher()
     if launcher_mod.inspect_launcher(HOME, LOCAL)['installed']:
         launcher_result = launcher_mod.uninstall_launcher(HOME, LOCAL)
@@ -252,6 +328,8 @@ def status():
     installed = (PLUGIN / 'plugin.json').is_file()
     enabled = installed and json_read(CONFIG).get('plugins', {}).get('antigravity-pulse', {}).get('enabled', True)
     health_file = HOME / '.gemini' / 'antigravity' / 'sidecar_data' / 'antigravity-pulse' / 'panel' / 'data' / 'integration-state.json'
+    lc = launch_config()
+    host = lc.inspect_host_archive(APP)
     try:
         cli_state = cli_lifecycle().inspect_status(HOME, SOURCE)
     except Exception as error:
@@ -266,6 +344,9 @@ def status():
         'enabled': bool(enabled),
         'pluginDirectory': str(PLUGIN),
         'integrationMode': json_read(SETTINGS).get('mode', 'legacy'),
+        'hostVersion': host['version'],
+        'hostRequiresDebugFlag': host['requiresDebugFlag'],
+        'launchConfiguration': lc.inspect_desktop_launch(home=HOME, local=LOCAL),
         'inlineIntegration': json_read(health_file, None),
         'toolbarAdapterRecoverable': APP.exists() and original_for_current(APP.read_bytes()) is not None,
         'debugPortAvailable': debug_port_available,
@@ -312,12 +393,16 @@ def main():
     p.add_argument('--with-launcher', action='store_true', help='Also install a desktop debug-port launcher shortcut')
     p.add_argument('--node', help='Node.js 20+ executable when installing the CLI adapter with --with-cli')
     p.add_argument('--language', choices=('en', 'zh-CN', 'zh-TW'), help='Override shared desktop language choice when used with --with-cli')
-    for action in ('enable', 'disable', 'status', 'uninstall'): sub.add_parser(action)
+    for action in ('enable', 'disable', 'uninstall'): sub.add_parser(action)
+    p = sub.add_parser('status')
+    p.add_argument('--app-path', type=Path, help='Path to the desktop app resources/app.asar for a custom installation')
     p = sub.add_parser('install-launcher', help='Install a desktop launcher shortcut that enables the loopback debug port')
     p.add_argument('--app-path', type=Path, help='Path to the desktop app resources/app.asar for a custom installation')
     sub.add_parser('uninstall-launcher', help='Remove the desktop debug-port launcher shortcut')
     p = sub.add_parser('launch', help='Launch Antigravity desktop with the loopback debug port enabled')
     p.add_argument('--relaunch', action='store_true', help='Quit any running Antigravity instance before launching')
+    p.add_argument('--exe', type=Path, help='Path to the Antigravity Desktop executable')
+    p.add_argument('--workspace', type=Path, help='Optional workspace path to open')
     p.add_argument('--app-path', type=Path, help='Path to the desktop app resources/app.asar for a custom installation')
     p = sub.add_parser('install-cli', help='Install the official CLI statusLine adapter independently of desktop')
     p.add_argument('--node', help='Node.js 20+ executable (defaults to PATH)')
@@ -339,7 +424,7 @@ def main():
                     language=args.language, with_launcher=args.with_launcher)
         elif args.action == 'install-launcher': install_launcher()
         elif args.action == 'uninstall-launcher': uninstall_launcher()
-        elif args.action == 'launch': launch(relaunch=args.relaunch)
+        elif args.action == 'launch': launch(workspace=args.workspace, exe=args.exe, relaunch=args.relaunch)
         elif args.action == 'enable': set_enabled(True)
         elif args.action == 'disable': set_enabled(False)
         elif args.action == 'uninstall': uninstall()

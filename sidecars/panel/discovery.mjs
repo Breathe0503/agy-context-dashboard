@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, readdir } from 'node:fs/promises';
+import { open, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createConnection } from 'node:net';
 import { performance } from 'node:perf_hooks';
@@ -16,6 +16,49 @@ export function httpLogPorts(log) {
     ports.delete(port);ports.add(port);
   }
   return [...ports].reverse();
+}
+
+export async function readLogTail(file, encoding = 'utf8', { chunkBytes = 256 * 1024, maxScanBytes = 64 * 1024 * 1024 } = {}) {
+  const handle = await open(file, 'r');
+  try {
+    const { size } = await handle.stat();
+    if (size <= 0) return '';
+    if (size <= chunkBytes) {
+      const buf = Buffer.allocUnsafe(size);
+      let offset = 0;
+      while (offset < size) {
+        const { bytesRead } = await handle.read(buf, offset, size - offset, offset);
+        if (!bytesRead) break;
+        offset += bytesRead;
+      }
+      return buf.subarray(0, offset).toString(encoding);
+    }
+    const buf = Buffer.allocUnsafe(chunkBytes);
+    const overlap = 128;
+    const found = [];
+    let scanned = 0, end = size, extraAfterMatch = 0;
+    while (end > 0 && scanned < maxScanBytes && found.length < 8) {
+      const hadMatch = found.length > 0;
+      const start = Math.max(0, end - chunkBytes), len = end - start;
+      let readTotal = 0;
+      while (readTotal < len) {
+        const { bytesRead } = await handle.read(buf, readTotal, len - readTotal, start + readTotal);
+        if (!bytesRead) break;
+        readTotal += bytesRead;
+      }
+      if (!readTotal) break;
+      const ports = httpLogPorts(buf.subarray(0, readTotal).toString(encoding));
+      for (const p of ports) if (!found.includes(p)) found.push(p);
+      if (hadMatch) extraAfterMatch++;
+      if ((found.length > 0 && extraAfterMatch >= 1) || start === 0) break;
+      scanned += readTotal;
+      end = start + Math.min(overlap, readTotal - 1);
+    }
+    if (!found.length) return '';
+    return [...found].reverse().map(p => `listening on random port at ${p} for HTTP\n`).join('');
+  } finally {
+    await handle.close();
+  }
 }
 
 export function parsePs(text, uid) {

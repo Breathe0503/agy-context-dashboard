@@ -148,7 +148,7 @@ const validRow=r=>r&&HASH.test(r.id)&&typeof r.model==='string'&&r.model.length<
   (r.at===null||Number.isSafeInteger(r.at)&&r.at>=0)&&keys.every(k=>r[k]===null||Number.isSafeInteger(r[k])&&r[k]>=0);
 export class UsageLedger{
   constructor(directory=join(platformPaths().data,'usage-v1'),{timeZone='Asia/Shanghai',source='desktop-local'}={}){this.directory=directory;this.timeZone=timeZone;this.source=source;}
-  _gate=Promise.resolve();_barrier=Promise.resolve();_writes=new Set();_files=new Map();usageWrites=new Map();revision=0;_cache=null;caches=new Map();diskSummaryPending=null;_diskSummaryRetry=null;diskSummaryRetries=new Map();
+  _gate=Promise.resolve();_barrier=Promise.resolve();_writes=new Set();_files=new Map();usageWrites=new Map();revision=0;_cache=null;caches=new Map();diskSummaryPending=null;_diskSummaryRetry=null;diskSummaryRetries=new Map();jsonSummaryPending=new Map();
   get cache(){return this._cache;}
   set cache(value){this._cache=value;if(!value)this.caches.clear();else if(value.key)this.caches.set(value.key,value);}
   get diskSummaryRetry(){return this._diskSummaryRetry;}
@@ -296,7 +296,7 @@ export class UsageLedger{
       if(!raw||isCurrent()!==true)return;this.diskSummaryError=false;
       const {quotaWindowCounts,...value}=raw;
       if(quotaWindowCounts)Object.defineProperty(value,'_quotaWindowCounts',{value:quotaWindowCounts,enumerable:false,configurable:true});
-      const entry={key:cacheKey,revision:scanRevision,value};
+      const entry={key:cacheKey,revision:scanRevision,at:now,value};
       if(this.revision===scanRevision){this._cache=entry;this.caches.set(cacheKey,entry);this._diskSummaryRetry=null;this.diskSummaryRetries.delete(cacheKey);}
       else {
         const existing=this.caches.get(cacheKey);
@@ -323,7 +323,7 @@ export class UsageLedger{
     }
     return count;
   }
-  async summary(scope,now=Date.now(),{isCurrent=()=>true,groups=null,quotaAccount=null}={}){
+  async summary(scope,now=Date.now(),{isCurrent=()=>true,groups=null,quotaAccount=null,preferCachedMaxAgeMs=0}={}){
     const allBuckets=scope==='all';
     if(!scope||(!allBuckets&&!HASH.test(scope)))return null;
     const {specs,groupInfos}=quotaAccount&&Array.isArray(groups)&&groups.length?buildQuotaWindowSpecs(groups):{specs:[],groupInfos:[]};
@@ -338,6 +338,9 @@ export class UsageLedger{
     const writing=allBuckets?this.usageWrites.size>0:Boolean(this.usageWrites.get(scope));
     if(writing)return cached?{...finalize(cached.value),summaryStale:true}:unknown();
     if(cached&&cached.revision===this.revision)return finalize(cached.value);
+    if(preferCachedMaxAgeMs>0&&cached&&Number.isFinite(cached.at)&&now>=cached.at&&now-cached.at<preferCachedMaxAgeMs){
+      return {...finalize(cached.value),summaryStale:true};
+    }
     const scanRevision=this.revision;
     const bucketNames=allBuckets?await this.listAccountBuckets():[scope];
     if(!isCurrent())return null;
@@ -351,56 +354,66 @@ export class UsageLedger{
       this.startDiskSummary(scope,now,scanRevision,cacheKey,isCurrent,{buckets:allBuckets?bucketNames:null,quotaAccount,groupInfos,specs});
       return cached?{...finalize(cached.value),summaryStale:true}:unknown();
     }
-    const daily=new Map(),models=new Set(),seen=new Map(),acctIds=new Set(),activeAccounts=new Set();let unreadable=0,unknownTokens=0,unknownRequests=0,partialRequests=0;
-    for(const entry of bucketEntries){
-      const jsonFiles=entry.files.filter(name=>/^[a-f0-9]{64}\.json$/.test(name));
-      for(const name of jsonFiles){
-        try{
-          const text=await this.readSummaryRecord(join(this.directory,entry.dir,name));
-          const record=JSON.parse(text);if(record.schema!==1||record.account!==entry.dir||!Array.isArray(record.records)||!record.records.every(validRow))throw Error('Invalid ledger');
-          if(entry.dir!==LOCAL_SCOPE&&record.records.length)activeAccounts.add(entry.dir);
-          for(const r of record.records){const previous=seen.get(r.id);if(!previous||sum(r)>sum(previous))seen.set(r.id,r);if(entry.dir===quotaAccount)acctIds.add(r.id);}
-        }catch{unreadable++;}
-      }
-    }
-    const normalizeModel=createUsageModelNormalizer(),windowCounts={};
-    for(const r of seen.values()){
-      const model=normalizeModel(r.model);
-      models.add(model);if(r.partial)partialRequests++;
-      if(specs.length&&r.at!==null&&acctIds.has(r.id)){
-        const gid=classifyQuotaGroupId(groupInfos,model);
-        for(const spec of specs)if(spec.groupId===gid&&r.at>=spec.startAt&&r.at<=spec.endAt){
-          const item=windowCounts[spec.id]||{observedTokens:0,requests:0};item.observedTokens+=sum(r);item.requests++;windowCounts[spec.id]=item;
+    const pendingKey=cacheKey+'@'+scanRevision;
+    let scan=this.jsonSummaryPending.get(pendingKey);
+    if(!scan){
+      scan=(async()=>{
+        const daily=new Map(),models=new Set(),seen=new Map(),acctIds=new Set(),activeAccounts=new Set();let unreadable=0,unknownTokens=0,unknownRequests=0,partialRequests=0;
+        for(const entry of bucketEntries){
+          const jsonFiles=entry.files.filter(name=>/^[a-f0-9]{64}\.json$/.test(name));
+          for(const name of jsonFiles){
+            try{
+              const text=await this.readSummaryRecord(join(this.directory,entry.dir,name));
+              const record=JSON.parse(text);if(record.schema!==1||record.account!==entry.dir||!Array.isArray(record.records)||!record.records.every(validRow))throw Error('Invalid ledger');
+              if(entry.dir!==LOCAL_SCOPE&&record.records.length)activeAccounts.add(entry.dir);
+              for(const r of record.records){const previous=seen.get(r.id);if(!previous||sum(r)>sum(previous))seen.set(r.id,r);if(entry.dir===quotaAccount)acctIds.add(r.id);}
+            }catch{unreadable++;}
+          }
         }
-      }
-      if(r.at===null){unknownTokens+=sum(r);unknownRequests++;continue;}
-      const date=dateKey(r.at,this.timeZone);if(!daily.has(date))daily.set(date,{date,models:{}});
-      const day=daily.get(date);if(!Object.hasOwn(day.models,model))Object.defineProperty(day.models,model,{value:{uncached:0,cacheRead:0,cacheWrite:0,output:0,total:0,requests:0},enumerable:true,writable:true,configurable:true});
-      const bucket=day.models[model];for(const key of keys)bucket[key]+=r[key]??0;bucket.total+=sum(r);bucket.requests++;
+        const normalizeModel=createUsageModelNormalizer(),windowCounts={};
+        for(const r of seen.values()){
+          const model=normalizeModel(r.model);
+          models.add(model);if(r.partial)partialRequests++;
+          if(specs.length&&r.at!==null&&acctIds.has(r.id)){
+            const gid=classifyQuotaGroupId(groupInfos,model);
+            for(const spec of specs)if(spec.groupId===gid&&r.at>=spec.startAt&&r.at<=spec.endAt){
+              const item=windowCounts[spec.id]||{observedTokens:0,requests:0};item.observedTokens+=sum(r);item.requests++;windowCounts[spec.id]=item;
+            }
+          }
+          if(r.at===null){unknownTokens+=sum(r);unknownRequests++;continue;}
+          const date=dateKey(r.at,this.timeZone);if(!daily.has(date))daily.set(date,{date,models:{}});
+          const day=daily.get(date);if(!Object.hasOwn(day.models,model))Object.defineProperty(day.models,model,{value:{uncached:0,cacheRead:0,cacheWrite:0,output:0,total:0,requests:0},enumerable:true,writable:true,configurable:true});
+          const bucket=day.models[model];for(const key of keys)bucket[key]+=r[key]??0;bucket.total+=sum(r);bucket.requests++;
+        }
+        const days=[...daily.values()].sort((a,b)=>a.date.localeCompare(b.date));
+        const total=day=>Object.values(day.models).reduce((n,r)=>n+r.total,0);
+        const value={accountKey:allBuckets?'all-local':scope,timeZone:this.timeZone,today,days,models:[...models].sort(),todayTokens:days.filter(d=>d.date===today).reduce((n,d)=>n+total(d),0),
+          weekTokens:days.filter(d=>d.date>=weekStart(today)&&d.date<=today).reduce((n,d)=>n+total(d),0),
+          monthTokens:days.filter(d=>d.date.slice(0,7)===today.slice(0,7)&&d.date<=today).reduce((n,d)=>n+total(d),0),
+          totalTokens:days.reduce((n,d)=>n+total(d),0)+unknownTokens,unknownTokens,unknownRequests,partialRequests,unreadableFiles:unreadable,
+          requests:seen.size,firstDate:days[0]?.date||null,updatedAt:new Date(now).toISOString(),source:this.source,...(allBuckets?{accountsCount:activeAccounts.size}:{})};
+        if(specs.length)Object.defineProperty(value,'_quotaWindowCounts',{value:windowCounts,enumerable:false,configurable:true});
+        return value;
+      })().finally(()=>{if(this.jsonSummaryPending.get(pendingKey)===scan)this.jsonSummaryPending.delete(pendingKey);});
+      this.jsonSummaryPending.set(pendingKey,scan);
     }
-    const days=[...daily.values()].sort((a,b)=>a.date.localeCompare(b.date));
-    const total=day=>Object.values(day.models).reduce((n,r)=>n+r.total,0);
-    const value={accountKey:allBuckets?'all-local':scope,timeZone:this.timeZone,today,days,models:[...models].sort(),todayTokens:days.filter(d=>d.date===today).reduce((n,d)=>n+total(d),0),
-      weekTokens:days.filter(d=>d.date>=weekStart(today)&&d.date<=today).reduce((n,d)=>n+total(d),0),
-      monthTokens:days.filter(d=>d.date.slice(0,7)===today.slice(0,7)&&d.date<=today).reduce((n,d)=>n+total(d),0),
-      totalTokens:days.reduce((n,d)=>n+total(d),0)+unknownTokens,unknownTokens,unknownRequests,partialRequests,unreadableFiles:unreadable,
-      requests:seen.size,firstDate:days[0]?.date||null,updatedAt:new Date(now).toISOString(),source:this.source,...(allBuckets?{accountsCount:activeAccounts.size}:{})};
-    if(specs.length)Object.defineProperty(value,'_quotaWindowCounts',{value:windowCounts,enumerable:false,configurable:true});
+    const value=await scan;
+    if(!isCurrent())return null;
     const stillWriting=allBuckets?this.usageWrites.size>0:Boolean(this.usageWrites.get(scope));
-    if(this.revision===scanRevision&&!stillWriting){const entry={key:cacheKey,revision:scanRevision,value};this._cache=entry;this.caches.set(cacheKey,entry);return finalize(value);}
+    if(this.revision===scanRevision&&!stillWriting){const entry={key:cacheKey,revision:scanRevision,at:now,value};this._cache=entry;this.caches.set(cacheKey,entry);return finalize(value);}
     return {...finalize(value),summaryStale:true};
   }
 }
 export function weekStart(date){const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10);}
 
 export class DesktopUsage{
-  constructor(store,ledger=new UsageLedger(),{host=null,discoverLocal=null,owns=()=>true,now=Date.now,sliceMs=3000,continueDelay=250,
-    maxCandidates=25,maxCandidatesPerSlice=25,maxPassMs=15000,maxMapEntries=4096,localScanMs=30000,
+  constructor(store,ledger=new UsageLedger(),{host=null,discoverLocal=null,owns=()=>true,now=Date.now,sliceMs=1500,continueDelay=1200,itemDelay=undefined,
+    maxCandidates=20,maxCandidatesPerSlice=8,maxPassMs=15000,maxMapEntries=4096,localScanMs=30000,
     liveMaxConversations=16,liveMaxRows=8192,liveMaxBytes=4*1024*1024,liveMaxGroups=128,liveMaxRecoveryGuards=16,liveMaxRecoveries=256,liveRetryMs=1000,livePollMs=1000,liveRecoveryPollMs=1000,liveBackgroundPollMs=1000,liveBackgroundRetryMs=60000}={}){
     this.store=store;this.ledger=ledger;this.fingerprints=new Map();this.host=host;this.owns=()=>owns()===true;this.now=now;
     this.discoverLocal=discoverLocal||(()=>host?discoverLocalConversations({host}):Promise.resolve({conversations:[],errors:0}));
     this.customDiscover=Boolean(discoverLocal);this.localScanMs=localScanMs;this.localScanAt=-Infinity;this.localScanResult=null;
-    this.sliceMs=sliceMs;this.continueDelay=continueDelay;this.maxCandidates=maxCandidates;this.maxCandidatesPerSlice=maxCandidatesPerSlice;
+    this.sliceMs=sliceMs;this.continueDelay=continueDelay;this.itemDelay=Number.isFinite(itemDelay)&&itemDelay>=0?itemDelay:(continueDelay>=100?80:0);this.maxCandidates=maxCandidates;this.maxCandidatesPerSlice=maxCandidatesPerSlice;
     this.maxPassMs=maxPassMs;this.maxMapEntries=maxMapEntries;this.fullRemaining=new Map();this.fullJournal=null;this.fullMissing=0;this.passSeen=new Set();this.passFailures=new Set();this.readFailures=new Map();this.delegatedCandidates=new Map();
     this.liveMaxConversations=liveMaxConversations;this.liveMaxRows=liveMaxRows;this.liveMaxBytes=liveMaxBytes;this.liveMaxGroups=liveMaxGroups;this.liveMaxRecoveryGuards=liveMaxRecoveryGuards;this.liveMaxRecoveries=liveMaxRecoveries;this.liveRetryMs=liveRetryMs;this.livePollMs=livePollMs;
     this.liveRecoveryPollMs=liveRecoveryPollMs;this.liveBackgroundPollMs=liveBackgroundPollMs;this.liveBackgroundRetryMs=liveBackgroundRetryMs;
@@ -651,8 +664,8 @@ export class DesktopUsage{
       // could lose deleted/temporarily hidden IDs and keep the timer alive forever.
       candidates=new Map(this.fullRemaining);missing=this.fullMissing;completePass=true;
     }else{
-      let listed=[];
-      try{listed=await this.store.listConversations(true);}catch{missing++;}
+      let listed=[],listedOk=false;
+      try{listed=await this.store.listConversations(true);listedOk=true;}catch{missing++;}
       if(!current())return {current};
       let local;
       if(!this.customDiscover&&this.localScanResult&&this.now()-this.localScanAt<this.localScanMs&&!forceFull)local=this.localScanResult;
@@ -665,7 +678,9 @@ export class DesktopUsage{
         candidates.set(c.id.toLowerCase(),{id:c.id.toLowerCase(),listed:c});
       }
       for(const c of local.conversations||[])if(conversationId.test(c.id)){
-        const id=c.id.toLowerCase();if(candidates.has(id)||candidates.size<this.maxMapEntries)candidates.set(id,{...candidates.get(id),...c,id});else missing++;
+        const id=c.id.toLowerCase();
+        if(listedOk&&c.brainOnly===true&&!candidates.has(id))continue;
+        if(candidates.has(id)||candidates.size<this.maxMapEntries)candidates.set(id,{...candidates.get(id),...c,id});else missing++;
       }
       if(this.delegatedScope===scope&&this.delegatedEpoch===epoch)for(const [id,c]of this.delegatedCandidates)if(!candidates.has(id)){
         if(candidates.size>=this.maxMapEntries){missing++;break;}candidates.set(id,c);
@@ -683,7 +698,7 @@ export class DesktopUsage{
       return time(b)-time(a);
     });
     const selected=completePass?ordered:ordered.slice(0,this.maxCandidates);
-    const started=this.now();let processed=0,more=false,dirty=false,partial=!completePass&&ordered.length>selected.length;
+    const started=this.now();let processed=0,more=false,dirty=false,partial=!completePass&&ordered.length>selected.length,sliceRpc=false;
     for(const c of selected){
       if(!current())return {current};
       // Always consume one queued entry, even if the event loop was suspended
@@ -723,10 +738,14 @@ export class DesktopUsage{
         // intentionally reads steps until EOF; the shared reader still enforces
         // pagination, revision checks, memory budgets and a wall-time deadline.
         const summary=s?{stepCount:s.stepCount,lastModifiedTime:s.modifiedAt,status:s.status,lastUserInputStepIndex:s.lastUserInputStepIndex}:{};
-        const raw=await this.store.client.trajectory(c.id,{summary,force:forced,isCurrent:current});
+        if(sliceRpc&&this.itemDelay>0){await new Promise(r=>{const t=setTimeout(r,this.itemDelay);t.unref?.();});if(!current())return {current};}
+        sliceRpc=true;
+        const raw=await this.store.client.trajectory(c.id,{summary,force:forced,isCurrent:current,usageOnly:true});
         if(!current())return {current};
-        if(!raw?.trajectory||!Array.isArray(raw.trajectory.steps)||!Array.isArray(raw.trajectory.generatorMetadata))throw Error('Incomplete historical statistics');
-        if(!s&&!raw.trajectory.steps.length&&!raw.trajectory.generatorMetadata.length)throw Error('History not yet readable');
+        const steps=Array.isArray(raw?.trajectory?.steps)?raw.trajectory.steps:(raw?.usageOnly?[]:null);
+        if(!raw?.trajectory||!steps||!Array.isArray(raw.trajectory.generatorMetadata))throw Error('Incomplete historical statistics');
+        const settledEmptyDb=c.hasDb===true&&(!Number.isFinite(c.modifiedAtMs)||this.now()-c.modifiedAtMs>=60000);
+        if(!s&&!steps.length&&!raw.trajectory.generatorMetadata.length&&!settledEmptyDb)throw Error('History not yet readable');
         const children=this.rememberDelegates(scope,c.id,raw);
         for(const id of children)if(!candidates.has(id)&&!this.passSeen.has(id)){
           // Match the existing local-history discovery ceiling and keep an
@@ -770,14 +789,15 @@ export class DesktopUsage{
     if(sync&&this.now()-this.lastSync>60000&&!this.continuation)void this.sync();
     const current=()=>!this.disposed&&this.owns()&&writeScope===this.writeScope()&&epoch===this.store.epoch;
     const syncing=this.syncing||!!this.continuation||!!this.ledger.diskSummaryPending||!!this.ledger.diskWrites;
+    const backfillActive=this.syncing||Boolean(this.continuation);
     if(requestedScope==='account'&&!identity){
       const today=dateKey(Date.now(),this.ledger.timeZone),accountsCount=await this.ledger.countAccounts();
       if(!current())return null;
       return {accountKey:null,activeAccountKey:null,scope:'account',accountAvailable:false,accountsCount,timeZone:this.ledger.timeZone,today,days:[],models:[],todayTokens:0,weekTokens:0,monthTokens:0,totalTokens:0,unknownTokens:0,unknownRequests:0,partialRequests:0,unreadableFiles:0,requests:0,firstDate:null,updatedAt:new Date().toISOString(),source:this.ledger.source,quotaWindows:{},syncing,status:syncing?'syncing':this.status,missingConversations:this.missingConversations,confirmedMissingConversations:this.confirmedMissingConversations,retryingConversations:this.retryingConversations,persistenceError:this.store.usagePersistenceError===true||this.ledger.diskSummaryError===true};
     }
     const ledgerTarget=requestedScope==='account'?identity:'all';
-    const value=await this.ledger.summary(ledgerTarget,Date.now(),{isCurrent:current,groups:identity?groups:null,quotaAccount:identity});if(!current())return null;
-    if(scope!==undefined&&!value?.summaryStale&&identity&&!this.ledger.diskSummaryPending&&!this.ledger.usageWrites.size){
+    const value=await this.ledger.summary(ledgerTarget,Date.now(),{isCurrent:current,groups:identity?groups:null,quotaAccount:identity,preferCachedMaxAgeMs:backfillActive?5000:0});if(!current())return null;
+    if(scope!==undefined&&!syncing&&!value?.summaryStale&&identity&&!this.ledger.diskSummaryPending&&!this.ledger.usageWrites.size){
       const otherScope=requestedScope==='local'?identity:'all';
       const prefix=otherScope+':'+value.today;
       if(![...this.ledger.caches.keys()].some(k=>k.startsWith(prefix)))void this.ledger.summary(otherScope,Date.now(),{isCurrent:current,groups,quotaAccount:identity}).catch(()=>{});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,utimes} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
@@ -162,4 +162,99 @@ test('old completed checkpoints recheck once to discover omitted delegated histo
  store.client.trajectory=async()=>{reads++;return raw();};
  const usage=tracker(t,store,ledger);await usage.sync();assert.equal(reads,1);
  await usage.sync();assert.equal(reads,1,'The migration does not repeatedly reread ordinary settled history');
+});
+
+test('usageOnly backfill skips steps when request timestamps exist and lazily reads missing step offsets',async()=>{
+ const calls=[];
+ const state={
+  steps:[
+   {type:'USER_INPUT',metadata:{createdAt:'2026-09-01T00:00:00Z'}},
+   {type:'PLANNER_RESPONSE',metadata:{createdAt:'2026-09-01T00:01:00Z'}},
+   {type:'USER_INPUT',metadata:{createdAt:'2026-09-01T00:02:00Z'}},
+   {type:'PLANNER_RESPONSE',metadata:{createdAt:'2026-09-01T00:03:00Z'}},
+   {type:'PLANNER_RESPONSE',metadata:{createdAt:'2026-09-01T00:04:00Z'}},
+  ],
+  generators:[generator(1),generator(3)],
+ };
+ const client={
+  now:Date.now,
+  discover:async()=>({pid:1,port:2,csrf:'fixture'}),
+  call:async(name,input)=>{
+   calls.push([name,input]);
+   if(name==='GetCascadeTrajectorySteps')return {steps:state.steps.slice(input.stepOffset,input.stepOffset+1)};
+   return {generatorMetadata:state.generators.slice(input.generatorMetadataOffset,input.generatorMetadataOffset+1)};
+  },
+ };
+ const reader=new TrajectoryReader(client);
+ const metaOnly=await reader.read(id,{summary:{stepCount:5,status:'DONE',lastModifiedTime:'v1'},usageOnly:true});
+ assert.equal(metaOnly.usageOnly,true);
+ assert.equal(metaOnly.trajectory.generatorMetadata.length,2);
+ assert.equal(calls.some(([name])=>name==='GetCascadeTrajectorySteps'),false);
+ assert.equal(reader.entries.size,0);
+ delete state.generators[1].chatModel.chatStartMetadata;
+ calls.length=0;
+ const withFallback=await reader.read(id,{summary:{stepCount:5,status:'DONE',lastModifiedTime:'v2'},usageOnly:true});
+ const stepOffsets=calls.filter(([name])=>name==='GetCascadeTrajectorySteps').map(([,body])=>body.stepOffset);
+ assert.deepEqual(stepOffsets,[3]);
+ assert.equal(withFallback.trajectory.steps[3].metadata.createdAt,'2026-09-01T00:03:00Z');
+ assert.equal(reader.entries.size,0);
+});
+
+test('discoverLocalConversations preserves signatures, filters unlisted brain-only orphans and settles old empty DBs',async t=>{
+ const {home,ledger}=await setup(t);
+ const appBase=join(home,'.gemini','antigravity');
+ const settledId='11111111-1111-1111-1111-111111111111';
+ const freshId='22222222-2222-2222-2222-222222222222';
+ const orphanId='33333333-3333-3333-3333-333333333333';
+ const bothId='44444444-4444-4444-4444-444444444444';
+ await mkdir(join(appBase,'conversations'),{recursive:true});
+ await mkdir(join(appBase,'brain',orphanId),{recursive:true});
+ await mkdir(join(appBase,'brain',bothId),{recursive:true});
+ await writeFile(join(appBase,'conversations',settledId+'.db'),'settled');
+ await writeFile(join(appBase,'conversations',freshId+'.db'),'fresh');
+ await writeFile(join(appBase,'conversations',bothId+'.db'),'db');
+ await writeFile(join(appBase,'conversations',bothId+'.db-wal'),'wal');
+ const oldTime=new Date(Date.now()-120000);
+ await utimes(join(appBase,'conversations',settledId+'.db'),oldTime,oldTime);
+ await utimes(join(appBase,'conversations',bothId+'.db'),oldTime,oldTime);
+ await utimes(join(appBase,'conversations',bothId+'.db-wal'),oldTime,oldTime);
+ const discovered=await discoverLocalConversations({home,host:'app'});
+ const byId=new Map(discovered.conversations.map(c=>[c.id,c]));
+ assert.equal(byId.get(orphanId).brainOnly,true);
+ assert.equal(byId.get(orphanId).hasDb,false);
+ assert.equal(byId.get(bothId).brainOnly,false);
+ assert.equal(byId.get(bothId).hasDb,true);
+ const {lstat}=await import('node:fs/promises');
+ const tok=async(p)=>{const s=await lstat(p,{bigint:true});return [s.size,s.mtimeNs,s.ctimeNs,s.ino].map(String).join(':');};
+ const expectedSig=createHash('sha256').update(JSON.stringify([
+  ['db',await tok(join(appBase,'conversations',bothId+'.db'))],
+  ['wal',await tok(join(appBase,'conversations',bothId+'.db-wal'))],
+  ['brain',await tok(join(appBase,'brain',bothId))],
+ ])).digest('hex');
+ assert.equal(byId.get(bothId).signature,expectedSig);
+ assert.equal(await byId.get(bothId).readSignature(),expectedSig);
+ const calls=[];
+ const store={
+  identity:account,
+  epoch:1,
+  listConversations:async()=>[],
+  client:{trajectory:async cid=>{calls.push(cid);return {trajectory:{steps:[],generatorMetadata:[]}};}}
+ };
+ const usage=new DesktopUsage(store,ledger,{
+  host:'app',
+  discoverLocal:()=>discoverLocalConversations({home,host:'app'}),
+  continueDelay:0,
+  sliceMs:Infinity,
+ });
+ t.after(()=>usage.dispose());
+ await usage.sync(true);
+ while(usage.pending||usage.continuation)await delay(5);
+ assert.equal(calls.includes(orphanId),false,'Unlisted brain-only orphan must not trigger RPC');
+ assert.equal(calls.includes(settledId),true);
+ assert.equal(calls.includes(freshId),true);
+ const journal=await ledger.backfillState(account,'app');
+ assert.equal(journal[key(orphanId)],undefined);
+ assert.equal(journal[key(settledId)].state,'complete');
+ assert.equal(journal[key(bothId)].state,'complete');
+ assert.equal(journal[key(freshId)].state,'retry');
 });

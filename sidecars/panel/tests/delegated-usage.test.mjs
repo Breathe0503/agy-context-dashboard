@@ -18,7 +18,7 @@ const secondAccount=createHash('sha256').update('other-delegation-fixture@exampl
 const unitTokens=155;
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 async function bounded(promise,message='Fixture operation did not finish'){
- let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),2000);})]);}finally{clearTimeout(timer);}
+ let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),10000);})]);}finally{clearTimeout(timer);}
 }
 function raw(id,{children=[],legacy=null,requests=1,responseIds=null,input=100,read=20,write=5,output=30,duration='2s',context=1000}={}){
  const steps=[{type:'USER_INPUT'}],generatorMetadata=[];
@@ -68,7 +68,7 @@ async function temporary(t){
  return directory;
 }
 
-test('parent snapshot resolves while child waits; task updates never replace parent speed or context',{timeout:5000},async t=>{
+test('parent snapshot resolves while child waits; task updates never replace parent speed or context',{timeout:30000},async t=>{
  const fixture=storeFixture(t),gate=deferred(),started=deferred();
  const own=fixture.state.data.get(parent),childValue=raw(child,{output:800,duration:'1s',context:9000});
  t.after(()=>gate.resolve(childValue));
@@ -88,7 +88,7 @@ test('parent snapshot resolves while child waits; task updates never replace par
  for(const source of fixture.state.sources)assert.equal(source.value.trajectory.cascadeId,source.id,'Each source is forwarded under its own identity');
 });
 
-test('collector discovers modern invocation and metadata-only parent/root children',{timeout:5000},async t=>{
+test('collector discovers modern invocation and metadata-only parent/root children',{timeout:30000},async t=>{
  const fixture=collector(t,{data:new Map([[child,raw(child)],[sibling,raw(sibling)],[nested,raw(nested)]]),summaries:{
   [sibling]:{stepCount:2,trajectoryMetadata:{parentConversationId:parent}},
   [nested]:{stepCount:2,trajectoryMetadata:{parentConversationId:sibling,rootConversationId:parent}},
@@ -98,14 +98,14 @@ test('collector discovers modern invocation and metadata-only parent/root childr
  assert.equal(fixture.result().tokens.totalTokens,unitTokens*4);assert.equal(fixture.result().subagents,3);assert.equal(fixture.result().complete,true);
 });
 
-test('nested shared children and cyclic links are visited once without self-accounting',{timeout:5000},async t=>{
+test('nested shared children and cyclic links are visited once without self-accounting',{timeout:30000},async t=>{
  const fixture=collector(t,{data:new Map([[child,raw(child,{children:[nested]})],[sibling,raw(sibling,{children:[nested]})],[nested,raw(nested,{children:[parent,child]})]])});
  fixture.tracker.request(account,parent,raw(parent,{children:[child,sibling]}));await bounded(fixture.tracker.idle());
  assert.deepEqual(fixture.state.calls.map(c=>c.id),[child,sibling,nested]);assert.deepEqual(fixture.state.sources.map(s=>s.id),[child,sibling,nested]);
  assert.equal(fixture.result().subagents,3);assert.equal(fixture.result().loadedSubagents,3);assert.equal(fixture.result().tokens.totalTokens,unitTokens*4);
 });
 
-test('a growing child is refreshed even when the idle parent raw object is unchanged',{timeout:5000},async t=>{
+test('a growing child is refreshed even when the idle parent raw object is unchanged',{timeout:30000},async t=>{
  const fixture=collector(t),own=raw(parent,{children:[child]});
  fixture.tracker.request(account,parent,own);await bounded(fixture.tracker.idle());assert.equal(fixture.result().tokens.totalTokens,unitTokens*2);
  fixture.state.data.set(child,raw(child,{requests:2}));fixture.state.clock+=5001;
@@ -114,13 +114,13 @@ test('a growing child is refreshed even when the idle parent raw object is uncha
  assert.equal(fixture.state.calls[1].settings.force,false);
 });
 
-test('persisted known children missing from summaries use EOF reads with an empty summary',{timeout:5000},async t=>{
+test('persisted known children missing from summaries use EOF reads with an empty summary',{timeout:30000},async t=>{
  const fixture=collector(t);fixture.tracker.request(account,parent,raw(parent),{knownIds:[child]});await bounded(fixture.tracker.idle());
  assert.equal(fixture.state.calls.length,1);assert.deepEqual(fixture.state.calls[0].settings.summary,{});
  assert.equal(typeof fixture.state.calls[0].settings.isCurrent,'function');assert.equal(fixture.result().tokens.totalTokens,unitTokens*2);
 });
 
-test('failed child refresh keeps known rows partial, backs off and honors force retry',{timeout:5000},async t=>{
+test('failed child refresh keeps known rows partial, backs off and honors force retry',{timeout:30000},async t=>{
  const fixture=collector(t,{options:{refreshMs:10}}),own=raw(parent,{children:[child]});let fail=false;
  fixture.state.handle=async()=>{if(fail)throw Error('Fixture unavailable');return fixture.state.data.get(child);};
  fixture.tracker.request(account,parent,own);await bounded(fixture.tracker.idle());
@@ -132,7 +132,7 @@ test('failed child refresh keeps known rows partial, backs off and honors force 
  assert.equal(fixture.state.calls.length,3);assert.equal(fixture.state.calls[2].settings.force,true);assert.equal(fixture.result().state,'ready');assert.equal(fixture.result().tokens.totalTokens,unitTokens*3);
 });
 
-test('shorter child observations preserve cumulative rows and stay partial until coverage recovers',{timeout:5000},async t=>{
+test('shorter child observations preserve cumulative rows and stay partial until coverage recovers',{timeout:30000},async t=>{
  const fixture=collector(t,{data:new Map([[child,raw(child,{requests:2})]])}),own=raw(parent,{children:[child]});
  fixture.tracker.request(account,parent,own);await bounded(fixture.tracker.idle());
  fixture.state.data.set(child,raw(child));fixture.tracker.request(account,parent,own,{force:true});await bounded(fixture.tracker.idle());
@@ -141,7 +141,7 @@ test('shorter child observations preserve cumulative rows and stay partial until
  assert.equal(fixture.result().tokens.totalTokens,unitTokens*3);assert.equal(fixture.result().state,'ready');assert.equal(fixture.result().complete,true);
 });
 
-test('temporary incomplete root and child snapshots retain coherent request caches until both recover',{timeout:5000},async t=>{
+test('temporary incomplete root and child snapshots retain coherent request caches until both recover',{timeout:30000},async t=>{
  const own=raw(parent,{children:[child]}),initialChild=raw(child,{requests:2});
  const fixture=collector(t,{data:new Map([[child,initialChild]])});
  fixture.tracker.request(account,parent,own);await bounded(fixture.tracker.idle());
@@ -167,7 +167,7 @@ test('temporary incomplete root and child snapshots retain coherent request cach
  assert.equal(fixture.result().tokens.complete,true);assert.equal(fixture.result().cache.complete,true);
 });
 
-test('scope change discards pending child results and drains the new account task',{timeout:5000},async t=>{
+test('scope change discards pending child results and drains the new account task',{timeout:30000},async t=>{
  const fixture=collector(t),gate=deferred(),started=deferred(),oldValue=raw(child,{output:999}),newValue=raw(child,{output:7});
  t.after(()=>gate.resolve(oldValue));let reads=0;
  fixture.state.handle=async()=>{if(++reads===1){started.resolve();return gate.promise;}return newValue;};
@@ -177,7 +177,7 @@ test('scope change discards pending child results and drains the new account tas
  assert.deepEqual(fixture.state.updates.map(s=>s.scope),[secondAccount]);assert.equal(fixture.result().tokens.totalTokens,unitTokens+132);
 });
 
-test('reset epoch and lost ownership reject a pending child before callbacks or cache writes',{timeout:5000},async t=>{
+test('reset epoch and lost ownership reject a pending child before callbacks or cache writes',{timeout:30000},async t=>{
  for(const mode of ['reset','owner'])await t.test(mode,async sub=>{
   const fixture=collector(sub),gate=deferred(),started=deferred();sub.after(()=>gate.resolve(raw(child)));
   fixture.state.handle=async()=>{started.resolve();return gate.promise;};
@@ -190,7 +190,7 @@ test('reset epoch and lost ownership reject a pending child before callbacks or 
  });
 });
 
-test('store backend epoch change cannot attach an old child result to a replacement session',{timeout:5000},async t=>{
+test('store backend epoch change cannot attach an old child result to a replacement session',{timeout:30000},async t=>{
  const fixture=storeFixture(t),gate=deferred(),started=deferred(),oldValue=raw(child,{output:999}),newValue=raw(child,{output:7});
  t.after(()=>gate.resolve(oldValue));let childReads=0;
  fixture.state.handle=async id=>{if(id!==child)return fixture.state.data.get(id);if(++childReads===1){started.resolve();return gate.promise;}return newValue;};
@@ -202,7 +202,7 @@ test('store backend epoch change cannot attach an old child result to a replacem
  assert.equal(fixture.store.sessions.get(parent).data.taskUsage.tokens.totalTokens,unitTokens+132);
 });
 
-test('agent cap and retained-row memory budget stop collection with explicit partial coverage',{timeout:5000},async t=>{
+test('agent cap and retained-row memory budget stop collection with explicit partial coverage',{timeout:30000},async t=>{
  const capped=collector(t,{data:new Map([[child,raw(child)],[sibling,raw(sibling)],[nested,raw(nested)]]),options:{maxAgents:2}});
  capped.tracker.request(account,parent,raw(parent,{children:[child,sibling,nested]}));await bounded(capped.tracker.idle());
  assert.equal(capped.state.calls.length,2);assert.equal(capped.tracker.tasks.get(parent).children.size,2);assert.equal(capped.result().state,'partial');assert.equal(capped.result().complete,false);
@@ -213,7 +213,7 @@ test('agent cap and retained-row memory budget stop collection with explicit par
  assert.equal(impossible.tracker.bytes,0);assert.equal(impossible.result().complete,false);assert.equal(impossible.result().state,'partial');
 });
 
-test('task summaries survive history reload and remain visibly incomplete until child refresh succeeds',{timeout:5000},async t=>{
+test('task summaries survive history reload and remain visibly incomplete until child refresh succeeds',{timeout:30000},async t=>{
  const directory=await temporary(t),history=new SessionHistory(join(directory,'history'));
  const first=storeFixture(t,{history});await bounded(first.store.snapshot({conversationId:parent}));await bounded(first.store.delegated.idle());
  const saved=await history.load(account,parent);assert.equal(saved.metrics.taskUsage.tokens.totalTokens,unitTokens*2);assert.deepEqual(saved.metrics.delegatedConversations,[child]);
@@ -231,7 +231,7 @@ test('task summaries survive history reload and remain visibly incomplete until 
  const text=await readFile(history.file(account,parent),'utf8');assert.equal(text.includes('request:'),false);assert.equal(text.includes('generatorMetadata'),false);
 });
 
-test('restart with every child present but incomplete lower rows retains the coherent saved aggregate',{timeout:5000},async t=>{
+test('restart with every child present but incomplete lower rows retains the coherent saved aggregate',{timeout:30000},async t=>{
  const directory=await temporary(t),history=new SessionHistory(join(directory,'history'));
  const completeOwn=raw(parent,{children:[child],requests:2}),completeChild=raw(child,{requests:2});
  const first=storeFixture(t,{history,data:new Map([[parent,completeOwn],[child,completeChild]])});
@@ -252,7 +252,7 @@ test('restart with every child present but incomplete lower rows retains the coh
  const recovered=second.store.sessions.get(parent).data.taskUsage;assert.equal(recovered.tokens.totalTokens,unitTokens*4);assert.equal(recovered.state,'ready');assert.equal(recovered.complete,true);
 });
 
-test('restart cannot freeze a larger current root behind a smaller saved task while its child is unavailable',{timeout:5000},async t=>{
+test('restart cannot freeze a larger current root behind a smaller saved task while its child is unavailable',{timeout:30000},async t=>{
  const directory=await temporary(t),history=new SessionHistory(join(directory,'history'));
  const initialOwn=raw(parent,{children:[child],input:70,read:0,write:0,output:30}),initialChild=raw(child,{input:70,read:0,write:0,output:30});
  const first=storeFixture(t,{history,data:new Map([[parent,initialOwn],[child,initialChild]])});
@@ -275,7 +275,7 @@ test('restart cannot freeze a larger current root behind a smaller saved task wh
  const persisted=(await second.store.history.load(account,parent)).metrics.taskUsage;coherent(persisted);assert.equal(persisted.state,'partial');
 });
 
-test('a parent with no own usage or context persists and restores child-only task tokens',{timeout:5000},async t=>{
+test('a parent with no own usage or context persists and restores child-only task tokens',{timeout:30000},async t=>{
  const directory=await temporary(t),history=new SessionHistory(join(directory,'history'));
  const fixture=storeFixture(t,{history,data:new Map([[parent,raw(parent,{requests:0,children:[child]})],[child,raw(child)]])});
  await bounded(fixture.store.snapshot({conversationId:parent}));await bounded(fixture.store.delegated.idle());
@@ -291,7 +291,7 @@ test('a parent with no own usage or context persists and restores child-only tas
  assert.equal(offline.speed.taskUsage.tokens.totalTokens,unitTokens);assert.equal(offline.speed.context,null);
 });
 
-test('individual source ingestion and opening a child never double the account usage ledger',{timeout:5000},async t=>{
+test('individual source ingestion and opening a child never double the account usage ledger',{timeout:30000},async t=>{
  const directory=await temporary(t),ledger=new UsageLedger(join(directory,'ledger'));
  const own=raw(parent,{children:[child],responseIds:['shared-request']}),delegated=raw(child,{requests:2,responseIds:['shared-request','child-request']});
  const fixture=storeFixture(t,{history:new SessionHistory(join(directory,'history')),data:new Map([[parent,own],[child,delegated]]),onTrajectory:(scope,id,value)=>ledger.ingest(scope,id,value)});

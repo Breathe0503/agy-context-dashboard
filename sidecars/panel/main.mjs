@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
@@ -7,7 +7,8 @@ import { MetricsStore } from './store.mjs';
 import { DesktopUsage } from './usage.mjs';
 import { loadSidecarSdk } from './sdk.mjs';
 import { RuntimeUi, makeRendererSource } from '../../compat/runtime-ui.mjs';
-import { platformPaths } from '../../compat/platform.mjs';
+import { agentExecutables, platformPaths } from '../../compat/platform.mjs';
+import { inspectHostArchive, inspectDesktopLaunch, ensureDesktopLaunchConfig } from '../../compat/launch-config.mjs';
 import { PreferencesStore } from '../../compat/preferences.mjs';
 import { SidecarOwner } from '../../compat/sidecar-owner.mjs';
 import { readHostTheme } from '../../compat/host-theme.mjs';
@@ -69,6 +70,31 @@ const runtimeSettings = () => {
   try { if (JSON.parse(readFileSync(paths.pluginConfig,'utf8').replace(/^\uFEFF/,'')).plugins?.['antigravity-pulse']?.enabled === false) settings.enabled = false; } catch {}
   settingsCache=settings;settingsAt=Date.now();return settings;
 };
+const sidecarStartedAt = Date.now();
+let autoRelaunchTriggered = false;
+let missingPortTicks = 0, lastLaunchRepairAt = 0, cachedLaunch = null;
+const resolveHostResources = () => {
+  const s = runtimeSettings();
+  if (typeof s.appResources === 'string' && s.appResources) return s.appResources;
+  try {
+    for (const exe of agentExecutables()) {
+      const res = dirname(dirname(exe));
+      if (existsSync(join(res, 'app.asar'))) return res;
+    }
+  } catch {}
+  return null;
+};
+const syncLaunchConfig = async (force = false) => {
+  const s = runtimeSettings();
+  if (!owns() || s.enabled === false || s.inline === false || s.mode === 'legacy' || s.autoConfigureLaunch === false) {
+    return inspectDesktopLaunch();
+  }
+  if (force || !cachedLaunch || Date.now() - lastLaunchRepairAt >= 60000) {
+    lastLaunchRepairAt = Date.now();
+    cachedLaunch = await ensureDesktopLaunchConfig({ settingsPath: paths.settings });
+  }
+  return cachedLaunch;
+};
 const integration = new RuntimeUi({
   // Composer identity is authoritative. Unknown/new inline inputs request quota
   // only; SDK/HTTP panels keep the store's automatic most-recent selection.
@@ -82,11 +108,33 @@ const integration = new RuntimeUi({
   source: makeRendererSource(readFileSync(join(HERE,'..','..','compat','i18n.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','inline-widget.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','theme.cjs'),'utf8'),ownership?.token,ownership?.startedAt,updateSource()+usageSource()),
   dataDir: paths.data,
   enabled: () => { const s = runtimeSettings(); return s.enabled !== false && s.inline !== false && s.mode !== 'legacy'; },
+  onTargets: () => { missingPortTicks = 0; },
+  diagnoseError: async error => {
+    if (error?.code !== 'ENOENT') { missingPortTicks = 0; return null; }
+    missingPortTicks++;
+    const host = await inspectHostArchive(resolveHostResources());
+    const launch = await syncLaunchConfig();
+    if (host.requiresDebugFlag || (missingPortTicks >= 2 && store.serverPid)) {
+      const configured = Boolean(launch?.configured);
+      return {
+        reason: 'debug-port-disabled',
+        ...(host.version ? { hostVersion: host.version } : {}),
+        launchConfigured: configured,
+        message: configured
+          ? 'Host started without --remote-debugging-port=0; launch shortcuts are configured—fully quit and reopen Antigravity (or run python manage.py launch).'
+          : 'Antigravity 2.33+ requires --remote-debugging-port=0 --remote-debugging-address=127.0.0.1 (or python3 manage.py launch) for the inline widget.',
+      };
+    }
+    return null;
+  },
   onMissingDebugPort: async () => {
+    if (autoRelaunchTriggered) return;
+    if (Date.now() - sidecarStartedAt > 20000) return;
     if (ownership && !await ownership.isOwner()) return;
     const prefs = await preferences.snapshot();
-    if (prefs?.autoRelaunchDebug !== true) return;
-    await relaunchHost('auto');
+    if (!prefs || prefs.error || prefs.autoRelaunchDebug === false) return;
+    const result = await relaunchHost('auto');
+    if (result?.scheduled) autoRelaunchTriggered = true;
   },
 });
 
@@ -102,6 +150,7 @@ const relaunchHost = async reason => {
 if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   const { SidecarApp, Response } = await loadSidecarSdk();
   if(!await ownership.claim())process.exit(0);
+  void syncLaunchConfig(true).catch(() => {});
   const app = new SidecarApp();
   for (const [path, [file, type]] of Object.entries(staticFiles)) app.api(path, () => new Response(path==='/'?panelPageSource():readFileSync(join(HERE, file), 'utf8'), { contentType: type,headers:{'Cache-Control':'no-store'} }), 'GET');
   app.page('/app.js',()=>new Response(panelAppSource(),{contentType:'application/javascript',headers:{'Cache-Control':'no-store'}}));

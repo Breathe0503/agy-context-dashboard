@@ -11,9 +11,14 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
+2026-11-18 / **v0.9.5**（[`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)、[`#20`](https://github.com/wycocoyu/agy-context-dashboard/pull/20)）：合并上游 `v0.9.2`–`v0.9.5` 性能优化与启动入口自愈，并加固 **Antigravity 桌面 App 2.33.0+** 默认自动恢复逻辑：
+- 合并上游轻量历史补录与内存优化（`GetCascadeTrajectoryGeneratorMetadata({ includeMessages: false })`、过滤孤儿 `brain/<id>`、已稳定空库标记完成、`GetAllCascadeTrajectories` 摘要缓存、HTTP 200 免重扫、日志尾部 `256 KiB` 逆向分块读取、SDK `2 MiB` 分块扫描、主采集器 `--max-old-space-size=192`，以及 `v0.9.3`–`v0.9.4` Windows CI 稳定性修复）；
+- 合并上游 Windows `.lnk` 快捷方式与 Linux `~/.local/share/applications/antigravity.desktop` 自动写入及运行期自愈（`compat/launch_config.py`、`compat/launch-config.mjs` 与 `inspectHostArchive`），并在 `uninstall` / `--panel-only` 时仅撤回受管参数；
+- 保留本仓全部适配并把内嵌模式 `autoRelaunchDebug` 改为**默认开启（可取消勾选关闭）**：限 Sidecar 启动后前 `20` 秒内最多自动调度 `1` 次重拉（绝不半路杀窗），同 PID 永不重拉、不同 PID 在 `60` 秒滑窗内最多放行 `2` 次（间距 `>= 5` 秒防死循环），并在 `HELPER_OR_NON_MAIN` 中排除 `--headless` 进程；同时在 `README.md` / `README.en.md` 顶部置顶机制说明。
+
 2026-11-17 / **v0.9.2**（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)、[`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)）：针对 **Antigravity 桌面 App 2.33.0+** 默认关闭渲染器远程调试端口并在无参启动时删除 `<profile>/DevToolsActivePort`、且常规 Dock/快捷方式及 `autoUpdater.quitAndInstall()` 自动更新重启会丢弃命令行参数的机制变化，在不修改受 `ElectronAsarIntegrity` 与 Hardened Runtime 保护的 `app.asar` 前提下新增：
 - 可选调试启动器生命周期：`python3 manage.py install --with-launcher`、`install-launcher`、`uninstall-launcher` 与 `launch [--relaunch]`（传入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`），生成 macOS `~/Applications/Antigravity (Debug).app`、Windows `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd`、Linux `~/.local/share/applications/antigravity-pulse-debug.desktop`；
-- `missing-debug-port` 精准诊断（`compat/runtime-ui.mjs`、`manage.py status` 与原生侧边栏面板），侧边栏（**＋ → Extensions → Antigrative Dashboard**）支持一键调试重开（等待旧主进程 PID 全部退出后再拉起）及默认关闭的可选 `autoRelaunchDebug` 开关（60 秒冷却防重入），用于宿主自动更新重启后按需恢复。
+- `missing-debug-port` 精准诊断（`compat/runtime-ui.mjs`、`manage.py status` 与原生侧边栏面板），侧边栏（**＋ → Extensions → Antigrative Dashboard**）支持一键调试重开（等待旧主进程 PID 全部退出后再拉起）及 `autoRelaunchDebug` 开关（60 秒冷却防重入；`v0.9.2` 默认关闭，`v0.9.3` 起改为默认开启）。
 
 2026-11-16 / **v0.9.1**：合入上游 `v0.9.1` 更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)）：新增额度消耗速率预测与周期 Token 参考估算、`minimal` / `cat` 双样式速度卡片、用量弹窗「本机全部 / 当前账号」切换与未登录本地记账、多输入框多实例 + React Fiber 会话 ID 回退、宿主字体同步，以及完整 Antigravity IDE `2.6.0`（`agy --hub` + `jetski-frame` 嵌套 Webview）支持；同时完整保留 `v0.8.13`–`v0.8.16` 全部新模型识别、`language_server.native` 与 `agy 1.5.x` CLI 适配。
 
@@ -31,7 +36,7 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 ## Antigravity 自带 IDE
 
-专用包为 `antigrative-dashboard-ide-0.9.2.vsix`，安装入口与桌面 App 独立。
+专用包为 `antigrative-dashboard-ide-0.9.5.vsix`，安装入口与桌面 App 独立。
 Windows 11 / IDE 2.5.5（VS Code base 1.107.0）与 IDE 2.6.0（`agy --hub` 及嵌套 Agent Webview）已支持并具备完整自动化覆盖；Linux/macOS 登录后的 IDE GUI 仍待实机验收。
 Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 浏览器 fixture 纳入 CI；登录后的 IDE GUI 仍待实机验收。
 当前仅支持默认用户 profile；私有 Preact/DOM 或 RPC 变化可能需要适配，不能保证未来 IDE 版本无需维护。

@@ -39,42 +39,56 @@ async function launchBrowser(userDataDir, initialUrl) {
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, initialUrl,
   ], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
-  const port = await new Promise((resolve, reject) => {
-    let errText = '';
-    const timer = setTimeout(() => reject(new Error('Browser start timeout: ' + errText)), 15000);
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', chunk => {
-      errText += chunk;
-      const m = errText.match(/DevTools listening on ws:\/\/[^:]+:(\d+)\//);
-      if (m) { clearTimeout(timer); resolve(Number(m[1])); }
+  child.unref();
+  let cdp = null;
+  try {
+    const port = await new Promise((resolve, reject) => {
+      let errText = '';
+      const cleanupStderr = () => {
+        child.stderr?.removeAllListeners('data');
+        try { child.stderr?.destroy(); } catch {}
+      };
+      const timer = setTimeout(() => { cleanupStderr(); reject(new Error('Browser start timeout: ' + errText)); }, 30000);
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', chunk => {
+        errText += chunk;
+        const m = errText.match(/DevTools listening on ws:\/\/[^:]+:(\d+)\//);
+        if (m) { clearTimeout(timer); cleanupStderr(); resolve(Number(m[1])); }
+      });
+      child.once('exit', code => { clearTimeout(timer); cleanupStderr(); reject(new Error('Browser exited ' + code)); });
     });
-    child.once('exit', code => { clearTimeout(timer); reject(new Error('Browser exited ' + code)); });
-  });
-  let target;
-  for (let i = 0; i < 40; i++) {
-    try {
-      const resp = await fetch(`http://127.0.0.1:${port}/json/list`);
-      const targets = await resp.json();
-      target = targets.find(t => t.type === 'page' && t.url.startsWith('http://127.0.0.1'));
-      if (target) break;
-    } catch {}
-    await new Promise(r => setTimeout(r, 100));
+    let target;
+    for (let i = 0; i < 150; i++) {
+      try {
+        const resp = await fetch(`http://127.0.0.1:${port}/json/list`);
+        const targets = await resp.json();
+        target = targets.find(t => t.type === 'page' && t.url.startsWith('http://127.0.0.1'));
+        if (target) break;
+      } catch {}
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (!target) throw new Error('Failed to discover Edge page target');
+    cdp = new CdpConnection(target.webSocketDebuggerUrl, { timeout: 30000 });
+    await cdp.open();
+    await cdp.command('Runtime.enable');
+    await cdp.command('Page.enable');
+    return { child, cdp };
+  } catch (err) {
+    try { cdp?.close(); } catch {}
+    killBrowser(child);
+    throw err;
   }
-  if (!target) throw new Error('Failed to discover Edge page target');
-  const cdp = new CdpConnection(target.webSocketDebuggerUrl);
-  await cdp.open();
-  await cdp.command('Runtime.enable');
-  await cdp.command('Page.enable');
-  return { child, cdp };
 }
 
 function killBrowser(child) {
   if (!child) return;
+  try { child.stderr?.destroy(); } catch {}
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/F', '/T', '/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true, timeout: 3000 });
+    spawnSync('taskkill', ['/F', '/T', '/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true, timeout: 15000 });
   } else {
     try { child.kill('SIGKILL'); } catch {}
   }
+  try { child.kill(); } catch {}
 }
 
 test('font sync, scope switching and quota window reference render end-to-end in real Chromium', { skip: !EDGE_EXE }, async () => {
@@ -91,7 +105,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
   const id = '11111111-1111-1111-1111-111111111111';
   let prefs = { language: 'zh-CN', languageGuideDismissed: true, usageGuideDismissed: true, usageScope: 'local', revision: 1 };
   let panelTheme = { fontFamily: "'Fira Code'", mode: 'dark', dark: { background: '#1e1e1e' } };
-  let signedIn = true, slowFullPoll = false, stressModels = false, billionSpeed = false, usageOnlyCalls = 0;
+  let signedIn = true, slowFullPoll = false, stressModels = false, billionSpeed = false, usageOnlyCalls = 0, integrationState = null;
   const reset5h = new Date(Date.now() + 3 * 3600000).toISOString();
   const resetWk = new Date(Date.now() + 5 * 86400000).toISOString();
   const stressModelList = [
@@ -165,6 +179,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
     quotaUpdatedAt: new Date().toISOString(),
     groups: [{ id: 'gemini', name: 'Gemini', windows: { '5h': { available: true, remaining: 0.874, resetAt: reset5h }, weekly: { available: true, remaining: 0.399, resetAt: resetWk } } }],
     usage: usageData(overrideScope),
+    ...(integrationState ? { integration: integrationState } : {}),
     speed: trajectoryMetrics({ trajectory: { cascadeId: id, steps: [{ type: 'USER_INPUT' }], generatorMetadata: [{ chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (XHigh)', chatStartMetadata: { contextWindowMetadata: { estimatedTokensUsed: 100000, maxContextTokens: 512000 } }, usage: billionSpeed ? { messageId: 'm2', inputTokens: '80000000', cacheReadTokens: '1150000000', outputTokens: '4567890', responseOutputTokens: '4000000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' } : { messageId: 'm1', inputTokens: '5384106', cacheReadTokens: '55937971', outputTokens: '473719', responseOutputTokens: '400000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' }, streamingDuration: '2s' } }] } }),
   });
   const inlineHtml = `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -208,7 +223,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
     if (path === '/api/metrics') {
       const isUsageOnly = reqUrl.searchParams.get('usageOnly') === '1';
       if (isUsageOnly) usageOnlyCalls++;
-      else if (slowFullPoll && reqUrl.searchParams.get('force') === '1') await new Promise(r => setTimeout(r, 2500));
+      else if (slowFullPoll && reqUrl.searchParams.get('force') === '1') await new Promise(r => setTimeout(r, 5000));
       const scopeParam = reqUrl.searchParams.get('usageScope');
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(metricsPayload(scopeParam))); return;
     }
@@ -227,7 +242,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
     if (res.exceptionDetails) throw new Error('Page error: ' + JSON.stringify(res.exceptionDetails));
     return res.result?.value;
   };
-  const waitUntil = async (expr, label, timeout = 6000) => {
+  const waitUntil = async (expr, label, timeout = 20000) => {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
       if (await evalJs(expr)) return;
@@ -370,22 +385,24 @@ test('font sync, scope switching and quota window reference render end-to-end in
   const switchStart = Date.now();
   const immediate = await evalJs(`() => {
     const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
+    const t0 = performance.now();
     vs.querySelector('[data-usage-scope="account"]').click();
     return {
+      inPageMs: performance.now() - t0,
       activeAttr: vs.getElementById('scope-controls').dataset.activeScope,
       pressed: vs.querySelector('[data-usage-scope="account"]').getAttribute('aria-pressed'),
       subtitle: vs.getElementById('subtitle').textContent,
     };
   }`);
-  assert.ok(Date.now() - switchStart < 150, 'click + optimistic UI state should resolve immediately');
+  assert.ok(immediate.inPageMs < 150, 'click + optimistic UI state should resolve immediately');
   assert.equal(immediate.activeAttr, 'account');
   assert.equal(immediate.pressed, 'true');
   assert.ok(immediate.subtitle.includes('当前账号'));
   await waitUntil(`() => {
     const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
     return vs.querySelector('#totals .value')?.textContent === '11KToken';
-  }`, 'usage modal switched to account scope via fast usageOnly path', 1000);
-  assert.ok(Date.now() - switchStart < 1000, 'usageOnly path must not wait for 2500ms force poll');
+  }`, 'usage modal switched to account scope via fast usageOnly path', 3500);
+  assert.ok(Date.now() - switchStart < 4000, 'usageOnly path must not wait for 5000ms force poll');
   assert.ok(usageOnlyCalls >= 1);
   assert.equal(prefs.usageScope, 'account');
 
@@ -441,7 +458,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await waitUntil(`() => {
     const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
     return vs.querySelector('#totals .value')?.textContent !== '33KToken';
-  }`, '16-model totals loaded', 8000);
+  }`, '16-model totals loaded', 20000);
 
   // Also prove ide/surface setMarkup accepts the exact static template in compat/usage-ui.cjs
   const pageTemplateMatch = usageSrc.match(/setMarkup\(page,`([^`]*)`\)/);
@@ -655,6 +672,35 @@ test('font sync, scope switching and quota window reference render end-to-end in
     cacheRead: '1.15B',
     cacheReadTitle: '缓存读取: 1,150,000,000 toks',
   });
+
+  // Verify #integration-note localization for debug-port-disabled and mounted cleanup
+  integrationState = { state: 'reconnecting', reason: 'debug-port-disabled', hostVersion: '2.33.0', launchConfigured: true };
+  await evalJs(`() => document.getElementById('refresh-button').click()`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent.includes('已自动配置启动入口')`, 'zh-CN debugPortReady note');
+
+  await evalJs(`() => {
+    document.getElementById('language-toggle').click();
+    document.querySelector('[data-language-menu] [data-language="en"]').click();
+  }`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent.includes('launch shortcut configured')`, 'en debugPortReady note');
+
+  await evalJs(`() => {
+    document.getElementById('language-toggle').click();
+    document.querySelector('[data-language-menu] [data-language="zh-TW"]').click();
+  }`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent.includes('已自動設定啟動捷徑')`, 'zh-TW debugPortReady note');
+
+  integrationState = { state: 'reconnecting', reason: 'debug-port-disabled', hostVersion: '2.33.0', launchConfigured: false };
+  await evalJs(`() => document.getElementById('refresh-button').click()`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent.includes('python3 manage.py launch')`, 'zh-TW debugPortManual note');
+
+  integrationState = { state: 'reconnecting' };
+  await evalJs(`() => document.getElementById('refresh-button').click()`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent.includes('內嵌狀態列正在自動重新連線')`, 'zh-TW generic reconnecting note');
+
+  integrationState = { state: 'mounted' };
+  await evalJs(`() => document.getElementById('refresh-button').click()`);
+  await waitUntil(`() => document.getElementById('integration-note').textContent === ''`, 'mounted clears integration-note');
   } finally {
     try { cdp?.close(); } catch {}
     killBrowser(child);

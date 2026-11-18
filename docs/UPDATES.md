@@ -231,6 +231,14 @@ passed a real conversation test. Unexpected future host changes, a broken future
 release, power loss with filesystem corruption, or damaged/missing backup media
 cannot be guaranteed recoverable by this mechanism.
 
+## Host updates and opt-in debugging (Antigravity 2.33.0+)
+
+Starting in Antigravity Desktop **2.33.0**, `resources/app.asar` no longer enables `--remote-debugging-port` by default and deletes `DevToolsActivePort` when launched without that flag. Antigrative Dashboard keeps `resources/app.asar` unmodified and instead:
+
+- Configures user-owned Windows shortcuts (`.lnk`) and Linux `~/.local/share/applications/antigravity.desktop` with `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` during `manage.py install`, reverting only dashboard-added flags on `uninstall` or `--panel-only`.
+- Re-checks and repairs overwritten launch entry points from the active sidecar runtime (throttled and zero-subprocess when already configured) after host auto-updates or in-app plugin updates, then notifies the user via `integration-state.json` (`reason: "debug-port-disabled"`) and the side panel when a full host restart is needed.
+- Provides `python[3] manage.py launch` to start Antigravity directly with loopback debugging flags on Windows, Linux and macOS.
+
 ## Validation scope
 
 Windows tests reproduce the full command-launcher/Node/Python chain, force process

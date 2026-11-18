@@ -117,9 +117,11 @@ test('all-local scope aggregates across accounts + unauthenticated sessions and 
   store.identity=null;store.epoch++;
   await ledger.ingest(scope('ag-pulse:local-unauthenticated'),cid3,raw({model:'Gemini 3.8 Flash',start:'2026-10-11T07:30:00Z',usage:{responseId:'unauth-1',inputTokens:'300',cacheReadTokens:'0',cacheWriteTokens:'0',outputTokens:'100'}}));
   tracker.ingestLive(scope('ag-pulse:local-unauthenticated'),id,raw({usage:{responseId:'live-unauth',inputTokens:'50',cacheReadTokens:'0',cacheWriteTokens:'0',outputTokens:'50'}}));
-  await new Promise(r=>setTimeout(r,30));
+  const liveDeadline=Date.now()+10000;
+  while(tracker.liveStates.size>0||ledger.usageWrites.size>0){if(Date.now()>liveDeadline)throw Error('live ingest did not settle');await new Promise(r=>setTimeout(r,10));}
+  await ledger.queue;
   const unauthLocal=await tracker.snapshot({sync:false,scope:'local',groups});
-  assert.equal(unauthLocal.accountAvailable,false);assert.equal(unauthLocal.accountsCount,2);assert.ok(unauthLocal.totalTokens>=1100+1000+2200+400);
+  assert.equal(unauthLocal.accountAvailable,false);assert.equal(unauthLocal.accountsCount,2);assert.equal(unauthLocal.totalTokens,1100+1000+2200+400+100);
   const unauthAcct=await tracker.snapshot({sync:false,scope:'account',groups});
   assert.equal(unauthAcct.accountAvailable,false);assert.equal(unauthAcct.totalTokens,0);
 });

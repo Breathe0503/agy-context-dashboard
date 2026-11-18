@@ -5,11 +5,12 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 export const conversationId=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 const digest=value=>createHash('sha256').update(value).digest('hex');
-async function stamp(file,directory=false){
+async function statInfo(file,directory=false){
  try{const s=await lstat(file,{bigint:true});if(s.isSymbolicLink()||!(directory?s.isDirectory():s.isFile()))return null;
-  return [s.size,s.mtimeNs,s.ctimeNs,s.ino].map(String).join(':');
+  return {token:[s.size,s.mtimeNs,s.ctimeNs,s.ino].map(String).join(':'),mtimeMs:Number(s.mtimeNs/1000000n)};
  }catch(e){if(e.code==='ENOENT'||e.code==='ENOTDIR')return null;throw e;}
 }
+const stamp=async(file,directory=false)=>(await statInfo(file,directory))?.token??null;
 export async function discoverLocalConversations({host,home=homedir(),limit=20000}={}){
  if(!['app','ide'].includes(host))throw Error('Explicit conversation host is required');
  const base=join(home,'.gemini',host==='ide'?'antigravity-ide':'antigravity');
@@ -33,15 +34,22 @@ export async function discoverLocalConversations({host,home=homedir(),limit=2000
  }
  const conversations=[];
  for(const [id,parts]of files){
-  const readSignature=async()=>{
-   const values=[];
-   for(const {file,directory}of parts){const value=await stamp(file,directory);if(value===null)return null;
-    values.push([directory?'brain':'db',value]);
-    if(!directory)values.push(['wal',await stamp(file+'-wal')]);
+  const hasDb=parts.some(p=>!p.directory),brainOnly=!hasDb;
+  const readInfo=async()=>{
+   const values=[];let modifiedAtMs=null;
+   for(const {file,directory}of parts){const info=await statInfo(file,directory);if(!info)return null;
+    values.push([directory?'brain':'db',info.token]);
+    if(!directory){
+     modifiedAtMs=modifiedAtMs===null?info.mtimeMs:Math.max(modifiedAtMs,info.mtimeMs);
+     const wal=await statInfo(file+'-wal');
+     values.push(['wal',wal?.token??null]);
+     if(wal)modifiedAtMs=Math.max(modifiedAtMs,wal.mtimeMs);
+    }
    }
-   return digest(JSON.stringify(values));
+   return {signature:digest(JSON.stringify(values)),modifiedAtMs};
   };
-  try{const signature=await readSignature();if(signature)conversations.push({id,signature,readSignature});}
+  const readSignature=async()=>(await readInfo())?.signature??null;
+  try{const info=await readInfo();if(info)conversations.push({id,signature:info.signature,readSignature,hasDb,brainOnly,modifiedAtMs:info.modifiedAtMs});}
   catch{errors++;}
  }
  return {conversations,errors};

@@ -7,10 +7,15 @@ themselves make a 1000-conversation backfill cheap. Ordinary metrics polling,
 quota expiry and card refreshes do not initiate history import in either App or
 IDE. Opening **View token usage** or clicking its top-right **Refresh usage**
 button explicitly requests it. A full import captures one bounded queue and
-consumes it in count/time slices; deleted or temporarily unlisted candidates
-cannot strand a 250 ms continuation. New ordinary conversations are discovered
-on the next explicit pass. Unreadable candidates retain retry state and saved
-statistics. Repeated pages and stalled offsets stop immediately.
+consumes it in paced count/time slices (up to 8 entries per slice with inter-item
+pacing and 1,200 ms slice intervals); deleted or temporarily unlisted candidates
+cannot strand a continuation. Unlisted `brain/<id>`-only directories without a
+local `.db` or host summary are skipped, and settled zero-request `.db` files
+mark complete instead of entering exponential retry loops. New ordinary
+conversations are discovered on the next explicit pass. Unreadable candidates
+retain retry state and saved statistics. Repeated pages and stalled offsets stop
+immediately. The main panel sidecar and IDE collector processes also cap V8
+old-space growth with `--max-old-space-size=192`.
 
 Local discovery, candidates, retry state and trajectory summaries are capped.
 Checkpoint metadata is saved once per slice and limited to 4,096 entries with an
@@ -22,7 +27,17 @@ collection and persistence boundaries. See [usage accounting](USAGE.md).
 
 ## Acquisition
 
-Statistics collection no longer calls `GetCascadeTrajectory`. It reads a conversation summary, then uses `GetCascadeTrajectorySteps` and `GetCascadeTrajectoryGeneratorMetadata` with their distinct offset fields. Generator requests explicitly set `includeMessages: false`. All host-provided pages are collected; an empty generator page signals the end. A known step count guards against incomplete step pages. Hosts without that count require an empty terminal step page.
+Statistics collection no longer calls `GetCascadeTrajectory`. Foreground TPS/tool
+collection reads a conversation summary, then uses `GetCascadeTrajectorySteps`
+and `GetCascadeTrajectoryGeneratorMetadata` with their distinct offset fields.
+Historical usage backfill uses a metadata-first `usageOnly` path that reads
+`GetCascadeTrajectoryGeneratorMetadata` (`includeMessages: false`) without
+populating the foreground 8 MiB session cache, lazily fetching only the required
+`GetCascadeTrajectorySteps` slice when a generator record lacks
+`chatStartMetadata.createdAt`. Generator requests explicitly set
+`includeMessages: false`. All host-provided pages are collected; an empty
+generator page signals the end. A known step count guards against incomplete
+step pages. Hosts without that count require an empty terminal step page.
 
 The installed host schema has offsets, but **no requested page-size field**. A cold step page can still contain large text/tool results. We cannot promise a fixed network page size or a body-free step interface. The incremental JSON projector validates but skips those values as they arrive. It keeps token counts, request IDs, timestamps, context estimates and the minimal planner/tool presence needed to preserve timing classification. Lower step verbosity was tested but removed tool-call markers and changed timing-reason classification, so it is not substituted for the full step semantics.
 

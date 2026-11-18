@@ -65,14 +65,18 @@ try {
           return root?.getElementById(id)?.textContent===text;
         },{inline,id,text});
       };
-      try{await expectText('cache-output','90.6K');}catch(error){
+      const expectTip=async(id,part)=>{
+        await page.waitForFunction(({inline,id,part})=>{
+          const root=inline?document.getElementById('ag-pulse-status-bar')?.shadowRoot:document;
+          return (root?.getElementById(id)?.getAttribute('title')||'').includes(part);
+        },{inline,id,part});
+      };
+      try{await expectText('cache-output','90.6K');await expectText('cache-output-unit',' toks');await expectTip('cache-output-cell','90,629 toks');}catch(error){
         console.log(JSON.stringify({inline,lang,errors,output:await scope.locator('#cache-output').textContent(),
-          rate:await scope.locator(inline?'#rate-note':'#health-note').textContent(),
+          rate:await scope.locator(inline?'#samples':'#health-note').textContent(),
           note:await scope.locator('#cache-note').textContent()}));throw error;
       }
-      await expectText('cache-output-unit',' toks');
-      await expectText('cache-coverage','117,270');
-      await expectText('cache-coverage-unit','toks');
+      await expectText('cache-coverage','117,270');await expectText('cache-coverage-unit','toks');
       if(inline)await scope.locator('[data-card=cache]').hover();
       else await scope.locator('[data-card=cache]').click();
       await scope.locator('#cache-card').waitFor({state:'visible'});
@@ -83,10 +87,10 @@ try {
       assert.ok(card&&card.y>=0&&card.y+card.height<=900,'Partial-data explanation stays inside viewport');
       await page.screenshot({path:join(output,`${inline?'inline':'panel'}-${lang}.png`)});
       speed=sample([known,...missing,request('new',{outputTokens:'500'})]);
-      await expectText('cache-output','91.1K');
+      await expectText('cache-output','91.1K');await expectTip('cache-output-cell','91,129 toks');
       await expectText('cache-coverage','117,770');
       speed=sample([request('output-only',{outputTokens:'200'})]);
-      await expectText('cache-output','200');
+      await expectText('cache-output','200');await expectText('cache-output-unit',' toks');
       await expectText('cache-miss','—');
       await expectText(inline?'cache-detail-rate':'cache-rate','—');
       speed=sample([request('zero',{outputTokens:'0'})]);
@@ -95,7 +99,7 @@ try {
       const saved=sample([known]);
       const fresh=sample([request('known',{outputTokens:'880'}),request('new',{outputTokens:'500'})]);
       speed=reconcileMetrics(saved,{...fresh,measuredRequests:0},'2026-10-13T00:00:00Z');
-      await expectText('cache-output','1.38K');
+      await expectText('cache-output','1.38K');await expectTip('cache-output-cell','1,380 toks');
       await expectText('cache-coverage','1,380');
       const legacy=structuredClone(partial);delete legacy.tokens;
       speed=safeMetrics(legacy,id);
