@@ -15,16 +15,17 @@ const releaseVersion=JSON.parse(await readFile(join(repo,'plugin.json'),'utf8'))
 const html=panelPageSource();
 const code=panelAppSource(),requests=[],errors=[],results=[];
 const id='11111111-1111-1111-1111-111111111111';
-let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7,collectionFixture=null;
+let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7,collectionFixture=null,integrationFixture=null,relaunchCalls=[];
 const transcriptSample={version:1,status:'ready',complete:true,userTokens:100,assistantTokens:200,toolTokens:50,systemTokens:10,totalTokens:360,matchedSteps:4,compactionMarkers:1,imageSteps:0};
-const sample=()=>({connection:'live',serverTime:new Date().toISOString(),quotaUpdatedAt:new Date().toISOString(),preferences:prefs,groups:[{id:'gemini',name:'Gemini',windows:{'5h':{available:true,remaining:.8,resetAt:new Date(Date.now()+3600000).toISOString()},weekly:{available:true,remaining:.75,resetAt:new Date(Date.now()+86400000).toISOString()}}}],speed:{transcriptStats:transcriptSample,...trajectoryMetrics({trajectory:{cascadeId:id,steps:[{type:'USER_INPUT'}],generatorMetadata:Array.from({length:23},(_,i)=>({chatModel:{modelDisplayName:'Gemini 3.8 Flash',streamingDuration:(100/rate)+'s',timeToFirstToken:'1.2s',usage:{messageId:'fixture-'+i,inputTokens:100,cacheReadTokens:300,outputTokens:100,responseOutputTokens:100,cacheWriteTokens:0,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:20000,maxContextTokens:100000}}}}))}})}});
+const sample=()=>({connection:'live',serverTime:new Date().toISOString(),quotaUpdatedAt:new Date().toISOString(),preferences:prefs,...(integrationFixture?{integration:integrationFixture}:{}),groups:[{id:'gemini',name:'Gemini',windows:{'5h':{available:true,remaining:.8,resetAt:new Date(Date.now()+3600000).toISOString()},weekly:{available:true,remaining:.75,resetAt:new Date(Date.now()+86400000).toISOString()}}}],speed:{transcriptStats:transcriptSample,...trajectoryMetrics({trajectory:{cascadeId:id,steps:[{type:'USER_INPUT'}],generatorMetadata:Array.from({length:23},(_,i)=>({chatModel:{modelDisplayName:'Gemini 3.8 Flash',streamingDuration:(100/rate)+'s',timeToFirstToken:'1.2s',usage:{messageId:'fixture-'+i,inputTokens:100,cacheReadTokens:300,outputTokens:100,responseOutputTokens:100,cacheWriteTokens:0,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:20000,maxContextTokens:100000}}}}))}})}});
 const server=createServer(async(req,res)=>{
  const url=new URL(req.url,'http://localhost'),path=url.pathname;requests.push(path);
- if(path==='/api/metrics'||path==='/api/preferences'){
+ if(path==='/api/metrics'||path==='/api/preferences'||path==='/api/relaunch-debug'){
   res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
   if(req.method==='OPTIONS'){res.end();return;}
   res.setHeader('Content-Type','application/json');
   if(path==='/api/metrics'){metricsCalls++;res.statusCode=failMetrics?503:200;const snapshot=sample();if(collectionFixture){snapshot.collection=collectionFixture;if(collectionFixture.freshness==='unavailable')snapshot.speed=null;}res.end(JSON.stringify(failMetrics?{error:'Fixture unavailable'}:snapshot));return;}
+  if(path==='/api/relaunch-debug'&&req.method==='POST'){relaunchCalls.push({at:Date.now()});res.end(JSON.stringify({scheduled:true,reason:'manual',pids:[12345]}));return;}
   if(req.method==='POST'){let text='';for await(const chunk of req)text+=chunk;prefs={...prefs,...JSON.parse(text),revision:prefs.revision+1};}
   res.end(JSON.stringify(prefs));return;
  }
@@ -47,7 +48,8 @@ const server=createServer(async(req,res)=>{
 await new Promise(r=>server.listen(preview?17913:0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
 if(preview){console.log('Side panel preview: '+base);await new Promise(()=>{});}
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE?pathToFileURL(process.env.PLAYWRIGHT_MODULE).href:'playwright');
-const browser=await chromium.launch(process.platform==='win32'&&!process.env.CI?{channel:'msedge',headless:true}:{headless:true});
+const launchOpts=process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL,headless:true}:process.platform==='win32'&&!process.env.CI?{channel:'msedge',headless:true}:{headless:true};
+const browser=await chromium.launch(launchOpts);
 try{
  for(const mode of ['deferred','early-classic','opaque-iframe']){
   prefs={language:'en',revision:1};rate=38.7;
@@ -149,5 +151,33 @@ try{
  assert.equal(metricsCalls-before,1);assert.deepEqual(errors,[]);
  assert.equal(requests.some(p=>['/format.mjs','/i18n.js','/theme.js'].includes(p)),false);
  await mkdir(join(repo,'.data/issue11'),{recursive:true});await page.screenshot({path:join(repo,'.data/issue11/panel-regression.png')});
- console.log(JSON.stringify({checks:results,automaticRecovery:true,duplicateInitSafe:true,moduleRequests:0,pageErrors:errors}));
+ // Verify missing-debug-port relaunch controls render unclipped, persist autoRelaunchDebug, localize, and vanish cleanly on mount.
+ await page.setViewportSize({width:280,height:800});
+ integrationFixture={state:'reconnecting',mode:'runtime',reason:'missing-debug-port',message:'Antigravity debug port unavailable',windows:0,checkedAt:new Date().toISOString()};
+ await page.locator('#refresh-button').click();
+ await page.locator('#relaunch-debug-button').waitFor({state:'visible'});
+ await page.locator('#auto-relaunch-toggle').waitFor({state:'visible'});
+ const actionBox=await page.evaluate(()=>{
+  const note=document.getElementById('integration-note'),btn=document.getElementById('relaunch-debug-button'),chk=document.getElementById('auto-relaunch-toggle'),widget=document.querySelector('.widget');
+  const nr=note.getBoundingClientRect(),br=btn.getBoundingClientRect(),cr=chk.getBoundingClientRect(),wr=widget.getBoundingClientRect();
+  return {noteHeight:nr.height,noteOverflow:note.scrollHeight>note.clientHeight+1,widgetOverflow:widget.scrollWidth>widget.clientWidth,widgetHeight:wr.height,btnInside:br.bottom<=nr.bottom+1&&br.bottom<=wr.bottom+1,chkInside:cr.bottom<=nr.bottom+1&&cr.bottom<=wr.bottom+1,hasAction:note.classList.contains('has-action'),hasWarning:note.classList.contains('warning')};
+ });
+ assert.equal(actionBox.hasAction,true);assert.equal(actionBox.hasWarning,true);
+ assert.ok(actionBox.noteHeight>36,'missing-debug-port action block must expand beyond 36px');
+ assert.equal(actionBox.noteOverflow,false);assert.equal(actionBox.widgetOverflow,false);
+ assert.equal(actionBox.widgetHeight,580);assert.equal(actionBox.btnInside,true);assert.equal(actionBox.chkInside,true);
+ await page.locator('#auto-relaunch-toggle').click();
+ await page.waitForFunction(async()=>{const p=await(await fetch('/api/preferences')).json();return p.autoRelaunchDebug===true;});
+ assert.equal(prefs.autoRelaunchDebug,true);
+ await page.locator('#language-toggle').click();await page.locator('[data-language-menu] [data-language="zh-CN"]').click();
+ await page.locator('#relaunch-debug-button').filter({hasText:'一键重启并恢复状态栏'}).waitFor();
+ await page.locator('#relaunch-debug-button').click();
+ await page.waitForFunction(()=>document.getElementById('relaunch-debug-status')?.textContent.includes('重启'));
+ assert.equal(relaunchCalls.length,1);
+ integrationFixture={state:'mounted',mode:'runtime',message:'ok',windows:1,checkedAt:new Date().toISOString()};
+ await page.locator('#refresh-button').click();
+ await page.waitForFunction(()=>{const n=document.getElementById('integration-note');return n.childNodes.length===0&&getComputedStyle(n).display==='none';});
+ assert.deepEqual(errors,[]);
+ await page.close();
+ console.log(JSON.stringify({checks:results,automaticRecovery:true,duplicateInitSafe:true,missingDebugPortUi:true,moduleRequests:0,pageErrors:errors}));
 }finally{await browser.close();await new Promise(r=>server.close(r));}

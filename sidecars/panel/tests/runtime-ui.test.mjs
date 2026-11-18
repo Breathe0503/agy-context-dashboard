@@ -299,3 +299,42 @@ test('runtime bridge samples host fonts into rendererTheme, allows usageScope an
   await ui.stop();
   assert.deepEqual(ui.rendererTheme,{});
 });
+
+test('ENOENT during discovery marks missing-debug-port, invokes onMissingDebugPort when owned, and clears on recovery',async()=>{
+  const {ui}=fixture();
+  let calls=0,owned=true;
+  ui.owns=async()=>owned;
+  ui.onMissingDebugPort=()=>{calls++;};
+  ui.discover=async()=>{throw Object.assign(new Error('missing DevToolsActivePort'),{code:'ENOENT'});};
+  await ui.tick();
+  assert.equal(ui.health.state,'reconnecting');
+  assert.equal(ui.health.reason,'missing-debug-port');
+  assert.equal(calls,1);
+  ui.discover=async()=>{throw new Error('generic transient failure');};
+  await ui.tick();
+  assert.equal(ui.health.state,'reconnecting');
+  assert.equal(Object.hasOwn(ui.health,'reason'),false);
+  assert.equal(calls,1);
+  owned=false;
+  ui.discover=async()=>{throw Object.assign(new Error('missing again'),{code:'ENOENT'});};
+  await ui.tick();
+  assert.equal(calls,1,'must not invoke missing-port hook without ownership');
+  owned=true;
+  ui.discover=async()=>[target()];
+  await ui.tick();
+  assert.equal(ui.health.state,'mounted');
+  assert.equal(Object.hasOwn(ui.health,'reason'),false);
+  await ui.stop();
+});
+
+test('runtime bridge allows autoRelaunchDebug boolean preference updates',async()=>{
+  const {ui,connections}=fixture();
+  const writes=[];
+  ui.preferences={get:async()=>({language:'en',revision:1}),set:async v=>{writes.push(v);return {language:'en',...v,revision:2};}};
+  await ui.tick();
+  const c=connections[0];
+  await ui.event(c,{method:'Runtime.bindingCalled',params:{name:ui.binding,executionContextId:7,payload:JSON.stringify({id:21,type:'preferences',input:{autoRelaunchDebug:true}})}});
+  assert.deepEqual(writes,[{autoRelaunchDebug:true}]);
+  assert.ok(c.calls.some(call=>call.params.expression?.includes('"autoRelaunchDebug":true')));
+  await ui.stop();
+});
