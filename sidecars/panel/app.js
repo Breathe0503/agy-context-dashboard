@@ -24,6 +24,7 @@ let snapshot = null, selectedGroup = null, group = null, autoGroupId = null, las
 let pending = false, timer = null, serverOffset = 0, lastExpiredRefresh = 0;
 let selectedCard='speed',cardMotion=null;
 let refreshRequest=null,manualRequest=null;
+let relaunchBusy=false,relaunchStatusKey='',autoRelaunchState={busy:false,error:false,revision:-1,value:false};
 const host = window.sidecar;
 if (!host) document.body.classList.add('standalone');
 const preferenceRequest=async(input)=>{
@@ -362,10 +363,96 @@ function render() {
   const timestamp = snapshot.quotaUpdatedAt ? new Date(snapshot.quotaUpdatedAt).toLocaleTimeString(language.language,{hour12:false}) : null;
   $('health-note').textContent = (collectionProcessing?t('collectionProcessingReason'):collectionLimited?t('collectionReason'):language.errorMessage(snapshot.error||snapshot.sessionError)) || (timestamp ? t('health',{time:timestamp}) : t('firstUpdate'));
   $('health-note').classList.toggle('warning', snapshot.connection !== 'live' || !!snapshot.sessionError || collectionLimited);
-  const integration = snapshot.integration;
-  $('integration-note').textContent = integration && !['mounted','disabled'].includes(integration.state)
-    ? (language.language === 'zh-TW' ? '內嵌狀態列正在自動重新連線；此面板仍可檢視統計資料。' : (language.language === 'zh-CN' ? '内嵌栏正在自动重连；此面板仍可查看统计。' : 'Inline widget is reconnecting automatically; statistics remain available in this panel.')) : '';
+  renderIntegrationNote();
   updateCountdowns();
+}
+
+function renderIntegrationNote(){
+  const note=$('integration-note');if(!note)return;
+  const integration=snapshot?.integration;
+  if(!integration||['mounted','disabled'].includes(integration.state)){
+    note.classList.remove('has-action','warning');
+    delete note.dataset.mode;
+    relaunchStatusKey='';autoRelaunchState.error=false;
+    if(note.childNodes.length)note.replaceChildren();
+    return;
+  }
+  if(integration.reason!=='missing-debug-port'){
+    note.classList.remove('has-action','warning');
+    delete note.dataset.mode;
+    relaunchStatusKey='';autoRelaunchState.error=false;
+    const msg=t('inlineReconnecting');
+    if(note.textContent!==msg)note.textContent=msg;
+    return;
+  }
+  note.classList.add('has-action','warning');
+  if(note.dataset.mode!=='missing-debug-port'){
+    note.dataset.mode='missing-debug-port';
+    const message=document.createElement('span');message.className='integration-message';message.id='integration-message';
+    const actions=document.createElement('div');actions.className='integration-actions';
+    const button=document.createElement('button');button.type='button';button.className='integration-relaunch-btn';button.id='relaunch-debug-button';
+    const status=document.createElement('span');status.className='integration-status';status.id='relaunch-debug-status';status.hidden=true;
+    actions.append(button,status);
+    const label=document.createElement('label');label.className='integration-auto-label';
+    const toggle=document.createElement('input');toggle.type='checkbox';toggle.id='auto-relaunch-toggle';
+    const labelText=document.createElement('span');labelText.id='auto-relaunch-label';
+    label.append(toggle,labelText);
+    note.replaceChildren(message,actions,label);
+    button.addEventListener('click',async()=>{
+      if(relaunchBusy)return;
+      relaunchBusy=true;relaunchStatusKey='relaunchingDebug';autoRelaunchState.error=false;
+      renderIntegrationNote();
+      try{
+        const transport=host?.fetch?host.fetch.bind(host):fetch;
+        const response=await transport('/api/relaunch-debug',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        if(!response.ok){relaunchStatusKey='relaunchDebugFailed';}
+        else{
+          const result=await response.json();
+          if(result?.scheduled)relaunchStatusKey='relaunchingDebug';
+          else if(['cooldown','debounced','already-scheduled-for-pids'].includes(result?.reason))relaunchStatusKey='relaunchDebugCooldown';
+          else if(result?.reason==='host-not-running')relaunchStatusKey='relaunchDebugNotRunning';
+          else relaunchStatusKey='relaunchDebugFailed';
+        }
+      }catch{relaunchStatusKey='relaunchDebugFailed';}
+      finally{relaunchBusy=false;renderIntegrationNote();}
+    });
+    toggle.addEventListener('change',async()=>{
+      const next=toggle.checked;
+      autoRelaunchState.busy=true;autoRelaunchState.error=false;autoRelaunchState.value=next;
+      renderIntegrationNote();
+      try{
+        const saved=await preferenceRequest({autoRelaunchDebug:next});
+        const rev=Number.isSafeInteger(saved?.revision)?saved.revision:0;
+        autoRelaunchState.revision=Math.max(autoRelaunchState.revision,rev);
+        autoRelaunchState.value=saved?.autoRelaunchDebug===true;
+        if(snapshot)snapshot.preferences=saved;
+      }catch{
+        autoRelaunchState.value=!next;
+        toggle.checked=!next;
+        autoRelaunchState.error=true;
+      }finally{
+        autoRelaunchState.busy=false;
+        renderIntegrationNote();
+      }
+    });
+  }
+  text('integration-message',t('missingDebugPort'));
+  const button=$('relaunch-debug-button');
+  if(button){button.disabled=relaunchBusy;button.textContent=t(relaunchBusy?'relaunchingDebug':'relaunchDebugButton');}
+  text('auto-relaunch-label',t('autoRelaunchLabel'));
+  const prefRev=Number.isSafeInteger(snapshot?.preferences?.revision)?snapshot.preferences.revision:0;
+  if(!autoRelaunchState.busy&&!autoRelaunchState.error&&prefRev>=autoRelaunchState.revision){
+    autoRelaunchState.revision=prefRev;
+    autoRelaunchState.value=snapshot?.preferences?.autoRelaunchDebug===true;
+  }
+  const toggle=$('auto-relaunch-toggle');
+  if(toggle)toggle.checked=autoRelaunchState.value;
+  const statusKey=autoRelaunchState.error?'autoRelaunchSaveFailed':relaunchStatusKey;
+  const statusEl=$('relaunch-debug-status');
+  if(statusEl){
+    statusEl.hidden=!statusKey;
+    if(statusKey)statusEl.textContent=t(statusKey);else if(statusEl.textContent)statusEl.textContent='';
+  }
 }
 
 function updateCountdowns() {

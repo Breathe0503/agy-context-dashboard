@@ -150,7 +150,7 @@ export function makeRendererSource(i18n, widget, theme = '', owner = null, gener
 
 export class RuntimeUi {
   constructor({ snapshot, source, profile = platformPaths().profile,
-    dataDir, preferences, updater=null, owner=null, owns=async()=>true, enabled = async () => true, discover = discoverTargets, targetOrigin = target => new URL(target.url).origin, sourceForTarget = () => source, connect = (url, options) => new CdpConnection(url, options), interval = 3000 } = {}) {
+    dataDir, preferences, updater=null, owner=null, owns=async()=>true, enabled = async () => true, discover = discoverTargets, targetOrigin = target => new URL(target.url).origin, sourceForTarget = () => source, connect = (url, options) => new CdpConnection(url, options), interval = 3000, onMissingDebugPort = null } = {}) {
     this.snapshot = snapshot; this.source = source; this.profile = profile; this.dataDir = dataDir; this.enabled = enabled;
     this.discover = discover; this.connect = connect; this.interval = interval; this.sessions = new Map(); this.running = false;
     this.targetOrigin=targetOrigin;
@@ -159,11 +159,12 @@ export class RuntimeUi {
     this.preferences=preferences;
     this.updater=updater;
     this.owner=owner;this.owns=owns;
+    this.onMissingDebugPort=onMissingDebugPort;
     this.binding=owner?BINDING+'_'+owner.replaceAll('-',''):BINDING;
     this.rendererTheme={};
   }
-  async setHealth(state, message) {
-    this.health = { state, mode: 'runtime', message, windows: this.sessions.size, checkedAt: new Date().toISOString() };
+  async setHealth(state, message, extra = {}) {
+    this.health = { state, mode: 'runtime', ...(extra.reason ? { reason: extra.reason } : {}), message, windows: this.sessions.size, checkedAt: new Date().toISOString() };
     if (this.dataDir&&await this.owns()) { try { await mkdir(this.dataDir, { recursive: true }); await writeFile(join(this.dataDir, 'integration-state.json'), JSON.stringify(this.health)); } catch { /* Read-only state reporting must not crash collection. */ } }
   }
   async event(connection, message) {
@@ -218,7 +219,7 @@ export class RuntimeUi {
       }
       else if (input.type === 'preferences' && this.preferences) {
         const value=input.input;
-        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','usageScope'].includes(key)))throw new Error('Invalid preferences request');
+        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','usageScope','autoRelaunchDebug'].includes(key)))throw new Error('Invalid preferences request');
         result=Object.keys(value).length?await this.preferences.set(value):await this.preferences.get();
       }
       else if (input.type === 'diagnostic' && ['boot', 'mounted', 'mount-error'].includes(input.input?.stage)) {
@@ -333,7 +334,19 @@ export class RuntimeUi {
       const mounted=[...this.sessions.values()].some(c=>c.mounted);
       await this.setHealth(mounted ? 'mounted' : this.sessions.size ? 'waiting-for-composer' : 'waiting',
         mounted ? 'Dashboard attached to the conversation composer' : this.sessions.size ? 'Renderer connected; waiting for a conversation composer if needed' : 'Waiting for the app renderer');
-    } catch { await this.setHealth('reconnecting', 'Inline connection unavailable; the side panel remains available. Retrying automatically.'); }
+    } catch (error) {
+      const missingDebugPort = error?.code === 'ENOENT';
+      await this.setHealth(
+        'reconnecting',
+        missingDebugPort
+          ? 'Antigravity debug port unavailable; relaunch with remote debugging enabled or use the side panel.'
+          : 'Inline connection unavailable; the side panel remains available. Retrying automatically.',
+        missingDebugPort ? { reason: 'missing-debug-port' } : {},
+      );
+      if (missingDebugPort && !this.stopping && await this.owns()) {
+        try { await this.onMissingDebugPort?.(); } catch { /* Missing-port callback must not crash collection. */ }
+      }
+    }
     finally { this.busy = false; }
   }
   async detach(connection) {

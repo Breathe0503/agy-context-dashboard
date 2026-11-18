@@ -13,6 +13,7 @@ import { SidecarOwner } from '../../compat/sidecar-owner.mjs';
 import { readHostTheme } from '../../compat/host-theme.mjs';
 import { panelAppSource,panelPageSource } from './panel-source.mjs';
 import { AppUpdater, releaseRuntimeDirectory } from './updater.mjs';
+import { scheduleHostRelaunch } from '../../compat/debug-relaunch.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // The host starts this sidecar in sidecars/panel. Windows holds the process's
@@ -81,7 +82,22 @@ const integration = new RuntimeUi({
   source: makeRendererSource(readFileSync(join(HERE,'..','..','compat','i18n.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','inline-widget.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','theme.cjs'),'utf8'),ownership?.token,ownership?.startedAt,updateSource()+usageSource()),
   dataDir: paths.data,
   enabled: () => { const s = runtimeSettings(); return s.enabled !== false && s.inline !== false && s.mode !== 'legacy'; },
+  onMissingDebugPort: async () => {
+    if (ownership && !await ownership.isOwner()) return;
+    const prefs = await preferences.snapshot();
+    if (prefs?.autoRelaunchDebug !== true) return;
+    await relaunchHost('auto');
+  },
 });
+
+const relaunchHost = async reason => {
+  if (ownership && !await ownership.isOwner()) return { scheduled: false, reason: 'not-owner' };
+  return scheduleHostRelaunch({
+    dataDir: paths.data,
+    appResources: runtimeSettings().appResources,
+    reason,
+  });
+};
 
 if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   const { SidecarApp, Response } = await loadSidecarSdk();
@@ -96,6 +112,11 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   app.api('/api/integration', () => integration.health, 'GET');
   app.api('/api/preferences',()=>preferences.snapshot(),'GET');
   app.api('/api/preferences',async data=>{try{return await preferences.set(data);}catch{return new Response(JSON.stringify({error:'Language preference could not be saved'}),{status:400,contentType:'application/json'});}},'POST');
+  app.api('/api/relaunch-debug',async()=>{
+    if(ownership&&!await ownership.isOwner())return new Response(JSON.stringify({error:'Sidecar ownership changed'}),{status:403,contentType:'application/json'});
+    try{return await relaunchHost('manual');}
+    catch{return new Response(JSON.stringify({error:'Relaunch failed'}),{status:500,contentType:'application/json'});}
+  },'POST');
   app.run();
   integration.start();
   const shutdown=async()=>{
@@ -128,6 +149,17 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
         return;
       }
       res.writeHead(405);res.end();return;
+    }
+    if (url.pathname === '/api/relaunch-debug') {
+      const sameOrigin = req.headers.origin === `http://${host}`;
+      if (req.headers.origin && !sameOrigin) { res.writeHead(403); res.end(); return; }
+      res.setHeader('Cache-Control', 'no-store'); res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      if (req.method === 'POST' && sameOrigin) {
+        try { res.end(JSON.stringify(await relaunchHost('manual'))); }
+        catch { res.writeHead(500); res.end(JSON.stringify({ error: 'Relaunch failed' })); }
+        return;
+      }
+      res.writeHead(405); res.end(); return;
     }
     if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
     res.setHeader('Cache-Control', 'no-store');
