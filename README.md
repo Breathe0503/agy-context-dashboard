@@ -7,16 +7,16 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.9.1](https://img.shields.io/badge/version-0.9.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.2](https://img.shields.io/badge/version-0.9.2-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
-[![Antigravity 2.21.1 / 2.22.0](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.22.0-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
+[![Antigravity 2.21.1 / 2.22.0 / 2.33.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
 [看看效果](#看看效果) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-状态栏) · [开始安装](#安装) · [启用与停用](#可插拔) · [配套侧边栏](#配套侧边栏) · [兼容性](#兼容性) · [常见问题](#常见问题) · [English](README.en.md)
 
 </div>
 
-**v0.9.1：** 完整合入上游 `v0.9.1` 功能更新（[`#14`](https://github.com/wycocoyu/agy-context-dashboard/issues/14)），新增**额度消耗速率预测与周期 Token 估算**、**简约折线 / 像素猫双样式速度卡片**、**三段缓存占比条**、**「本机全部 / 当前账号」用量范围切换与未登录本地记账**、**多输入框多实例隔离与宿主字体同步**，以及**独立 Antigravity IDE 2.6.0（`agy --hub` + 嵌套 Webview）完整适配**；同时完整保留本仓 `v0.8.13`–`v0.8.16` 的 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 模型与上下文兼容、`word/` 与 `perplexity/*` 归一化、`3p` 统一 `Claude` 标签、`language_server.native` 发现及 `agy 1.5.x` CLI 适配。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.1) · [变更记录](CHANGELOG.md)。
+**v0.9.2：** 适配 **Antigravity 桌面端 `2.33.0+`** 默认关闭调试端口及 `quitAndInstall()` 更新重启丢失命令行参数的变更（[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)、[`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)）：新增跨平台调试启动器（`manage.py install --with-launcher` / `install-launcher` / `launch [--relaunch]`）、`missing-debug-port` 精准诊断，以及官方侧边栏一键重启与可选 `autoRelaunchDebug`（60 秒冷却保护）自动恢复；完整保留 `v0.9.1` 额度消耗速率预测、`minimal` / `cat` 双样式卡片、多输入框隔离、`IDE 2.6.0` 与 `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` / `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.2) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -64,7 +64,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.9.1.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.9.2.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带
@@ -89,11 +89,22 @@ Antigravity 扩展目前尚未兼容。详见 [IDE 安装、更新、诊断和�
 
 以下命令安装**桌面 App 适配器**；IDE 用户请使用[上方专用 VSIX 安装流程](#antigravity-ide)。
 
-适用于 **Windows / Linux / macOS 的 Antigravity 桌面 App 2.21.1 / 2.22.0 + Python 3.10+**。三系统共用同一个 release ZIP，无 pip / npm 第三方依赖，后台使用 App 自带 Node.js。各平台完整验证范围见 [COMPATIBILITY.md](COMPATIBILITY.md)。
+适用于 **Windows / Linux / macOS 的 Antigravity 桌面 App（兼容 2.21.1 / 2.22.0 及 2.33.0+）+ Python 3.10+**。三系统共用同一个 release ZIP，无 pip / npm 第三方依赖，后台使用 App 自带 Node.js。各平台完整验证范围见 [COMPATIBILITY.md](COMPATIBILITY.md)。
 
 Linux / macOS 使用 `python3 manage.py install` 或 `sh install.sh`，启停和卸载命令同样把 `python` 换成 `python3`。无需 sudo，不修改应用归档。
 
 > 模型选择旁的内嵌位置没有公开插件挂载接口。现在由标准 sidecar 通过已有本地渲染调试端口挂载控件，默认安装不再修改 `resources/app.asar`。未来宿主 DOM、调试通道、SDK 或统计接口改变时仍可能需要适配；原生侧面板作为备用入口。
+
+### Antigravity Desktop 2.33.0+ 调试端口要求
+
+从 **Antigravity Desktop 2.33.0** 起，宿主默认不再开启渲染器远程调试端口，并在未传 `--remote-debugging-port` 时主动清理 `<profile>/DevToolsActivePort`。此外，常规通过 Dock / 桌面快捷方式启动，以及应用内自动更新（`quitAndInstall()`）后的自动重启，都会丢失命令行参数。由于 macOS 受 `ElectronAsarIntegrity` 与 Hardened Runtime 代码签名保护，本插件不会篡改 `app.asar`，而是提供**可选桌面调试启动器**与**侧边栏一键重开**，以显式参数 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 启动宿主：
+
+- 安装插件时一并生成桌面调试启动器：`python3 manage.py install --with-launcher`（Windows 用 `python`），或随时单独执行 `python3 manage.py install-launcher`。
+- 生成的调试启动器路径：
+  - **macOS**：`~/Applications/Antigravity (Debug).app`（可直接拖入 Dock 使用）
+  - **Windows**：`%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd`
+  - **Linux**：`~/.local/share/applications/antigravity-pulse-debug.desktop`
+- 也可以在终端直接执行 `python3 manage.py launch`（如已在运行但不带调试端口，加 `--relaunch` 会先等待旧主进程完全退出后再重开）。
 
 ### 手动安装
 
@@ -102,10 +113,10 @@ Linux / macOS 使用 `python3 manage.py install` 或 `sh install.sh`，启停和
 ```powershell
 git clone https://github.com/wycocoyu/agy-context-dashboard.git
 cd agy-context-dashboard
-python manage.py install
+python manage.py install --with-launcher
 ```
 
-完全退出并重新打开 Antigravity。打开对话，模型选择右侧就会出现额度与速率条。PowerShell 用户也可以运行 `./install.ps1`。
+如使用 Antigravity 2.33.0+，请完全退出后改用生成的调试启动器（如 macOS 的 `~/Applications/Antigravity (Debug).app`）或执行 `python3 manage.py launch --relaunch` 打开；2.32 及更早版本仍可直接正常重开 Antigravity。打开对话后，模型选择右侧就会出现额度与速率条。PowerShell 用户也可以运行 `./install.ps1`（不需要生成桌面调试启动器时运行 `python manage.py install` 即可）。
 
 安装器复制并启用插件；迁移时只恢复经过完整校验的旧补丁。后台自动发现当前渲染端口并重新连接。**保留这个源码 / 解压目录**，以便启停、升级和卸载。
 
@@ -126,7 +137,9 @@ python manage.py install
    文件并校验 SHA256，将源码解压到固定目录。不要未经单独确认安装、升级、
    降级或替换 Antigravity 宿主。
 4. 使用 Python 3.10+（Linux/macOS 通常用 python3），按确认的目标执行：
-   - App：先 python manage.py status，再 python manage.py install。
+   - App：先 python manage.py status，再 python manage.py install（若宿主为
+     Antigravity 2.33.0+ 且用户希望保留原生桌面入口，追加 --with-launcher 生成
+     调试启动器，之后用调试启动器或 python3 manage.py launch --relaunch 启动）。
    - CLI：检查 agy --version 和 Node.js 20+，执行 python manage.py install-cli，
      不要执行 manage.py install。已有 statusLine 按 CLI 文档备份／覆盖流程处理。
      CLI 缓存率有适用条件，按 docs/CLI.md 核对实测模型／版本及不可用情况。
@@ -148,17 +161,25 @@ python manage.py install
 
 用右上角开关展开右侧辅助栏，在辅助栏顶部点击 **＋ → Extensions → Antigrative Dashboard**，即可打开插件的常驻仪表盘。速度、缓存、上下文和额度摘要持续显示；点击数据卡切换详情，鼠标移开不再隐藏。长内容在固定详情区内部滚动，也可用方向键／Home／End 选择标签页。输入框控件中打开的「用量统计」是另一个窗口。
 
+如果 Antigravity Desktop `2.33.0+` 通过常规 Dock / 快捷方式启动，或因 `quitAndInstall()` 自动更新重启而丢失了命令行参数，内嵌条会进入 `missing-debug-port` 诊断状态。此时侧边栏面板仍可直接打开，并在顶部提示条提供：
+
+- **一键以调试模式重开 Antigravity**：自动温和退出当前宿主、等待所有旧主进程退出后再以 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 拉起。
+- **自动重开开关（`autoRelaunchDebug`，默认关闭）**：按需勾选后保存至 `preferences.json`；当宿主自动更新重启后检测到缺少调试端口时，在 60 秒冷却防重入保护下自动触发重开。
+
 更新插件代码后请完整退出并重新打开 App，让采集进程加载新模块；重启前已经打开的面板可能仍由旧采集进程提供页面。
 
-在项目目录运行：
+在项目目录运行（Linux / macOS 将 `python` 替换为 `python3`）：
 
 | 操作 | 命令 | 行为 |
 | --- | --- | --- |
-| 安装 / 更新插件 | `python manage.py install` | 复制运行时适配器，保留其他配置和历史统计 |
+| 安装 / 更新插件 | `python manage.py install` | 复制运行时适配器，保留其他配置和历史统计；追加 `--with-launcher` 一并生成调试启动器 |
+| 安装调试启动器 | `python3 manage.py install-launcher` | 生成平台可选调试启动器（自动注入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`） |
+| 卸载调试启动器 | `python3 manage.py uninstall-launcher` | 仅移除校验归属标记后的本插件调试启动器 |
+| 调试模式启动 / 重开 | `python3 manage.py launch` | 带调试端口参数启动桌面端；追加 `--relaunch` 会先关闭旧主进程再重开 |
 | 停用 | `python manage.py disable` | 关闭插件，缩略条在下一次轮询隐藏 |
 | 启用 | `python manage.py enable` | 启动插件并重新显示控件 |
-| 查看状态 | `python manage.py status` | 检查安装、开关和控件连接健康状态 |
-| 卸载 | `python manage.py uninstall` | 移除本插件目录，保留历史统计与旧版备份 |
+| 查看状态 | `python manage.py status` | 检查安装、开关、控件连接状态，以及 `debugPortAvailable`、`launcher` 与 `debugPortHint` |
+| 卸载 | `python manage.py uninstall` | 移除本插件目录及由本插件创建的调试启动器，保留历史统计与旧版备份 |
 
 首次安装、更新插件代码或卸载之后需要完整重启 App。启停开关不需要重装或再次修改归档。`./uninstall.ps1` 等同于卸载命令。
 
@@ -267,7 +288,7 @@ python3 manage.py install
 
 <details><summary><strong>安装后没出现？</strong></summary>
 
-确认已完全退出主进程再启动 App，不只是关闭窗口。执行 `python manage.py status`；检查 `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` 和 `data/integration-state.json`。日志不要直接公开，其中宿主产生的日志可能含本机信息。
+确认已完全退出主进程再启动 App，不只是关闭窗口。执行 `python3 manage.py status`（Windows 用 `python`），查看 `debugPortAvailable`、`inlineIntegration` 与 `debugPortHint`；若为 Antigravity 2.33.0+ 且提示缺少调试端口（`missing-debug-port`），请改用 `python3 manage.py install-launcher` 生成的调试启动器打开（如 macOS 的 `~/Applications/Antigravity (Debug).app`），执行 `python3 manage.py launch --relaunch`，或在侧边栏 **＋ → Extensions → Antigrative Dashboard** 中点击一键重开按钮。也可检查 `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` 和 `data/integration-state.json`。日志不要直接公开，其中宿主产生的日志可能含本机信息。
 
 </details>
 
@@ -285,7 +306,7 @@ python3 manage.py install
 
 <details><summary><strong>升级 Antigravity 后怎么办？</strong></summary>
 
-App 更新不会覆盖用户插件目录中的适配器。后台重新发现端口、凭据和渲染窗口，并自动重连。未显示时检查 `python manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
+App 更新不会覆盖用户插件目录中的适配器。在 2.32 及更早版本中，后台会自动重新发现端口、凭据和渲染窗口并重连。在 **Antigravity 2.33.0+** 中，应用内自动更新调用 `quitAndInstall()` 重启时会像普通 Dock / 快捷方式一样丢失 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数：此时可在侧边栏面板（**＋ → Extensions → Antigrative Dashboard**）点击一键调试重开，或运行 `python3 manage.py launch --relaunch` / 重新打开已生成的调试启动器；如果希望更新重启后自动恢复，也可在侧边栏按需开启可选的 `autoRelaunchDebug` 开关。未显示时检查 `python3 manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
 
 </details>
 

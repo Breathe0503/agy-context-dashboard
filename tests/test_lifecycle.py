@@ -168,4 +168,24 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(cli_mod.read(cli_root / 'installation.json')['version'], expected)
             self.assertFalse(cli_mod.inspect_status(home, ROOT)['stale'])
 
+    def test_status_reports_debug_port_and_launcher_diagnostics(self):
+        manager.install(panel_only=True)
+        out = io.StringIO()
+        with patch('sys.stdout', out):
+            manager.status()
+        parsed = json.loads(out.getvalue())
+        self.assertFalse(parsed['debugPortAvailable'])
+        self.assertFalse(parsed['launcher']['installed'])
+        self.assertIn('debugPortHint', parsed)
+        self.assertIn('--remote-debugging-port=0 --remote-debugging-address=127.0.0.1', parsed['debugPortHint'])
+        profile = manager._current_profile()
+        profile.mkdir(parents=True, exist_ok=True)
+        (profile / 'DevToolsActivePort').write_text('9222\n/devtools/browser/1\n', encoding='utf-8')
+        out_ready = io.StringIO()
+        with patch('sys.stdout', out_ready):
+            manager.status()
+        parsed_ready = json.loads(out_ready.getvalue())
+        self.assertTrue(parsed_ready['debugPortAvailable'])
+        self.assertNotIn('debugPortHint', parsed_ready)
+
 if __name__ == '__main__': unittest.main()

@@ -154,3 +154,20 @@ test('usageScope persists independently, defaults cleanly and validates choices'
   fail=true;await scopeCtrl.choose('account');assert.equal(scopeCtrl.scope,'account');assert.equal(scopeCtrl.error,true);
   scopeCtrl.dispose();
 });
+
+test('autoRelaunchDebug is omitted when unset, validates booleans, and persists independently',async t=>{
+  const {file,store}=await fixture(t);
+  const initial=await store.get();
+  assert.equal(Object.hasOwn(initial,'autoRelaunchDebug'),false);
+  await store.set({language:'en'});
+  assert.equal(Object.hasOwn(JSON.parse(await readFile(file,'utf8')),'autoRelaunchDebug'),false);
+  for(const bad of [{autoRelaunchDebug:'true'},{autoRelaunchDebug:1},{autoRelaunchDebug:null},{autoRelaunchDebug:{}}])await assert.rejects(store.set(bad));
+  await store.set({autoRelaunchDebug:true});
+  assert.equal((await new PreferencesStore({file}).get()).autoRelaunchDebug,true);
+  await store.set({language:'zh-CN'});
+  assert.equal((await store.get()).autoRelaunchDebug,true);
+  await store.set({autoRelaunchDebug:false});
+  assert.equal((await new PreferencesStore({file}).get()).autoRelaunchDebug,false);
+  await writeFile(file,JSON.stringify({schema:1,language:'en',autoRelaunchDebug:'yes',revision:5}));
+  assert.equal(Object.hasOwn(await store.get(),'autoRelaunchDebug'),false);
+});
