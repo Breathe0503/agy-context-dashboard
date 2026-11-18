@@ -91,6 +91,16 @@ Available in **v0.6.0**: an independent adapter for the official Antigravity CLI
 
 ## Install
 
+### 1-Line Agent Install (Recommended)
+
+No manual commands needed. Paste this single line into Antigravity to auto-detect your host (Desktop App / CLI / Standalone IDE) and install:
+
+```text
+Install and enable this Antigravity plugin for me: https://github.com/wycocoyu/agy-context-dashboard
+```
+
+For strict step-by-step verification and SHA256 checks, expand the full agent prompt below.
+
 The commands below install the **desktop App adapter**. IDE users should use the [separate VSIX instructions above](#antigravity-ide).
 
 Supported: **Windows, Linux and macOS; Antigravity desktop App (2.21.1 / 2.22.0 and 2.33.0+); Python 3.10+**. The same release ZIP works on all three systems. No third-party pip or npm packages are needed to install or run the plugin. The sidecar uses the app's bundled Node.js runtime. See [COMPATIBILITY.md](COMPATIBILITY.md) for the per-platform verification scope.

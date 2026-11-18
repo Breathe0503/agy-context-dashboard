@@ -87,6 +87,16 @@ Antigravity 扩展目前尚未兼容。详见 [IDE 安装、更新、诊断和�
 
 ## 安装
 
+### 一句话让 Antigravity 自动安装（推荐）
+
+不用自己敲命令，直接把下面这句话复制发给 Antigravity 即可自动识别当前宿主（桌面 App / CLI / 独立 IDE）并完成安装：
+
+```text
+帮我安装并启用这个 Antigravity 插件：https://github.com/wycocoyu/agy-context-dashboard
+```
+
+如需严格约束安装步骤与 SHA256 校验，可展开下方折叠块里的完整提示词。
+
 以下命令安装**桌面 App 适配器**；IDE 用户请使用[上方专用 VSIX 安装流程](#antigravity-ide)。
 
 适用于 **Windows / Linux / macOS 的 Antigravity 桌面 App（兼容 2.21.1 / 2.22.0 及 2.33.0+）+ Python 3.10+**。三系统共用同一个 release ZIP，无 pip / npm 第三方依赖，后台使用 App 自带 Node.js。各平台完整验证范围见 [COMPATIBILITY.md](COMPATIBILITY.md)。
