@@ -7,7 +7,7 @@
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
 
-[![Version 0.9.2](https://img.shields.io/badge/version-0.9.2-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.3](https://img.shields.io/badge/version-0.9.3-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.22.0 / 2.33.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -16,7 +16,14 @@ Keep the summary visible. Hover for the details.
 
 </div>
 
-**v0.9.2:** Support **Antigravity Desktop `2.33.0+`** opt-in `--remote-debugging-port` and `quitAndInstall()` post-update relaunch ([`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17), [`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)): adds the cross-platform debug launcher (`manage.py install --with-launcher` / `install-launcher` / `launch [--relaunch]`), `missing-debug-port` diagnostics, and a Side Panel 1-click relaunch button plus opt-in `autoRelaunchDebug` toggle (60s cooldown guard) while retaining all `v0.9.1` and `v0.8.13`–`v0.8.16` quota-pace, `minimal`/`cat`, multi-composer, IDE `2.6.0`, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.2) · [Changelog](CHANGELOG.md).
+> [!IMPORTANT]
+> **Antigravity Desktop `2.33.0+` Startup & Post-Update Auto-Injection Note ([`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19), [`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17))**
+>
+> - **Why `2.33.0+` drops the debugging port**: Starting in Antigravity `2.33.0`, `--remote-debugging-port` is CLI opt-in only and `<profile>/DevToolsActivePort` is deleted when absent; in-app updates (`quitAndInstall()`) also drop CLI flags on restart; and `app.asar` is sealed by `ElectronAsarIntegrity` and Hardened Runtime signing, so this plugin leaves `app.asar` untouched.
+> - **Enabled by default in `v0.9.3+` (opt-out)**: With inline desktop integration active, whenever the sidecar boots after a standard Dock/shortcut launch or an in-app update restart and sees `missing-debug-port`, **automatic debug relaunch (`autoRelaunchDebug`) is now enabled by default**—gracefully relaunching Antigravity once with `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` (protected by a 60s cooldown and PID lock) so the inline strip attaches automatically.
+> - **Zero-relaunch launcher & opt-out control**: Use the generated debug launcher (`manage.py install --with-launcher`: `~/Applications/Antigravity (Debug).app` on macOS, `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` on Windows, `~/.local/share/applications/antigravity-pulse-debug.desktop` on Linux) to start with zero extra restarts, or uncheck **Auto-relaunch when debug port is missing** in the official Side Panel (**+ → Extensions → Antigrative Dashboard**) to persist `autoRelaunchDebug: false`.
+
+**v0.9.3:** Enable automatic missing-debug-port recovery (`autoRelaunchDebug`) **by default (opt-out)** for **Antigravity Desktop `2.33.0+`** inline installs and document the `2.33.0+` behavior at the top of the README ([`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)), keeping both direct launches and post-update restarts automatically injected while retaining all `v0.9.2` debug launchers and `v0.9.1` / `v0.8.13`–`v0.8.16` quota-pace, `minimal`/`cat`, multi-composer, IDE `2.6.0`, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.3) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -68,7 +75,7 @@ Keep the summary visible. Hover for the details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-0.9.2.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-0.9.3.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
@@ -173,7 +180,7 @@ Open the right auxiliary pane using its top-right toggle, then choose **+ → Ex
 If Antigravity Desktop `2.33.0+` was launched from a regular Dock/shortcut icon—or lost CLI flags after an automatic `quitAndInstall()` update restart—the inline strip enters the `missing-debug-port` diagnostic state. The Side Panel stays open and displays:
 
 - **1-click Relaunch with Debug Port**: gracefully quits the host, waits until all old main PIDs exit, and relaunches Antigravity with `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`.
-- **Optional `autoRelaunchDebug` toggle (off by default)**: persisted in `preferences.json`; when enabled, it automatically triggers a debug relaunch (protected by a 60s cooldown guard) if `missing-debug-port` is detected after a host update restart.
+- **Auto-relaunch toggle (`autoRelaunchDebug`, enabled by default)**: active for inline installs unless unchecked (`autoRelaunchDebug: false` saved in `preferences.json`); when a direct Dock/shortcut launch or `quitAndInstall()` update restart is missing the debug port, it automatically triggers a debug relaunch (protected by a 60s cooldown guard).
 
 Fully quit and reopen the App after updating plugin code so its collector loads the new modules. A panel that was already open may still be served by the previous collector until restart.
 
@@ -305,7 +312,7 @@ The service returns independent quota groups: `Gemini`, dedicated `Argon` weekly
 
 <details><summary><strong>What happens after an Antigravity update?</strong></summary>
 
-App updates cannot overwrite the runtime adapter in the user plugin directory. On 2.32 and earlier, it rediscovers ports, credentials and the renderer automatically. On **Antigravity 2.33.0+**, in-app updates restart via `autoUpdater.quitAndInstall()`, which drops `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` just like regular Dock or shortcut launches: use the 1-click relaunch button in the Side Panel (**+ → Extensions → Antigrative Dashboard**), run `python3 manage.py launch --relaunch`, or reopen the generated debug launcher (and optionally enable `autoRelaunchDebug` in the Side Panel to recover automatically after future host updates). If the inline strip is missing, inspect `python3 manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
+App updates cannot overwrite the runtime adapter in the user plugin directory. On 2.32 and earlier, it rediscovers ports, credentials and the renderer automatically. On **Antigravity 2.33.0+**, in-app updates restart via `autoUpdater.quitAndInstall()`, which drops `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` just like regular Dock or shortcut launches: starting in `v0.9.3`, `autoRelaunchDebug` is enabled by default for inline installs so the sidecar automatically relaunches Antigravity once with debug flags and reattaches. If you turn `autoRelaunchDebug` off in the Side Panel (**+ → Extensions → Antigrative Dashboard**), you can still recover via the 1-click relaunch button, `python3 manage.py launch --relaunch`, or the generated debug launcher. If the inline strip is missing, inspect `python3 manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
 
 </details>
 

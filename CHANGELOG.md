@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3 — 2026-11-18
+
+- **Default-on missing-debug-port auto-recovery (`sidecars/panel/main.mjs`, `sidecars/panel/app.js`, [`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)):** Switch `autoRelaunchDebug` from opt-in to opt-out (`!prefs?.error && prefs?.autoRelaunchDebug !== false`) for active inline desktop integrations so both regular launches and `quitAndInstall()` post-update restarts on Antigravity Desktop `2.33.0+` automatically relaunch with `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` unless explicitly unchecked (`autoRelaunchDebug: false`).
+- **Top-of-README notice (`README.md`, `README.en.md`, `COMPATIBILITY.md`):** Add a prominent top notice explaining why Antigravity `2.33.0+` drops `--remote-debugging-port` on regular launches and `quitAndInstall()`, how default-on recovery works (60s cooldown + PID dedupe), and how to use `Antigravity (Debug)` for zero-relaunch startup or disable auto-relaunch in the Side Panel.
+
 ## 0.9.2 — 2026-11-17
 
 - **Antigravity Desktop `2.33.0+` opt-in debug port launcher (`compat/desktop_launcher.py`, `manage.py`, [`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17), [`#18`](https://github.com/wycocoyu/agy-context-dashboard/pull/18)):** Add `--with-launcher` to `manage.py install` plus `install-launcher`, `uninstall-launcher`, and `launch [--relaunch]` subcommands generating ownership-marked debug launchers (`~/Applications/Antigravity (Debug).app` on macOS, `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` on Windows, `~/.local/share/applications/antigravity-pulse-debug.desktop` on Linux) that pass `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` without touching `app.asar` (`ElectronAsarIntegrity` preserved). Extend `manage.py status` with `debugPortAvailable`, `launcher`, and `debugPortHint`.
