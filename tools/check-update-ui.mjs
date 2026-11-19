@@ -46,8 +46,9 @@ try{
  assert.equal(await page.locator('#update-action').isVisible(),false);
  await page.locator('#update-close').click();await page.locator('[data-card=context]').click();
  await page.locator('#card-language-zh-tw').click();await page.locator('[data-card=context]').click();
- const footer=await page.locator('.card-language').evaluate(row=>{const r=row.getBoundingClientRect();return {overflow:row.scrollWidth>row.clientWidth,inside:[...row.querySelectorAll('button')].filter(b=>b.getClientRects().length).every(b=>{const x=b.getBoundingClientRect();return x.left>=r.left&&x.right<=r.right+.5;})};});
- assert.equal(footer.overflow,false);assert.equal(footer.inside,true,'Three languages and update button fit the context footer');
+ const footer=await page.locator('.card-language').evaluate(row=>{const r=row.getBoundingClientRect(),gh=row.querySelector('#github-repo-link'),upd=row.querySelector('#check-update');return {overflow:row.scrollWidth>row.clientWidth,inside:[...row.querySelectorAll('button,a')].filter(b=>b.getClientRects().length).every(b=>{const x=b.getBoundingClientRect();return x.left>=r.left&&x.right<=r.right+.5;}),githubHref:gh?.getAttribute('href'),githubTarget:gh?.getAttribute('target'),githubRel:gh?.getAttribute('rel'),githubLeftOfUpdate:!!(gh&&upd&&gh.getBoundingClientRect().right<=upd.getBoundingClientRect().left)};});
+ assert.equal(footer.overflow,false);assert.equal(footer.inside,true,'Three languages, GitHub link and update button fit the context footer');
+ assert.equal(footer.githubHref,'https://github.com/wycocoyu/agy-context-dashboard');assert.equal(footer.githubTarget,'_blank');assert.equal(footer.githubRel,'noopener noreferrer');assert.equal(footer.githubLeftOfUpdate,true);
  assert.equal(await page.locator('#check-update').textContent(),'檢查更新');
  await page.locator('#check-update').click();await page.locator('#update-status').filter({hasText:'已是最新版本'}).waitFor();
  assert.equal(await page.locator('#update-title').textContent(),'外掛更新');assert.equal(await page.locator('#update-close').getAttribute('aria-label'),'關閉');
