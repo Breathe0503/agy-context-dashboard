@@ -84,17 +84,10 @@ function renderQuota(window, prefix, now = Date.now() + serverOffset) {
   const remaining = language.quotaRemaining(bucket);
   $(`${prefix}-balance`).textContent = bucket?.disabled?t('unavailableQuota'):percent(remaining);
   const forecast = language.quotaForecast(bucket, window, now);
-  const barBg = remaining !== null && remaining < .05 ? 'var(--pulse-danger)' : (remaining !== null && remaining < .2) || forecast?.willExhaust ? 'var(--pulse-warning)' : '';
-  const fill = $(`${prefix}-fill`), projectedFill = $(`${prefix}-projected-fill`), track = $(`${prefix}-track`);
-  // Solid fill is always the real balance; the hatched tail marks what the
-  // current pace is expected to consume before the window resets.
-  const hatch = Boolean(forecast?.forecastReady && remaining !== null && forecast.projectedRemaining < remaining - 0.005);
+  const barBg = remaining !== null && remaining < .05 ? 'var(--pulse-danger)' : '';
+  const fill = $(`${prefix}-fill`), track = $(`${prefix}-track`);
   fill.style.width = typeof remaining === 'number' ? `${remaining * 100}%` : '0%';
   fill.style.background = barBg;
-  if (projectedFill) {
-    projectedFill.style.left = hatch ? `${forecast.projectedRemaining * 100}%` : '0%';
-    projectedFill.style.width = hatch ? `${(remaining - forecast.projectedRemaining) * 100}%` : '0%';
-  }
   const forecastRow = $(`${prefix}-forecast`), forecastMain = $(`${prefix}-forecast-text`);
   if (forecastRow && forecastMain) {
     const showForecast = Boolean(forecast && typeof forecast.timeRemaining === 'number');
@@ -256,7 +249,7 @@ function render() {
         if (valEl && valEl.textContent !== val) valEl.textContent = val;
         if (fillEl) {
           const nextWidth = typeof remaining === 'number' ? `${remaining * 100}%` : '0%';
-          const nextBg = remaining !== null && remaining < .05 ? 'var(--pulse-danger)' : remaining !== null && remaining < .2 ? 'var(--pulse-warning)' : '';
+          const nextBg = remaining !== null && remaining < .05 ? 'var(--pulse-danger)' : '';
           if (fillEl.style.width !== nextWidth) fillEl.style.width = nextWidth;
           if (fillEl.style.background !== nextBg) fillEl.style.background = nextBg;
         }
