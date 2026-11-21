@@ -7,7 +7,7 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文窗口、Token 速率、缓存命中率与额度仪表盘；悬停上下文，一并查看上下文、5 小时和周额度详情。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.9.6](https://img.shields.io/badge/version-0.9.6-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.7](https://img.shields.io/badge/version-0.9.7-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -25,7 +25,7 @@
 > - **`v0.9.5+` 默认开启启动期自动重拉恢复（涵盖 macOS 点原图标打开与三端更新重启后）**：内嵌模式下默认启用 `autoRelaunchDebug`。当插件在 Sidecar 启动后前 `20` 秒内检测到缺少调试端口（如 macOS 直接点原版图标，或三端应用内更新重启丢参后），会自动温和重拉一次带调试参数的宿主并恢复状态栏；同一组 PID 永不重复，不同 PID 在 `60` 秒滑窗内最多允许 `2` 次（间距 `>= 5` 秒，防循环熔断），超过启动 `20` 秒绝不在对话途中杀窗。
 > - **可选零二次重启直启与关闭开关**：macOS 日常使用通过 `python3 manage.py install --with-launcher` 生成的 `~/Applications/Antigravity (Debug).app`（或终端 `python3 manage.py launch`）打开即可零重开秒注入；如需关闭自动重拉，在官方侧边栏（**＋ → Extensions → Antigrative Dashboard**）取消勾选「缺少调试端口时自动重启恢复（如更新后）」即可。
 
-**v0.9.6：** 新增 **Antigravity Desktop `2.34.0+` daemon 凭据发现兼容**（修复 `language_server` 移除 `--csrf_token` 命令行参数后的「本地检测凭据不可用」问题），并合并社区上游 `v0.9.9`–`v0.9.10` 更新（上下文压缩次数 `🗜` 展示、`>= 75%` / `>= 90%` 警戒变色、15s 租约存活直续与报错脱敏收敛、`#quota-error` 单栏去重提示），完整保留 `v0.9.5` 默认 `autoRelaunchDebug` 恢复、`v0.9.2` 调试启动器、`IDE 2.6.0`、`Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 与 `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.6) · [变更记录](CHANGELOG.md)。
+**v0.9.7：** 新增**非侵入式更新提醒**（[`#32`](https://github.com/wycocoyu/agy-context-dashboard/issues/32)）：后台静默检查新版本（启动时 + 每 `6` 小时），有新版本时内嵌栏上下文胶囊亮绿点（纯图标模式依旧可见）、详情弹窗「检查更新」旁附绿色版本徽标，已是最新自动隐藏，不打断对话；更新说明改为圆点列表并附「完整说明 ↗」直达 Release，同时修复 IDE Trusted Types 下 GitHub 仓库图标渲染。完整保留 `v0.9.6` `2.34.0+` daemon 凭据兼容、`v0.9.5` 默认 `autoRelaunchDebug` 恢复、`v0.9.2` 调试启动器、`IDE 2.6.0`、`Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 与 `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.7) · [变更记录](CHANGELOG.md)。
 
 ## 看看效果
 
@@ -73,7 +73,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.9.6.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-0.9.7.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.7 — 2026-11-20
+
+- **Non-intrusive update availability badges (`sidecars/panel/updater.mjs`, `sidecars/panel/main.mjs`, `compat/inline-widget.cjs`, `compat/update-ui.cjs`, [`#32`](https://github.com/wycocoyu/agy-context-dashboard/issues/32)):**
+  - Add `checkPassive()` (boot + every `6h`, shared dedupe with manual checks and a `6h` minimum interval) so the sidecar learns about new releases without opening the update dialog; results surface through `metrics` as a passive summary and clear automatically once installed or when the user checks manually.
+  - Show a green dot on the inline context chip while an update is available (still visible in icons-only mode), append the target version to the chip tooltip, and re-render live when update state changes.
+  - Show a green `v{latest}` badge beside **Check for updates** in the details dialog, hidden automatically when the plugin is already current, while keeping the manual **Re-check** and **Update** actions intact.
+  - Render dialog release notes as a bulleted list with CJK-aware weight clipping and a "Full notes ↗" link to the GitHub release.
+- **Trusted Types-safe GitHub repo SVG (`compat/inline-widget.cjs`):** Force `stroke: none; stroke-width: 0` on the footer repo link SVG so the GitHub mark renders under the IDE's Trusted Types / SVG styling constraints.
+
 ## 0.9.6 — 2026-11-20
 
 - **Antigravity Desktop `2.34.0+` daemon CSRF credential discovery (`sidecars/panel/discovery.mjs`, `sidecars/panel/client.mjs`, `ide/client.mjs`):**
