@@ -812,10 +812,12 @@ module.exports = function installAgPulseInlineWidget() {
     updateGuide();
     position();
     if(name==='context'||name==='quota')void hoverQuotaRefresh();
+    if(name==='context')contextDetailRefresh();
   }
   function hoverChip(name){
     clearTimeout(hoverTimer);
     if(name==='context'||name==='quota')void hoverQuotaRefresh();
+    if(name==='context')contextDetailRefresh();
     if(isWarm()){
       clearTimeout(openTimer);openTimer=null;
       show(name);
@@ -1016,6 +1018,10 @@ module.exports = function installAgPulseInlineWidget() {
       .usage-summary{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 auto}.usage-summary>div{min-width:0}.usage-label{font-size:11px;line-height:1.25;color:var(--pulse-muted);white-space:nowrap}.usage-val{display:flex;align-items:baseline;gap:2px;white-space:nowrap;line-height:1.3}.usage-summary strong{font-size:13px;font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums}.usage-unit{font-size:11px;color:var(--pulse-muted)}
       #open-usage{display:inline-flex;align-items:center;gap:4px;flex:none;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--pulse-accent);font:inherit;font-size:11px;font-weight:550;white-space:nowrap;transition:background-color 120ms ease,transform 120ms ease}#open-usage:hover{background:var(--pulse-hover)}#open-usage:active{transform:scale(.98)}#open-usage svg{width:12px;height:12px;flex:none}
       .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.context-hero-meta{display:inline-flex;align-items:baseline;gap:6px;min-width:0}.context-compaction-pill{padding:1px 5px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums}.context-compaction-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .context-composition{margin-top:8px;padding-top:8px;border-top:1px solid var(--pulse-separator)}.context-composition[hidden]{display:none}.composition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:500;color:var(--pulse-label)}.composition-head .tag{font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
+      .composition-meter{display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin-top:6px}.composition-meter i{display:block;height:100%;min-width:0}
+      .composition-seg-customization{background:var(--pulse-emphasis)}.composition-seg-user{background:var(--pulse-accent)}.composition-seg-thinking{background:var(--pulse-warning)}.composition-seg-reply{background:var(--pulse-success)}.composition-seg-assistant{background:var(--pulse-ring)}.composition-seg-tool{background:var(--pulse-muted)}.composition-seg-system{background:color-mix(in srgb,var(--pulse-muted) 45%,transparent)}.composition-seg-remaining{background:var(--pulse-track)}
+      #context-trend-svg{display:block;width:100%;height:36px;margin-top:6px}.trend-line{fill:none;stroke:var(--pulse-accent);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}.trend-marker{stroke:var(--pulse-warning);stroke-width:1;stroke-dasharray:2 2}
       .quota-bar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--pulse-separator)}.quota-actions{display:flex;align-items:center;gap:6px}
       .quota-details{margin-top:7px}.quota-section+.quota-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--pulse-separator)}.quota-section[hidden]+.quota-section{margin-top:0;padding-top:0;border-top:0}
       .quota-row-top{display:flex;align-items:baseline;gap:6px;font-size:11px}.quota-name{display:inline-flex;align-items:center;gap:5px;color:var(--pulse-label);margin-right:auto;min-width:0}.quota-meta{display:inline-flex;align-items:baseline;gap:4px;font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}.quota-row-top strong{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;flex:none}.quota-track{margin:6px 0 0}.quota-section .footnote{margin-top:5px}.quota-error{color:var(--pulse-warning);margin-top:7px}
@@ -1074,6 +1080,8 @@ module.exports = function installAgPulseInlineWidget() {
       <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span></span><span class="tag" id="context-model">—</span></div>
       <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span id="context-tokens">—</span></span></div>
       <div class="track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
+      <section class="context-composition" id="context-composition" hidden><div class="composition-head"><span data-i18n="compositionTitle">Context composition</span><span class="tag" id="composition-source"></span></div><div class="composition-meter" id="composition-meter" aria-hidden="true"></div></section>
+      <section class="context-composition" id="context-trend-section" hidden><div class="composition-head"><span data-i18n="trendTitle">Context trend</span><span class="tag" id="trend-sample"></span></div><svg id="context-trend-svg" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true"></svg></section>
       <div class="quota-bar-head"><div class="quota-spotlight-head" id="active-quota-group"><i class="spot-dot" id="spot-dot" aria-hidden="true"></i><strong class="spot-name" id="active-group-name">—</strong></div><div class="quota-actions"><span class="refresh quota-spinner" id="quota-spinner" role="status" data-i18n-aria="refreshing" aria-label="Refreshing…" aria-busy="false" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.8 6a5.1 5.1 0 1 0 .1 4M12.8 2.5V6H9.2"/></svg></span><span class="pace-badge" id="quota-pace" hidden><i class="pace-dot" aria-hidden="true"></i><span id="quota-pace-text"></span></span></div></div>
       <div class="quota-details">${['five','week'].map(name=>`<section class="quota-section" id="${name}-quota-section" data-i18n-aria="${name}" aria-label="${t(name)}"><div class="quota-row-top"><span class="quota-name">${svg(name)}<span id="${name}-quota-title" data-i18n="${name}">${t(name)}</span></span><span class="quota-meta"><span class="reset" id="${name}-countdown">—</span></span><strong id="${name}-balance">—</strong></div><div class="track quota-track" role="progressbar" data-i18n-aria="${name}" id="${name}-track"><i class="track-actual" id="${name}-fill"></i></div><div class="quota-forecast" id="${name}-forecast" hidden><span class="forecast-main" id="${name}-forecast-text"></span></div><div class="quota-usage" id="${name}-usage" hidden><span data-i18n="quotaWindowUsage">${t('quotaWindowUsage')}</span><span class="quota-usage-val" id="${name}-usage-value">—</span></div><p class="footnote" id="${name}-note" hidden></p></section>`).join('')}</div>
       <p class="footnote quota-error" id="quota-error" hidden></p>
@@ -1245,6 +1253,7 @@ module.exports = function installAgPulseInlineWidget() {
     style($('context-fill'),'width',hasCapacity?`${Math.min(1,context.usedFraction)*100}%`:'0%');
     style($('context-fill'),'background',hasCapacity&&context.usedFraction>=.9?'var(--pulse-danger)':hasCapacity&&context.usedFraction>=.75?'var(--pulse-warning)':'');
     attribute($('context-track'),'aria-valuenow',hasCapacity?Math.min(100,context.usedFraction*100):null);attribute($('context-track'),'aria-valuemin','0');attribute($('context-track'),'aria-valuemax','100');
+    renderComposition(speed?.contextComposition);
     const isFiniteRate=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
     const stripRate=!speed||speed.latestRateStatus==='legacy'?null:speed.latestRateStatus!=='unreliable'&&isFiniteRate(speed.latestTps)?speed.latestTps:isFiniteRate(speed.tps)?speed.tps:null;
     const isRunning=Boolean(speed&&/RUNNING/i.test(String(speed.status||'')));
@@ -1495,6 +1504,71 @@ module.exports = function installAgPulseInlineWidget() {
       finally{if(hoverQuotaRequest===request){hoverQuotaRequest=null;if(!manualRequest)setQuotaBusy(false);}}
     })();
     return request.promise;
+  }
+  const COMPOSITION_LABELS={customization:'compositionCustomization',user:'compositionUser',thinking:'compositionThinking',reply:'compositionReply',assistant:'compositionAssistant',tool:'compositionTool',system:'compositionSystem',remaining:'compositionRemaining'};
+  // The panel side computes every number (issue #34); the widget only maps
+  // segment ids to labels, colors and titles. The composition bar matches the
+  // host usage percent because dynamic estimates are scaled panel-side.
+  function renderComposition(composition){
+    const section=$('context-composition'),trendSection=$('context-trend-section');
+    const usable=Boolean(composition&&Number.isSafeInteger(composition.usedTokens)&&Number.isSafeInteger(composition.maxTokens)&&composition.maxTokens>0&&Array.isArray(composition.segments)&&composition.segments.some(segment=>segment.id!=='remaining'));
+    if(section)hidden(section,!usable);
+    const trend=composition?.trend,trendOk=Boolean(trend&&Array.isArray(trend.points)&&trend.points.length>=2);
+    if(trendSection)hidden(trendSection,!trendOk);
+    if(usable&&section){
+      const injection=composition.customization?.available?t('compositionCustomizationValue',{tokens:compact(composition.customization.tokens)}):t('compositionCustomizationValue',{tokens:'—'});
+      const sourceTag=composition.source==='transcript'?t('compositionSourceTranscript'):composition.source==='steps'?t('compositionSourceSteps'):'';
+      text('composition-source',[injection,sourceTag].filter(Boolean).join(' · '));
+      attribute(section,'title',t('compositionBasis',{source:sourceTag||'—'}));
+      const meter=$('composition-meter'),sig=JSON.stringify(composition.segments);
+      if(meter&&meter.dataset.signature!==sig){
+        meter.dataset.signature=sig;
+        meter.replaceChildren(...composition.segments.filter(segment=>segment.fraction>0&&segment.tokens>0).map(segment=>{
+          const bar=document.createElement('i');bar.className=`composition-seg-${segment.id}`;bar.style.width=`${Math.min(100,segment.fraction*100)}%`;
+          const budget=segment.id==='customization'&&composition.customization?.budget?` / ${compact(composition.customization.budget)}`:'';
+          attribute(bar,'title',`${t(COMPOSITION_LABELS[segment.id]||'compositionTitle')}: ${count(segment.tokens)}${budget} ${tokUnit(segment.tokens)}`);
+          return bar;
+        }));
+      }
+    }
+    if(!trendSection||!trendOk)return;
+    const points=trend.points,W=280,H=36,P=3,max=Math.max(1,...points.map(point=>point.inputTokens||0));
+    const x=index=>P+(W-2*P)*(index/(points.length-1)),y=value=>H-P-(H-2*P)*((value||0)/max);
+    const svg=$('context-trend-svg'),sig=JSON.stringify([points.length,trend.markers]);
+    if(svg&&svg.dataset.signature!==sig){
+      svg.dataset.signature=sig;
+      const markers=(Array.isArray(trend.markers)?trend.markers:[]).map(marker=>{
+        const at=x(Math.min(Math.max(marker.pointIndex||0,0),points.length-1));
+        const line=svgEl('line',{class:'trend-marker',x1:at,x2:at,y1:P,y2:H-P});
+        const label=marker.kind==='checkpoint'?t('trendCheckpoint'):t('trendCompaction');
+        attribute(line,'title',`${label}: ${Number.isFinite(marker.before)?count(marker.before):'—'} → ${Number.isFinite(marker.after)?count(marker.after):'—'}`);
+        return line;
+      });
+      const path=svgEl('path',{class:'trend-line',d:`M${x(0)} ${y(points[0].inputTokens)}`+points.slice(1).map((point,index)=>`L${x(index+1)} ${y(point.inputTokens)}`).join('')});
+      svg.replaceChildren(...markers,path);
+    }
+    text('trend-sample',t('trendSample',{n:count(trend.totalRequests??points.length)}));
+    attribute(trendSection,'title',t('trendBasis'));
+  }
+  let contextDetailAt=0;
+  // Opening the context card lazily asks for the customization token base.
+  // The panel caches GetTokenBase for 10 minutes and keeps attaching the
+  // cached value to later polls, so this stays quiet once satisfied.
+  function contextDetailRefresh(){
+    if(disposed||instDisposed||parked||!node?.isConnected)return;
+    if(!data?.speed?.context)return;
+    const wait=data.speed.contextComposition?.customization?.available?9*60*1000:15000;
+    if(Date.now()-contextDetailAt<wait)return;
+    contextDetailAt=Date.now();
+    const conversation=conversationId(),model=currentComposerModel(),epoch=requestEpoch;
+    void window.agPulseHost.getMetrics({conversationId:conversation,force:false,contextDetail:true,...(model?{composerModel:model}:{})}).then(result=>{
+      if(disposed||instDisposed||parked||epoch!==requestEpoch||!data?.speed)return;
+      const next=result?.speed?.contextComposition;
+      if(!next)return;
+      if(conversation&&result.speed?.conversationId&&result.speed.conversationId!==conversation)return;
+      data={...data,speed:{...data.speed,contextComposition:next}};
+      render();
+    }).catch(()=>{});
   }
   function refreshManually(syncUsage=false){
     if(manualRequest)return manualRequest.promise;

@@ -1,0 +1,131 @@
+// Pure context-composition transforms for the single-session context view
+// (issue #34). No credentials, prompts, or message text enter the public
+// result: per-step usage buckets contribute sanitized numbers only.
+import { tokenCount } from './metrics.mjs';
+
+// The customization layer (rules/skills/subagents/MCP tool definitions) is the
+// only exact figure; dynamic conversation content is an estimate and is scaled
+// onto the host-reported used tokens so the stacked bar always matches the
+// host usage percent. Raw estimates stay visible in segment titles.
+export function tokenBaseMetrics(response) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) return null;
+  const base = response.customizationTokenBase;
+  if (!base || typeof base !== 'object' || Array.isArray(base)) return null;
+  const totalTokens = tokenCount(base.totalTokens);
+  if (totalTokens === null) return null;
+  const groups = Array.isArray(base.groups) ? base.groups
+    .map(group => ({ name: typeof group?.name === 'string' ? group.name.slice(0, 64) : '', tokens: tokenCount(group?.numTokens) }))
+    .filter(group => group.name && group.tokens !== null).slice(0, 16) : [];
+  return { totalTokens, budget: tokenCount(response.customizationBudget), remainingBudget: tokenCount(response.remainingBudget), groups, source: 'GetTokenBase' };
+}
+
+// Dynamic-layer buckets from per-step usage metadata, classified with the same
+// step-type semantics as transcript.mjs. A step contributes only when it
+// carries at least one non-zero bucket, so absent metadata falls back cleanly.
+function stepBuckets(steps) {
+  const out = { user: 0, thinking: 0, reply: 0, tool: 0, system: 0, available: false };
+  if (!Array.isArray(steps)) return out;
+  for (const step of steps) {
+    const usage = step?.metadata?.modelUsage;
+    if (!usage || typeof usage !== 'object' || Array.isArray(usage)) continue;
+    const type = String(step?.type || '');
+    const input = tokenCount(usage.inputTokens) ?? 0, thinking = tokenCount(usage.thinkingOutputTokens) ?? 0;
+    const reply = tokenCount(usage.responseOutputTokens) ?? Math.max(0, (tokenCount(usage.outputTokens) ?? 0) - thinking);
+    if (!(input || thinking || reply)) continue;
+    out.available = true;
+    if (/USER_INPUT/.test(type)) out.user += input;
+    else if (/PLANNER_RESPONSE/.test(type)) { out.thinking += thinking; out.reply += reply; }
+    else if (/COMPACTION|CHECKPOINT|SYSTEM_MESSAGE/.test(type)) out.system += input;
+    else out.tool += input;
+  }
+  return out;
+}
+
+function dynamicBuckets({ steps = [], transcript = null } = {}) {
+  const buckets = stepBuckets(steps);
+  if (buckets.available) return { source: 'steps', parts: [['user', buckets.user], ['thinking', buckets.thinking], ['reply', buckets.reply], ['tool', buckets.tool], ['system', buckets.system]] };
+  // Logged-text classification cannot split thinking from replies; the merged
+  // assistant segment is labelled accordingly by the renderer.
+  if (transcript && ['ready', 'partial'].includes(transcript.status) && transcript.matchedSteps > 0)
+    return { source: 'transcript', parts: [['user', transcript.userTokens], ['assistant', transcript.assistantTokens], ['tool', transcript.toolTokens], ['system', transcript.systemTokens]] };
+  return { source: null, parts: [] };
+}
+
+function compositionSegments(usedTokens, maxTokens, dynamic, tokenBase = null) {
+  const segments = [];
+  const custom = tokenBase ? tokenBase.totalTokens : null;
+  if (custom !== null) segments.push({ id: 'customization', tokens: custom, fraction: Math.min(1, custom / maxTokens) });
+  const sum = dynamic.parts.reduce((n, [, v]) => n + Math.max(0, v), 0);
+  const room = Math.max(0, usedTokens - (custom ?? 0));
+  const scale = sum > 0 ? room / sum : 0;
+  for (const [id, value] of dynamic.parts) if (value > 0) segments.push({ id, tokens: value, fraction: value * scale / maxTokens });
+  const filled = segments.reduce((n, s) => n + s.fraction, 0);
+  segments.push({ id: 'remaining', tokens: Math.max(0, maxTokens - usedTokens), fraction: Math.max(0, 1 - filled) });
+  return segments;
+}
+
+// Per-request input-token trend (Total basis: uncached input + cache read +
+// cache write), matching the requestCacheMetrics interface in metrics.mjs.
+// Markers are COMPACTION/CONTEXT_COMPACTION/CHECKPOINT steps anchored to the
+// first request whose earliest step index follows the marker.
+function trendMetrics(steps = [], generators = [], maxPoints = 96) {
+  const points = [], seen = new Map();
+  if (Array.isArray(generators)) generators.forEach((generator, index) => {
+    const usage = generator?.chatModel?.usage;
+    if (!usage || typeof usage !== 'object') return;
+    const input = tokenCount(usage.inputTokens);
+    if (input === null) return;
+    const read = usage.cacheReadTokens === undefined ? 0 : tokenCount(usage.cacheReadTokens);
+    const write = usage.cacheWriteTokens === undefined ? 0 : tokenCount(usage.cacheWriteTokens);
+    if (read === null || write === null) return;
+    const total = tokenCount(input + read + write);
+    if (total === null) return;
+    // Mirror trajectoryMetrics de-duplication: one usage record per request.
+    const id = usage.responseId ? `response:${usage.apiProvider || ''}:${usage.responseId}` : usage.messageId ? `message:${usage.messageId}` : `index:${index}`;
+    const signature = JSON.stringify([total, tokenCount(usage.outputTokens), usage.model]);
+    if (seen.has(id)) { if (seen.get(id).signature === signature) return; }
+    seen.set(id, { signature });
+    const indices = Array.isArray(generator.stepIndices) ? generator.stepIndices.filter(n => Number.isInteger(n) && n >= 0) : [];
+    points.push({ inputTokens: total, anchor: indices.length ? Math.min(...indices) : null });
+  });
+  const markers = [];
+  if (Array.isArray(steps)) steps.forEach((step, index) => {
+    const type = String(step?.type || '');
+    const kind = /COMPACTION/.test(type) ? 'compaction' : /CHECKPOINT/.test(type) ? 'checkpoint' : null;
+    if (!kind) return;
+    let at = points.findIndex(point => point.anchor !== null && point.anchor > index);
+    if (at === -1) at = points.length;
+    markers.push({ pointIndex: at, kind, before: at > 0 ? points[at - 1].inputTokens : null, after: at < points.length ? points[at].inputTokens : null });
+  });
+  const offset = Math.max(0, points.length - maxPoints);
+  return {
+    points: points.slice(offset).map(point => ({ inputTokens: point.inputTokens })),
+    markers: markers.filter(marker => marker.pointIndex >= offset).map(marker => ({ pointIndex: marker.pointIndex - offset, kind: marker.kind, before: marker.before, after: marker.after })),
+    totalRequests: points.length, totalMarkers: markers.length,
+  };
+}
+
+export function compositionMetrics({ context = null, steps = [], generators = [], transcript = null, tokenBase = null, maxTrendPoints = 96 } = {}) {
+  if (!context || typeof context !== 'object') return null;
+  const usedTokens = tokenCount(context.usedTokens), maxTokens = tokenCount(context.maxTokens);
+  if (usedTokens === null || !maxTokens) return null;
+  const dynamic = dynamicBuckets({ steps, transcript });
+  return {
+    version: 1, usedTokens, maxTokens, source: dynamic.source, parts: dynamic.parts,
+    customization: tokenBase
+      ? { available: true, tokens: tokenBase.totalTokens, budget: tokenBase.budget, remainingBudget: tokenBase.remainingBudget, groups: tokenBase.groups }
+      : { available: false, tokens: null, budget: null, remainingBudget: null, groups: null },
+    segments: compositionSegments(usedTokens, maxTokens, dynamic, tokenBase),
+    trend: trendMetrics(steps, generators, maxTrendPoints),
+  };
+}
+
+// Lazy enrichment: the composition is recomputed on every session refresh,
+// while the token base arrives only when the context card requests it.
+// Re-scale the dynamic layer so the exact injected figure never displaces the
+// host-reported usage; `parts` is retained in the payload for exactly this.
+export function attachTokenBase(composition, tokenBase) {
+  if (!composition || !tokenBase || tokenCount(tokenBase.totalTokens) === null) return composition || null;
+  return { ...composition, customization: { available: true, tokens: tokenBase.totalTokens, budget: tokenBase.budget, remainingBudget: tokenBase.remainingBudget, groups: tokenBase.groups },
+    segments: compositionSegments(composition.usedTokens, composition.maxTokens, { source: composition.source, parts: composition.parts }, tokenBase) };
+}
