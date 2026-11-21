@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/hero.png?v=0.8.0" width="100%" alt="Antigrative Dashboard v0.8.0: current speed, cache and context controls beside the input.">
+<img src="docs/assets/hero.png?v=0.9.7" width="100%" alt="Antigrative Dashboard v0.8.0: current speed, cache and context controls beside the input.">
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
@@ -28,21 +28,21 @@ Keep the summary visible. Hover for the details.
 
 ## Preview
 
-<img src="docs/assets/responsive.png?v=0.8.0" width="100%" alt="Current three-icon layout in a narrow main chat and separate statistics beside a subagent input.">
+<img src="docs/assets/responsive.png?v=0.9.7" width="100%" alt="Current three-icon layout in a narrow main chat and separate statistics beside a subagent input.">
 
 <table>
 <tr><th width="50%">Speed and cache</th><th width="50%">Context and shared quotas</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/speed.png?v=0.8.0" width="100%" alt="Current generation speed detail card"><br><img src="docs/assets/widget.png?v=0.8.0" width="100%" alt="Current token usage and cache detail card"></td>
-<td width="50%" valign="top"><img src="docs/assets/context.png?v=0.8.0" width="100%" alt="Current context, five-hour and weekly quota details, with the saved-language control"></td>
+<td width="50%" valign="top"><img src="docs/assets/speed.png?v=0.9.7" width="100%" alt="Current generation speed detail card"><br><img src="docs/assets/widget.png?v=0.9.7" width="100%" alt="Current token usage and cache detail card"></td>
+<td width="50%" valign="top"><img src="docs/assets/context.png?v=0.9.7" width="100%" alt="Current context, five-hour and weekly quota details, with the saved-language control"></td>
 </tr>
 </table>
 
 <table>
 <tr><th width="50%">Daily and weekly activity</th><th width="50%">Usage by model</th></tr>
 <tr>
-<td width="50%"><img src="docs/assets/usage-overview.png?v=0.8.0" width="100%" alt="Current Token usage activity with daily and weekly contribution grids"></td>
-<td width="50%"><img src="docs/assets/usage-details.png?v=0.8.0" width="100%" alt="Current model usage chart with day, week and month controls and theme-adapted colors"></td>
+<td width="50%"><img src="docs/assets/usage-overview.png?v=0.9.7" width="100%" alt="Current Token usage activity with daily and weekly contribution grids"></td>
+<td width="50%"><img src="docs/assets/usage-details.png?v=0.9.7" width="100%" alt="Current model usage chart with day, week and month controls and theme-adapted colors"></td>
 </tr>
 </table>
 
