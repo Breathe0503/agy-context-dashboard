@@ -309,7 +309,7 @@ function render() {
   if(compactionPill){
     hidden('context-compaction-pill',!(compactions!==null&&compactions>0));
     if(compactions!==null&&compactions>0){
-      text('context-compaction-text',t('contextCompactionCount',{n:compactions}));
+      text('context-compaction-pill',t('contextCompactionCount',{n:compactions}));
       compactionPill.title=t('contextCompactionsTitle',{n:compactions});
     }
   }
