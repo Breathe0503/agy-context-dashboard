@@ -47,7 +47,7 @@ module.exports = function installAgPulseInlineWidget() {
     cache:value=>localSet('ag-pulse-language',value),changed:()=>{for(const inst of instances)inst.onLocaleChanged();},
   });
   void preferences.ready.then(()=>{if(disposed)return;guideReady=!preferences.error;scheduleLayout();});
-  const icon=(name)=>({cache:'<ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/>',five:'<circle cx="8" cy="8" r="5.6"/><path d="M8 4.7v3.6l2.3 1.4"/>',week:'<rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M5 2v3m6-3v3M3 7h10"/>'}[name]);
+  const icon=(name)=>({cache:'<ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/>',five:'<circle cx="8" cy="8" r="5.6"/><path d="M8 4.7v3.6l2.3 1.4"/>',week:'<rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M5 2v3m6-3v3M3 7h10"/>',compaction:'<path d="M2.5 8h11M8 2v4M5.7 3.9L8 6.2l2.3-2.3M8 14v-4M5.7 12.1L8 9.8l2.3 2.3"/>'}[name]);
   const svg=name=>`<svg viewBox="0 0 16 16" aria-hidden="true">${name==='context'?'<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4.8 2.8"/>':icon(name)}</svg>`;
   const SVG_NS='http://www.w3.org/2000/svg';
   const svgEl=(tag,attrs={},children=[])=>{
@@ -1017,7 +1017,7 @@ module.exports = function installAgPulseInlineWidget() {
       #usage-entry{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-top:9px;margin-top:10px;border-top:1px solid var(--pulse-separator)}#usage-entry[hidden]{display:none}
       .usage-summary{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 auto}.usage-summary>div{min-width:0}.usage-label{font-size:11px;line-height:1.25;color:var(--pulse-muted);white-space:nowrap}.usage-val{display:flex;align-items:baseline;gap:2px;white-space:nowrap;line-height:1.3}.usage-summary strong{font-size:13px;font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums}.usage-unit{font-size:11px;color:var(--pulse-muted)}
       #open-usage{display:inline-flex;align-items:center;gap:4px;flex:none;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--pulse-accent);font:inherit;font-size:11px;font-weight:550;white-space:nowrap;transition:background-color 120ms ease,transform 120ms ease}#open-usage:hover{background:var(--pulse-hover)}#open-usage:active{transform:scale(.98)}#open-usage svg{width:12px;height:12px;flex:none}
-      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.context-hero-meta{display:inline-flex;align-items:baseline;gap:6px;min-width:0}.context-compaction-pill{padding:1px 5px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums}.context-compaction-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.context-hero-meta{display:inline-flex;align-items:center;gap:6px;min-width:0}.context-compaction-pill{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums;white-space:nowrap}.context-compaction-pill[hidden]{display:none}.context-compaction-pill svg{width:11px;height:11px;flex:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
       .context-composition{margin-top:8px;padding-top:8px;border-top:1px solid var(--pulse-separator)}.context-composition[hidden]{display:none}.composition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:500;color:var(--pulse-label)}.composition-head .tag{font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
       .composition-meter{display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin-top:6px}.composition-meter i{display:block;height:100%;min-width:0}
       .composition-seg-customization{background:var(--pulse-emphasis)}.composition-seg-user{background:var(--pulse-accent)}.composition-seg-thinking{background:var(--pulse-warning)}.composition-seg-reply{background:var(--pulse-success)}.composition-seg-assistant{background:var(--pulse-ring)}.composition-seg-tool{background:var(--pulse-muted)}.composition-seg-system{background:color-mix(in srgb,var(--pulse-muted) 45%,transparent)}.composition-seg-remaining{background:var(--pulse-track)}
@@ -1078,7 +1078,7 @@ module.exports = function installAgPulseInlineWidget() {
       <dl class="stats-grid cache-stats">${[['cacheRead','cache-read'],['cacheMiss','cache-miss'],['cacheOutput','cache-output']].map(([key,id])=>`<div id="${id}-cell"><dt data-i18n="${key}">${t(key)}</dt><dd><strong id="${id}">—</strong><span class="speed-unit" id="${id}-unit" hidden> toks</span></dd></div>`).join('')}<div id="cache-write-row" class="span-row" hidden><dt data-i18n="cacheWrite">${t('cacheWrite')}</dt><dd id="cache-write">—</dd></div><div class="span-row" id="task-own-row" hidden><dt data-i18n="taskOwn">${t('taskOwn')}</dt><dd id="task-own">—</dd></div><div class="span-row" id="task-subagents-row" hidden><dt id="task-subagents-label"></dt><dd id="task-subagents">—</dd></div></dl><p class="footnote" id="cache-note" hidden></p>
     </section><section class="card context-card" id="context-card" role="region" data-i18n-aria="context" hidden>
       <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span></span><span class="tag" id="context-model">—</span></div>
-      <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span id="context-tokens">—</span></span></div>
+      <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span class="tag context-compaction-pill" id="context-compaction-pill" hidden>${svg('compaction')}<span id="context-compaction-text"></span></span><span id="context-tokens">—</span></span></div>
       <div class="track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
       <section class="context-composition" id="context-composition" hidden><div class="composition-head"><span data-i18n="compositionTitle">Context composition</span><span class="tag" id="composition-source"></span></div><div class="composition-meter" id="composition-meter" aria-hidden="true"></div></section>
       <section class="context-composition" id="context-trend-section" hidden><div class="composition-head"><span data-i18n="trendTitle">Context trend</span><span class="tag" id="trend-sample"></span></div><svg id="context-trend-svg" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true"></svg></section>
@@ -1231,7 +1231,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(compactionPill){
       if(compactions!==null&&compactions>0){
         hidden(compactionPill,false);
-        text('context-compaction-pill',`🗜 ${t('contextCompactionCount',{n:compactions})}`);
+        text('context-compaction-text',t('contextCompactionCount',{n:compactions}));
         attribute(compactionPill,'title',t('contextCompactionsTitle',{n:compactions}));
       }else{
         hidden(compactionPill,true);
@@ -1244,7 +1244,7 @@ module.exports = function installAgPulseInlineWidget() {
     updateMenu?.syncHint?.({available:hasUpdate,latestVersion:updateVer});
     const ctxChip=root.querySelector('[data-card="context"]');
     if(ctxChip){
-      const compSuffix=compactions!==null&&compactions>0?` · 🗜 ${t('contextCompactionCount',{n:compactions})}`:'';
+      const compSuffix=compactions!==null&&compactions>0?` · ${t('contextCompactionSummary',{n:compactions})}`:'';
       const updateSuffix=hasUpdate&&updateVer?` · v${updateVer}`:'';
       const baseTip=hasCapacity?`Ctx ${Math.round(context.usedFraction*100)}% (${compact(context.usedTokens)} / ${compact(context.maxTokens)})${compSuffix}`:(compSuffix?`Ctx${compSuffix}`:'');
       attribute(ctxChip,'data-update-available',hasUpdate?'true':null);
