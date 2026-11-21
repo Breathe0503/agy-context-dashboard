@@ -1,11 +1,12 @@
 # 竞品与参考项目
 
-同赛道（Antigravity 上下文 / 额度 / 用量监控与界面增强）可参考的项目跟踪。发现新项目直接往本章补一节，commit 即版本。
+同赛道（Antigravity 上下文 / 额度 / 用量监控与界面增强）可参考的项目跟踪。发现新项目直接往本章补一节，commit 即版本。README 开头那句「参考 DSH 设计」指的就是下方 DSH 生态一节。
 
 ## 一览
 
 | 项目 | 形态 | 与本项目关系 |
 | --- | --- | --- |
+| [lcohvne-tomorin/dsh-context-dashboard](https://github.com/lcohvne-tomorin/dsh-context-dashboard) | DSH（DeepSeek Harness）侧边栏插件 | **设计灵感来源**（不同宿主，无竞争） |
 | [ATtacK030130/antigrative-dashboard](https://github.com/ATtacK030130/antigrative-dashboard) | Python 管理器 + Node sidecar + 内联 widget | **同构竞品 / 活跃上游**，定期互同步 |
 | [elviscjn-cjn/antigravity-context-viewer](https://github.com/elviscjn-cjn/antigravity-context-viewer) | `app.asar` 注入补丁 + CLI | 异构竞品（功能重叠度最高） |
 | [n2ns/antigravity-panel](https://github.com/n2ns/antigravity-panel) | VS Code / Open VSX 扩展 | IDE 侧竞品（不覆盖桌面 App 内嵌） |
@@ -13,6 +14,18 @@
 | [Anarcadia/chuanban-antigravity-theme-patch](https://github.com/Anarcadia/chuanban-antigravity-theme-patch) | CDP 运行时注入（美化 / 字体 / 汉化） | 参考项目（上表 codex-theme 的参考来源） |
 
 ## 分项笔记
+
+### DSH 生态：lcohvne-tomorin/dsh-context-dashboard
+
+DSH = **DeepSeek Harness**（DeepSeek 官方展示的 agent harness，生态由社区 `dshworks` 维护）。`dsh-context-dashboard` 是其侧边栏上下文 / 计费仪表盘插件，挂在 `sidebar.footer.action` 槽位，即 README「参考 DSH 设计」的对象。本项目的核心交互都能在它身上找到原型：
+
+- **折叠 pill → 点击平滑展开**的紧凑形态（我们的常驻 chip + 悬停详情同源）；
+- **上下文环形百分比 + 窗口读数**（128K / 1M），展开后按计费形态自动切换（按量付费：模型 / 上下文条 / 花费 / 余额；Token 套餐：滚动 / 每周 / 每月用量）；
+- **窄栏（56px rail）降级为被动环形**——我们 icons-only 模式的同款思路；
+- 计费徽标按形态着色、上下文超阈值转琥珀警示，与我们的警戒变色一致；
+- 四桶 token × 单价的费用计算、官方计价目录、余额查询（API key / 账号渠道双路），纯本地数据 + CSRF / 限流守卫。
+
+宿主不同（DSH vs Antigravity），无竞争关系；把它当作交互与信息密度设计的对照组。
 
 ### ATtacK030130/antigrative-dashboard
 
