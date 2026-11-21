@@ -6,7 +6,7 @@
 
 | 项目 | 形态 | 与本项目关系 |
 | --- | --- | --- |
-| [lcohvne-tomorin/dsh-context-dashboard](https://github.com/lcohvne-tomorin/dsh-context-dashboard) | DSH（DeepSeek Harness）侧边栏插件 | **设计灵感来源**（不同宿主，无竞争） |
+| [bowenliang123/dsh-context](https://github.com/bowenliang123/dsh-context) | DSH（DeepSeek Harness）插件（npm / Cordis） | **设计灵感来源**（不同宿主，无竞争） |
 | [ATtacK030130/antigrative-dashboard](https://github.com/ATtacK030130/antigrative-dashboard) | Python 管理器 + Node sidecar + 内联 widget | **同构竞品 / 活跃上游**，定期互同步 |
 | [elviscjn-cjn/antigravity-context-viewer](https://github.com/elviscjn-cjn/antigravity-context-viewer) | `app.asar` 注入补丁 + CLI | 异构竞品（功能重叠度最高） |
 | [n2ns/antigravity-panel](https://github.com/n2ns/antigravity-panel) | VS Code / Open VSX 扩展 | IDE 侧竞品（不覆盖桌面 App 内嵌） |
@@ -15,17 +15,17 @@
 
 ## 分项笔记
 
-### DSH 生态：lcohvne-tomorin/dsh-context-dashboard
+### DSH 生态：bowenliang123/dsh-context
 
-DSH = **DeepSeek Harness**（DeepSeek 官方展示的 agent harness，生态由社区 `dshworks` 维护）。`dsh-context-dashboard` 是其侧边栏上下文 / 计费仪表盘插件，挂在 `sidebar.footer.action` 槽位，即 README「参考 DSH 设计」的对象。本项目的核心交互都能在它身上找到原型：
+DSH = **DeepSeek Harness**（DeepSeek 的 agent harness，npm 包 `@deepseek-ai/dsh`）。`dsh-context` 是其「上下文洞察」插件（5.4k stars，Apache-2.0，DSH 团队成员公开推荐），即 README「参考 DSH 设计」的对象。五个入口覆盖上下文全生命周期：
 
-- **折叠 pill → 点击平滑展开**的紧凑形态（我们的常驻 chip + 悬停详情同源）；
-- **上下文环形百分比 + 窗口读数**（128K / 1M），展开后按计费形态自动切换（按量付费：模型 / 上下文条 / 花费 / 余额；Token 套餐：滚动 / 每周 / 每月用量）；
-- **窄栏（56px rail）降级为被动环形**——我们 icons-only 模式的同款思路；
-- 计费徽标按形态着色、上下文超阈值转琥珀警示，与我们的警戒变色一致；
-- 四桶 token × 单价的费用计算、官方计价目录、余额查询（API key / 账号渠道双路），纯本地数据 + CSRF / 限流守卫。
+- **上下文洞察页**：跨会话总览——Token / 成本 / 缓存命中率 KPI、7 天用量图、活动热力图、技能 / 工具 / 命令统计；
+- **Context 标签页**：单会话完整仪表板——六色堆叠的上下文组成、逐请求趋势（Delta 模式）、上下文浏览器（含 DNA 模式）、事件日志、文件活动；
+- **Fleet 标签页**：父 / 子 Agent 实时卡片与协作泳道时间线（多 Agent 协作透视，我们尚无对应物）;
+- **`/context` 命令**：聊天中直接弹出当前组成与浏览器；
+- 数据读 DSH 官方 Token 投影（`contextPressure` / `contextBreakdown`），成本按 models.dev 价格表估算，缓存只存轻量摘要。
 
-宿主不同（DSH vs Antigravity），无竞争关系；把它当作交互与信息密度设计的对照组。
+宿主不同（DSH vs Antigravity），无竞争关系；把它当作上下文信息架构与多 Agent 透视设计的对照组。
 
 ### ATtacK030130/antigrative-dashboard
 
