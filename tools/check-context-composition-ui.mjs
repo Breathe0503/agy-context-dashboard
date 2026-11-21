@@ -1,5 +1,6 @@
 // Real browser regression for issue #34 single-session context composition,
-// legend, lazy GetTokenBase loading, SVG trend updates, and idle DOM stability.
+// quota/context card split, dual-mode (list/bar) toggle, lazy GetTokenBase loading,
+// avg cache hit rate row, SVG trend updates, and idle DOM stability.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -20,7 +21,7 @@ const cidB = '22222222-2222-2222-2222-222222222222';
 const tokenBase = tokenBaseMetrics({
   customizationTokenBase: {
     totalTokens: 16500,
-    groups: [{ name: 'Rules', numTokens: 6600 }, { name: 'Skills', numTokens: 9300 }],
+    groups: [{ name: 'Rules', numTokens: 6600 }, { name: 'Skills', numTokens: 9300 }, { name: 'Mcp Tools', numTokens: 600 }],
   },
   customizationBudget: 20000,
   remainingBudget: 3500,
@@ -43,11 +44,15 @@ const makeSample = (id, values, markerKind = 'compaction') => {
     if (idx === 1) steps.push({ type: markerKind === 'checkpoint' ? 'CORTEX_STEP_TYPE_CHECKPOINT' : 'CORTEX_STEP_TYPE_COMPACTION', metadata: {} });
   });
   const base = trajectoryMetrics({ trajectory: { cascadeId: id, steps, generatorMetadata: generators } });
+  base.transcriptStats = {
+    status: 'partial', matchedSteps: steps.length, userTokens: 3000, assistantTokens: 4000,
+    toolTokens: 42000, systemTokens: 1500, compactionMarkers: markerKind === 'compaction' ? 1 : 0, totalTokens: 50500,
+  };
   const comp = compositionMetrics({
     context: base.context,
     steps,
     generators,
-    transcript: { status: 'partial', matchedSteps: steps.length, userTokens: 3000, assistantTokens: 4000, toolTokens: 42000, systemTokens: 1500, totalTokens: 50500 },
+    transcript: base.transcriptStats,
   });
   return { base, comp };
 };
@@ -109,55 +114,104 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('context-percent')?.textContent === '23%');
 
-  // 1. Plain polls never request contextDetail; degraded customization shows Injection —
-  const preOpen = await page.evaluate(() => ({
-    detailCalls: window.testRequests.filter(r => r.contextDetail).length,
-    totalCalls: window.testRequests.length,
-  }));
-  assert.ok(preOpen.totalCalls >= 1);
-  assert.equal(preOpen.detailCalls, 0, 'Plain polls must never send contextDetail:true');
-
-  // Open via quota chip first (broken GetTokenBase -> silent degradation)
-  await page.evaluate(() => { window.testTokenBaseBroken = true; });
+  // 1. Plain polls never request contextDetail; quota chip opens #quota-card without contextDetail
   await page.locator('#ag-pulse-status-bar').locator('[data-card="quota"]').click();
+  await page.locator('#ag-pulse-status-bar').locator('#quota-card').waitFor({ state: 'visible' });
+  const quotaOnlyCheck = await page.evaluate(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    return {
+      detailCalls: window.testRequests.filter(r => r.contextDetail).length,
+      quotaOpen: !sr.getElementById('quota-card').hidden,
+      contextHidden: sr.getElementById('context-card').hidden,
+      contextHasQuota: Boolean(sr.getElementById('context-card').querySelector('.quota-details')),
+    };
+  });
+  assert.equal(quotaOnlyCheck.detailCalls, 0, 'Opening quota card must not trigger contextDetail:true');
+  assert.equal(quotaOnlyCheck.quotaOpen, true);
+  assert.equal(quotaOnlyCheck.contextHidden, true);
+  assert.equal(quotaOnlyCheck.contextHasQuota, false, 'Context card must not render quota details');
+  await page.keyboard.press('Escape');
+
+  // 2. Opening context chip with broken GetTokenBase triggers contextDetail and degrades silently
+  await page.evaluate(() => { window.testTokenBaseBroken = true; });
+  await page.locator('#ag-pulse-status-bar').locator('[data-card="context"]').click();
   await page.locator('#ag-pulse-status-bar').locator('#context-card').waitFor({ state: 'visible' });
   await page.waitForFunction(() => window.testRequests.some(r => r.contextDetail));
   const degraded = await page.evaluate(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const rows = [...sr.querySelectorAll('#composition-list .composition-row')];
+    const pcts = rows.map(r => parseFloat(r.querySelector('.composition-row-pct').textContent));
     return {
       source: sr.getElementById('composition-source').textContent,
-      meterSegs: [...sr.getElementById('composition-meter').children].map(el => el.className),
-      legendCount: sr.getElementById('composition-legend').children.length,
+      trackHidden: sr.getElementById('context-track').hidden,
+      listHidden: sr.getElementById('composition-list').hidden,
+      legendHidden: sr.getElementById('composition-legend').hidden,
+      rowLabels: rows.map(r => r.querySelector('.composition-row-label').textContent),
+      descending: pcts.every((v, i) => i === 0 || pcts[i - 1] >= v),
+      compactionPillText: sr.getElementById('context-compaction-pill').textContent,
+      compactionPillSvg: sr.getElementById('context-compaction-pill').querySelector('svg'),
+      cacheRowHidden: sr.getElementById('context-cache-row').hidden,
+      cacheRate: sr.getElementById('context-cache-rate').textContent,
       markerTitle: sr.querySelector('#context-trend-svg .trend-marker-group title')?.textContent,
       pathD: sr.querySelector('#context-trend-svg .trend-line')?.getAttribute('d'),
       sample: sr.getElementById('trend-sample').textContent,
     };
   });
   assert.equal(degraded.source, 'Injection — · steps + logged text');
-  assert.ok(!degraded.meterSegs.includes('composition-seg-customization'));
-  assert.ok(degraded.legendCount >= 4);
+  assert.equal(degraded.trackHidden, true, 'Plain track is hidden when composition meter is active');
+  assert.equal(degraded.listHidden, false, 'List mode is active by default');
+  assert.equal(degraded.legendHidden, true);
+  assert.equal(degraded.descending, true, 'List rows must be sorted descending by share');
+  assert.equal(degraded.compactionPillText, '1× compacted');
+  assert.equal(degraded.compactionPillSvg, null, 'Compaction pill must be plain text with no SVG icon');
+  assert.equal(degraded.cacheRowHidden, false);
+  assert.equal(degraded.cacheRate, '80.0%');
   assert.equal(degraded.markerTitle, 'Compaction: 75,000 → 42,000');
   assert.equal(degraded.sample, '4 requests');
   assert.ok(degraded.pathD && degraded.pathD.startsWith('M'));
 
-  // 2. Recover GetTokenBase on next poll and open via context chip
+  // 3. Recover GetTokenBase -> unfolds Rules, Skills, MCP tools in list mode
   await page.keyboard.press('Escape');
   await page.evaluate(() => { window.testTokenBaseBroken = false; window.testTokenBaseFetched = true; });
   await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('composition-source').textContent.includes('16.5K'));
   await page.locator('#ag-pulse-status-bar').locator('[data-card="context"]').click();
   await page.locator('#ag-pulse-status-bar').locator('#context-card').waitFor({ state: 'visible' });
-  const enriched = await page.evaluate(() => {
+  const enrichedList = await page.evaluate(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
-    const customSeg = sr.querySelector('#composition-meter .composition-seg-customization');
+    const rows = [...sr.querySelectorAll('#composition-list .composition-row')];
     return {
-      customTitle: customSeg?.getAttribute('title'),
-      legendTexts: [...sr.querySelectorAll('#composition-legend .composition-legend-item')].map(n => n.textContent),
+      labels: rows.map(r => r.querySelector('.composition-row-label').textContent),
+      skillsTitle: rows.find(r => r.querySelector('.composition-row-label').textContent === 'Skills')?.getAttribute('title'),
+      meterClasses: [...sr.getElementById('composition-meter').children].map(el => el.className),
     };
   });
-  assert.match(enriched.customTitle, /Customized injection: 16,500 \/ 20K toks \(Rules 6\.6K · Skills 9\.3K\)/);
-  assert.ok(enriched.legendTexts.some(t => t.startsWith('Customized injection ')));
+  assert.ok(enrichedList.labels.includes('Rules') && enrichedList.labels.includes('Skills') && enrichedList.labels.includes('MCP tools'));
+  assert.match(enrichedList.skillsTitle, /^Skills: 9,300 toks .* · exact$/);
+  assert.ok(enrichedList.meterClasses.includes('composition-seg-group-skills'));
 
-  // 3. Steady-state idle DOM stability across a full 2.6s poll window (must be 0 mutations)
+  // 4. Toggle List -> Bar -> List and verify persistence in localStorage
+  await page.locator('#ag-pulse-status-bar').locator('[data-composition-view="bar"]').click();
+  await page.waitForTimeout(250);
+  const barState = await page.evaluate(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const card = sr.getElementById('context-card');
+    return {
+      cardVisible: Boolean(card && !card.hidden && card.offsetHeight > 0),
+      listHidden: sr.getElementById('composition-list').hidden,
+      legendHidden: sr.getElementById('composition-legend').hidden,
+      legendCount: sr.getElementById('composition-legend').children.length,
+      stored: localStorage.getItem('ag-pulse-composition-view'),
+    };
+  });
+  assert.equal(barState.cardVisible, true);
+  assert.equal(barState.listHidden, true);
+  assert.equal(barState.legendHidden, false);
+  assert.ok(barState.legendCount >= 6);
+  assert.equal(barState.stored, 'bar');
+  await page.locator('#ag-pulse-status-bar').locator('[data-composition-view="list"]').click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('ag-pulse-composition-view')), 'list');
+
+  // 5. Steady-state idle DOM stability across a full 2.6s poll window (must be 0 mutations)
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   await page.evaluate(() => {
@@ -168,9 +222,9 @@ try {
   });
   await page.waitForTimeout(2600);
   const idleMutations = await page.evaluate(() => { window.__compObs.disconnect(); return window.__compIdleMutations; });
-  assert.equal(idleMutations, 0, 'steady-state polling with contextComposition + quota ring must emit zero idle DOM mutations');
+  assert.equal(idleMutations, 0, 'steady-state polling must emit zero idle DOM mutations');
 
-  // 4. Switching conversations with identical point count updates SVG trend path & marker kind
+  // 6. Switching conversations with identical point count updates SVG trend path & marker kind
   await page.evaluate(nextId => { window.testOwner.props.cascadeId = nextId; }, cidB);
   await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar').shadowRoot.querySelector('#context-trend-svg .trend-marker-group title')?.textContent.includes('Checkpoint'));
   const switched = await page.evaluate(() => {
@@ -183,26 +237,41 @@ try {
   assert.notEqual(switched.pathD, degraded.pathD, 'trend SVG path must re-render when point values change with same length');
   assert.equal(switched.markerTitle, 'Checkpoint: 80,000 → 60,000');
 
-  // 5. Language switching updates composition source, legend labels, and SVG marker title
+  // 7. Language switching translates group labels, toggle pills, cache row, and marker title
   await page.locator('#ag-pulse-status-bar').locator('[data-card="context"]').click();
   await page.locator('#ag-pulse-status-bar').locator('#card-language-zh').click();
   await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('composition-source').textContent.includes('步级桶 + 日志估算'));
   const zhCheck = await page.evaluate(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const labels = [...sr.querySelectorAll('#composition-list .composition-row-label')].map(n => n.textContent);
     return {
       source: sr.getElementById('composition-source').textContent,
-      customTitle: sr.querySelector('#composition-meter .composition-seg-customization')?.getAttribute('title'),
+      labels,
+      viewBtnList: sr.querySelector('[data-composition-view="list"]').textContent,
+      viewBtnBar: sr.querySelector('[data-composition-view="bar"]').textContent,
+      cacheLabel: sr.querySelector('#context-cache-row span').textContent,
       markerTitle: sr.querySelector('#context-trend-svg .trend-marker-group title')?.textContent,
-      legendFirst: sr.querySelector('#composition-legend .composition-legend-item')?.textContent,
     };
   });
   assert.equal(zhCheck.source, '定制注入 16.5K · 步级桶 + 日志估算');
-  assert.match(zhCheck.customTitle, /^定制注入: 16,500 \/ 20K toks \(Rules 6\.6K · Skills 9\.3K\)/);
+  assert.ok(zhCheck.labels.includes('规则') && zhCheck.labels.includes('技能') && zhCheck.labels.includes('MCP 工具'));
+  assert.equal(zhCheck.viewBtnList, '清单');
+  assert.equal(zhCheck.viewBtnBar, '条形');
+  assert.equal(zhCheck.cacheLabel, '平均缓存命中率');
   assert.equal(zhCheck.markerTitle, '检查点: 80,000 → 60,000');
-  assert.match(zhCheck.legendFirst, /^定制注入 /);
+
+  // Verify zh-CN plain-text compaction badge without SVG icon on cidA
+  await page.evaluate(nextId => { window.testOwner.props.cascadeId = nextId; }, cidA);
+  await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('context-compaction-pill').textContent === '压缩 1 次');
+  const zhCompaction = await page.evaluate(() => {
+    const pill = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('context-compaction-pill');
+    return { text: pill.textContent, hasSvg: Boolean(pill.querySelector('svg')) };
+  });
+  assert.equal(zhCompaction.text, '压缩 1 次');
+  assert.equal(zhCompaction.hasSvg, false);
 
   assert.deepEqual(errors, [], 'Trusted Types CSP must produce zero page errors');
-  console.log(JSON.stringify({ ok: true, idleMutations, zhSource: zhCheck.source, markerTitle: zhCheck.markerTitle, pageErrors: errors }));
+  console.log(JSON.stringify({ ok: true, idleMutations, zhLabels: zhCheck.labels, markerTitle: zhCheck.markerTitle, pageErrors: errors }));
 } finally {
   await browser.close();
   server.close();
