@@ -29,7 +29,7 @@ test('token base keeps exact totals, budgets and sanitized groups only',()=>{
 test('composition buckets classify per-step usage and scale onto host usage',()=>{
   const steps=[stepUsage('USER_INPUT',3000),
     {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'90000',outputTokens:'12000',thinkingOutputTokens:'8000',responseOutputTokens:'4000'}}},
-    stepUsage('TOOL_RESULT',2500),stepUsage('CHECKPOINT',500),stepUsage('SYSTEM_MESSAGE',200),
+    stepUsage('TOOL_RESULT',2500),stepUsage('SYSTEM_MESSAGE',700),
     {type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{modelUsage:{inputTokens:'0'}}}];
   const comp=compositionMetrics({context,steps,generators:[]});
   assert.equal(comp.source,'steps');
@@ -234,4 +234,77 @@ test('account switch and server pid change invalidate cached tokenBase',async t=
   const s5=await store.snapshot({conversationId:GUID,contextDetail:true});
   assert.equal(tokenBaseCalls,3);assert.equal(s5.speed.contextComposition.customization.available,true);
   store.dispose();
+});
+
+test('CHECKPOINT, COMPACTION and SYSTEM_MESSAGE usage never disables hybrid transcript fallback',()=>{
+  const steps=[
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{}},
+    stepUsage('SYSTEM_MESSAGE',85000),
+    stepUsage('CHECKPOINT',120000),
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{}},
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'32000',outputTokens:'1500',thinkingOutputTokens:'1100',responseOutputTokens:'400'}}},
+    {type:'CORTEX_STEP_TYPE_RUN_COMMAND',metadata:{}},
+    stepUsage('SYSTEM_MESSAGE',50000),
+  ];
+  const transcript={status:'partial',matchedSteps:7,userTokens:2400,assistantTokens:1500,toolTokens:18000,systemTokens:300,totalTokens:22200};
+  const comp=compositionMetrics({context,steps,generators:[],transcript});
+  assert.equal(comp.source,'hybrid');
+  assert.deepEqual(comp.parts,[['user',2400],['thinking',1100],['reply',400],['tool',18000],['system',300]]);
+
+  // Without assistant steps after checkpoint, still falls back to transcript rather than steps with 0 user/tool.
+  const preAssistant=compositionMetrics({
+    context,
+    steps:[stepUsage('COMPACTION',90000),stepUsage('SYSTEM_MESSAGE',40000)],
+    generators:[],
+    transcript,
+  });
+  assert.equal(preAssistant.source,'transcript');
+});
+
+test('stepBuckets scopes to steps after the latest compaction or checkpoint',()=>{
+  const steps=[
+    stepUsage('USER_INPUT',10000),
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'100000',outputTokens:'90000',thinkingOutputTokens:'60000',responseOutputTokens:'30000'}}},
+    stepUsage('TOOL_RESULT',25000),
+    stepUsage('COMPACTION',150000),
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'45000',outputTokens:'50000',thinkingOutputTokens:'35000',responseOutputTokens:'15000'}}},
+    stepUsage('CHECKPOINT',200000),
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{}},
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'22000',outputTokens:'1800',thinkingOutputTokens:'1300',responseOutputTokens:'500'}}},
+    {type:'CORTEX_STEP_TYPE_VIEW_FILE',metadata:{}},
+  ];
+  const transcript={status:'ready',matchedSteps:9,userTokens:900,assistantTokens:1800,toolTokens:6000,systemTokens:400,totalTokens:9100};
+  const hybrid=compositionMetrics({context,steps,generators:[],transcript});
+  assert.equal(hybrid.source,'hybrid');
+  assert.deepEqual(hybrid.parts,[['user',900],['thinking',1300],['reply',500],['tool',6000],['system',400]]);
+
+  // Also verify full per-step mode excludes pre-checkpoint user/assistant/tool/system buckets.
+  const fullSteps=[
+    ...steps,
+    stepUsage('USER_INPUT',1200),
+    stepUsage('TOOL_RESULT',3400),
+    stepUsage('SYSTEM_MESSAGE',250),
+  ];
+  const stepped=compositionMetrics({context,steps:fullSteps,generators:[]});
+  assert.equal(stepped.source,'steps');
+  assert.deepEqual(stepped.parts,[['user',1200],['thinking',1300],['reply',500],['tool',3400],['system',250]]);
+});
+
+test('trend dedup skips duplicate request ids even when usage signature differs',()=>{
+  const req=(id,input,output,model,indices)=>({
+    stepIndices:indices,
+    chatModel:{usage:{...(id.startsWith('r:')?{responseId:id.slice(2),apiProvider:'API_PROVIDER_GOOGLE_GEMINI'}:{messageId:id}),inputTokens:String(input),outputTokens:String(output),model}},
+  });
+  const generators=[
+    req('r:resp-1',1000,200,'gemini-4-neon',[0]),
+    req('r:resp-1',1500,350,'gemini-4-neon',[0]),
+    req('msg-2',2000,400,'claude-sonnet-4-6',[2]),
+    req('msg-2',2200,500,'claude-sonnet-4-6',[2]),
+    req('msg-3',3000,100,'gemini-4-neon',[4]),
+  ];
+  const steps=['USER_INPUT','PLANNER_RESPONSE','PLANNER_RESPONSE','COMPACTION','PLANNER_RESPONSE'].map(t=>({type:`CORTEX_STEP_TYPE_${t}`}));
+  const comp=compositionMetrics({context,steps,generators});
+  assert.deepEqual(comp.trend.points.map(p=>p.inputTokens),[1000,2000,3000]);
+  assert.equal(comp.trend.totalRequests,3);
+  assert.deepEqual(comp.trend.markers,[{pointIndex:2,kind:'compaction',before:2000,after:3000}]);
 });

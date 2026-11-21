@@ -20,13 +20,23 @@ export function tokenBaseMetrics(response) {
 }
 
 // Dynamic-layer buckets from per-step usage metadata, classified with the same
-// step-type semantics as transcript.mjs. In Antigravity 2.34+, only
-// PLANNER_RESPONSE carries modelUsage, so non-assistant buckets stay zero
-// unless other step types report modelUsage.
+// step-type semantics as transcript.mjs. Scoped strictly to steps after the
+// latest compaction/checkpoint so active window ratios are not skewed by
+// pre-compaction turns. In Antigravity 2.34+, only PLANNER_RESPONSE carries
+// modelUsage reliably (while CHECKPOINT/COMPACTION inputTokens reflect summary
+// prompts), so only genuine USER_INPUT or tool steps set hasNonAssistant.
 function stepBuckets(steps) {
   const out = { user: 0, thinking: 0, reply: 0, tool: 0, system: 0, hasNonAssistant: false, hasAssistant: false };
   if (!Array.isArray(steps)) return out;
-  for (const step of steps) {
+  let start = 0;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (/COMPACTION|CHECKPOINT/.test(String(steps[i]?.type || ''))) {
+      start = i + 1;
+      break;
+    }
+  }
+  for (let i = start; i < steps.length; i++) {
+    const step = steps[i];
     const usage = step?.metadata?.modelUsage;
     if (!usage || typeof usage !== 'object' || Array.isArray(usage)) continue;
     const type = String(step?.type || '');
@@ -35,7 +45,7 @@ function stepBuckets(steps) {
     if (!(input || thinking || reply)) continue;
     if (/USER_INPUT/.test(type)) { out.user += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
     else if (/PLANNER_RESPONSE/.test(type)) { out.thinking += thinking; out.reply += reply; out.hasAssistant = out.hasAssistant || thinking > 0 || reply > 0; }
-    else if (/COMPACTION|CHECKPOINT|SYSTEM_MESSAGE/.test(type)) { out.system += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
+    else if (/COMPACTION|CHECKPOINT|SYSTEM_MESSAGE/.test(type)) { out.system += input; }
     else { out.tool += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
   }
   return out;
@@ -96,7 +106,7 @@ function compositionSegments(usedTokens, maxTokens, dynamic, tokenBase = null) {
 // Markers are COMPACTION/CONTEXT_COMPACTION/CHECKPOINT steps anchored to the
 // first request whose earliest step index follows the marker.
 function trendMetrics(steps = [], generators = [], maxPoints = 96) {
-  const points = [], seen = new Map();
+  const points = [], seen = new Set();
   if (Array.isArray(generators)) generators.forEach((generator, index) => {
     const usage = generator?.chatModel?.usage;
     if (!usage || typeof usage !== 'object') return;
@@ -109,9 +119,8 @@ function trendMetrics(steps = [], generators = [], maxPoints = 96) {
     if (total === null) return;
     // Mirror trajectoryMetrics de-duplication: one usage record per request.
     const id = usage.responseId ? `response:${usage.apiProvider || ''}:${usage.responseId}` : usage.messageId ? `message:${usage.messageId}` : `index:${index}`;
-    const signature = JSON.stringify([total, tokenCount(usage.outputTokens), usage.model]);
-    if (seen.has(id)) { if (seen.get(id).signature === signature) return; }
-    seen.set(id, { signature });
+    if (seen.has(id)) return;
+    seen.add(id);
     const indices = Array.isArray(generator.stepIndices) ? generator.stepIndices.filter(n => Number.isInteger(n) && n >= 0) : [];
     points.push({ inputTokens: total, anchor: indices.length ? Math.min(...indices) : null });
   });
