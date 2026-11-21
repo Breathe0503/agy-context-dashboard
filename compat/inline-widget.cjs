@@ -36,7 +36,11 @@ module.exports = function installAgPulseInlineWidget() {
     initial:localGet('ag-pulse-usage-scope'),cache:value=>localSet('ag-pulse-usage-scope',value),
     write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onUsageScopeChanged();},
   });
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
+  const quotaDisplay=language.connectQuotaDisplay({
+    initial:localGet('ag-pulse-quota-display'),cache:value=>localSet('ag-pulse-quota-display',value),
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onQuotaDisplayChanged();},
+  });
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
     write:async input=>{const value=await window.agPulseHost.setPreferences(input);syncGuide(value);return value;},
@@ -496,6 +500,7 @@ module.exports = function installAgPulseInlineWidget() {
     for(const button of root.querySelectorAll('[data-language-choice]')){attribute(button,'aria-pressed',button.dataset.languageChoice===language.language);attribute(button,'data-save-failed',preferences.error);attribute(button,'title',preferences.error?t('languageSaveFailed'):(button.getAttribute('aria-label')||button.textContent));}
     text('language-save-note',preferences.error?t('languageSaveFailed'):'');
     for(const button of root.querySelectorAll('[data-speed-style-choice]')){const value=button.dataset.speedStyleChoice,name=t(value==='cat'?'styleCat':'styleMinimal'),failed=speedStyle.error&&speedStyle.style===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('styleSaveFailed')}`:name);attribute(button,'aria-pressed',speedStyle.style===value);attribute(button,'data-save-failed',failed);}
+    for(const button of root.querySelectorAll('[data-quota-display-choice]')){const value=button.dataset.quotaDisplayChoice,name=t(value==='both'?'quotaDisplayBoth':value==='auto'?'quotaDisplayAuto':'quotaDisplayCompact'),failed=quotaDisplay.error&&quotaDisplay.value===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('quotaDisplaySaveFailed')}`:name);attribute(button,'aria-pressed',quotaDisplay.value===value);attribute(button,'data-save-failed',failed);}
     const zh=language.language==='zh-CN',tw=language.language==='zh-TW';
     text('usage-today-label',tw?'今日用量':(zh?'今日用量':'Today'));text('usage-month-label',tw?'本月用量':(zh?'本月用量':'This month'));
     text('usage-open-label',tw?'檢視用量統計':(zh?'查看用量统计':'View token usage'));updateMenu?.localize();
@@ -573,7 +578,7 @@ module.exports = function installAgPulseInlineWidget() {
     densityMotion=motion;node.dataset.motion='density';
     if(spring)node.dataset.motionKind='spring';
     const play=(element,frames,options={})=>{const animation=element.animate(frames,{duration,easing:useSpring?densitySpringEase:densityEase,...options});motion.animations.push(animation);return animation;};
-    const chipOrder=['speed','cache','context'];
+    const chipOrder=['speed','cache','quota','context'];
     const chipStartX=new Map();
     if(useSpring){
       for(const [el,piece]of previous.pieces){
@@ -781,6 +786,9 @@ module.exports = function installAgPulseInlineWidget() {
     else {if(element.hasAttribute('popover')&&element.matches(':popover-open'))element.hidePopover();hidden(element,true);}
   }
   let cardSide=null;
+  // The quota ring chip shares the context card, which holds both quota
+  // windows and the quotaDisplay preference control.
+  const cardIdFor=name=>name==='quota'?'context-card':`${name}-card`;
   function hide({keepWarm=false}={}){
     clearTimeout(openTimer);openTimer=null;
     clearTimeout(hoverTimer);hoverTimer=null;
@@ -799,15 +807,15 @@ module.exports = function installAgPulseInlineWidget() {
     cardName=name;warmUntil=0;
     for(const e of root.querySelectorAll('[data-card]'))e.setAttribute('aria-expanded',String(e.dataset.card===name));
     changingCards=true;
-    try{for(const e of root.querySelectorAll('.card'))cardVisibility(e,e.id===`${name}-card`);}
+    try{const cardId=cardIdFor(name);for(const e of root.querySelectorAll('.card'))cardVisibility(e,e.id===cardId);}
     finally{changingCards=false;}
     updateGuide();
     position();
-    if(name==='context')void hoverQuotaRefresh();
+    if(name==='context'||name==='quota')void hoverQuotaRefresh();
   }
   function hoverChip(name){
     clearTimeout(hoverTimer);
-    if(name==='context')void hoverQuotaRefresh();
+    if(name==='context'||name==='quota')void hoverQuotaRefresh();
     if(isWarm()){
       clearTimeout(openTimer);openTimer=null;
       show(name);
@@ -836,7 +844,7 @@ module.exports = function installAgPulseInlineWidget() {
   function position(){
     positionGuide();
     if(!cardName)return;
-    const button=root.querySelector(`[data-card="${cardName}"]`),card=$(`${cardName}-card`),rect=button.getBoundingClientRect();
+    const button=root.querySelector(`[data-card="${cardName}"]`),card=$(cardIdFor(cardName)),rect=button.getBoundingClientRect();
     const width=Math.min(312,window.innerWidth-24);style(card,'width',`${width}px`);
     const roomAbove=rect.top-21,roomBelow=window.innerHeight-rect.bottom-21;
     style(card,'overflow-y','auto');
@@ -952,7 +960,7 @@ module.exports = function installAgPulseInlineWidget() {
       @keyframes pulse-refresh-spin{to{transform:rotate(360deg)}}
       @media(prefers-reduced-motion:reduce){.refresh[aria-busy=true] svg{animation:none;opacity:.65}}
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
-      :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) [data-card="cache"] .dim,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}
+      :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
       :host(.icons-only) .bar{gap:2px}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       :host([data-layout=blocked]){visibility:hidden!important;pointer-events:none!important}:host(.native-no-room){flex:0 0 0px!important;width:0!important;max-width:0!important;margin:0!important}
       .density-stage{position:absolute;overflow:clip;pointer-events:none;user-select:none}.density-piece{pointer-events:none!important}
@@ -965,6 +973,12 @@ module.exports = function installAgPulseInlineWidget() {
       :host(:not(.icons-only)) [data-card=context][data-update-available=true]{padding-right:12px}
       [data-card=context]{position:relative}[data-card=context][data-update-available=true]::after{content:'';position:absolute;top:3px;right:3px;z-index:1;width:6px;height:6px;border-radius:50%;background:var(--pulse-success);box-shadow:0 0 0 1.5px var(--pulse-card);pointer-events:none}
       :host(.icons-only) [data-card=context][data-update-available=true]::after{top:2px;right:2px}
+      .quota-ring{stroke-width:2.6}.quota-ring .ring-track{stroke:var(--pulse-track)}.quota-ring .ring-arc{stroke:var(--pulse-accent);transition:stroke .3s}
+      .quota-text{display:inline-flex;align-items:center;gap:3px;min-width:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+      [data-card=quota]{position:relative}[data-card=quota][data-quota-level=warn] .ring-arc{stroke:var(--pulse-warning)}[data-card=quota][data-quota-level=danger] .ring-arc{stroke:var(--pulse-danger)}[data-card=quota][data-quota-level=unknown] .ring-arc{stroke:var(--pulse-muted);opacity:.7}
+      [data-card=quota][data-quota-dot]::after{content:'';position:absolute;top:1px;left:14px;z-index:1;width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1.5px var(--pulse-card);pointer-events:none}
+      [data-card=quota][data-quota-dot=warn]::after{background:var(--pulse-warning)}[data-card=quota][data-quota-dot=danger]::after{background:var(--pulse-danger)}
+      :host(.icons-only) [data-card=quota][data-quota-dot]::after{left:15px}
       #transcript-details{margin-top:10px;border-top:1px solid var(--pulse-separator);padding-top:9px}#transcript-details summary{cursor:pointer;font-size:11px;color:var(--pulse-label)}#transcript-total{float:right;margin-left:8px;font-variant-numeric:tabular-nums;color:var(--pulse-foreground);font-size:11px}
       :host{--cat:var(--pulse-accent);--cat-shade:color-mix(in srgb,var(--pulse-accent) 70%,var(--pulse-background));--cat-light:color-mix(in srgb,var(--pulse-accent) 18%,var(--pulse-foreground));--cat-outline:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-background));--cat-pink:color-mix(in srgb,var(--pulse-emphasis) 55%,var(--pulse-foreground));--cat-eye:var(--pulse-background);--cat-whisker:color-mix(in srgb,var(--pulse-accent) 32%,var(--pulse-foreground));--cat-tip:var(--pulse-emphasis);--cat-tint:color-mix(in srgb,var(--pulse-accent) 15%,transparent)}
       :host([data-pulse-theme="light"]){--cat-shade:color-mix(in srgb,var(--pulse-accent) 72%,var(--pulse-foreground));--cat-light:color-mix(in srgb,var(--pulse-accent) 16%,#fff);--cat-outline:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-foreground));--cat-eye:var(--pulse-foreground);--cat-whisker:color-mix(in srgb,var(--pulse-accent) 38%,var(--pulse-foreground));--cat-tint:color-mix(in srgb,var(--pulse-accent) 12%,transparent)}
@@ -1045,7 +1059,8 @@ module.exports = function installAgPulseInlineWidget() {
     </style><div class="bar" data-i18n-aria="strip" aria-label="Dashboard statistics">
       <span class="dot" id="dot" title="Connecting"></span>
       <button class="chip" data-card="speed" data-i18n-aria="session" aria-controls="speed-card" aria-expanded="false"><svg class="cat-badge" id="strip-cat-badge" viewBox="0 0 16 10" aria-hidden="true"></svg><span class="rounds dim" id="rounds"></span><strong id="tps">—</strong><span>tok/s</span></button>
-      <button class="chip" data-card="cache" data-i18n-aria="cacheTitle" aria-controls="cache-card" aria-expanded="false">${svg('cache')}<svg class="collection-warning" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 15 14H1ZM8 6v4m0 2v.1"/></svg><svg class="collection-processing" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M8 1v3m3-2v3"/></svg><span class="collection-label"></span><span class="cache-total" id="cache-total">— tok</span><span class="dim">/</span><strong id="cache-rate">—</strong></button>
+      <button class="chip" data-card="cache" data-i18n-aria="cacheTitle" aria-controls="cache-card" aria-expanded="false">${svg('cache')}<svg class="collection-warning" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 15 14H1ZM8 6v4m0 2v.1"/></svg><svg class="collection-processing" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M8 1v3m3-2v3"/></svg><span class="collection-label"></span><span class="cache-total" id="cache-total">— tok</span></button>
+      <button class="chip" data-card="quota" data-i18n-aria="quotaRingTitle" aria-controls="context-card" aria-expanded="false"><svg class="quota-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="ring-track" cx="10" cy="10" r="8"/><circle class="ring-arc" id="quota-ring-arc" cx="10" cy="10" r="8" transform="rotate(-90 10 10)"/></svg><span class="quota-text" id="quota-text">—</span></button>
       <button class="chip" data-card="context" data-i18n-aria="context" aria-controls="context-card" aria-expanded="false"><span class="context-ring" id="context-ring" aria-hidden="true"></span><span class="context-label" data-i18n="contextShort">Ctx</span><strong id="context-percent">—</strong></button>
     </div><section class="card" id="speed-card" role="region" data-i18n-aria="session" aria-label="Session statistics" hidden>
       <div class="heading speed-hero"><div class="speed-hero-main"><div class="speed-hero-label"><svg class="cat-badge" id="card-cat-badge" viewBox="0 0 16 10" aria-hidden="true"></svg><span data-i18n="latestSpeed">${t('latestSpeed')}</span></div><div class="speed-hero-rate"><strong id="latest-rate">—</strong><span class="speed-unit" id="latest-unit">tok/s</span></div></div><svg class="dashboard-speed-trail" id="speed-trail" viewBox="0 0 140 54" aria-hidden="true"></svg><div class="style-toggle" role="group" data-i18n-aria="speedStyle"><button type="button" class="style-toggle-button" id="speed-style-minimal" data-speed-style-choice="minimal"><svg viewBox="0 0 16 10" aria-hidden="true"><path class="speed-pulse-icon" d="M1 5h3l2-4 3 8 2-4h4"/></svg></button><button type="button" class="style-toggle-button" id="speed-style-cat" data-speed-style-choice="cat"><svg class="cat-badge" id="style-cat-icon" viewBox="0 0 16 10" aria-hidden="true"></svg></button></div></div>
@@ -1074,6 +1089,9 @@ module.exports = function installAgPulseInlineWidget() {
       card.querySelector('.heading').after(notice);
       notice.querySelector('details').addEventListener('toggle',()=>{if(!disposed)position();});
     }
+    const displayRow=document.createElement('div');displayRow.className='card-language';
+    setMarkup(displayRow,'<span data-i18n="quotaDisplay"></span><div class="language-options" role="group" data-i18n-aria="quotaDisplay">'+[['both','quotaDisplayBoth'],['auto','quotaDisplayAuto'],['compact','quotaDisplayCompact']].map(([value,key])=>`<button type="button" class="language-button" data-quota-display-choice="${value}" data-i18n="${key}"></button>`).join('')+'</div>');
+    $('context-card').append(displayRow);
     const languageRow=document.createElement('div');languageRow.className='card-language';
     setMarkup(languageRow,'<div class="language-options" role="group" data-i18n-aria="language"><button type="button" class="language-button" id="card-language-en" data-language-choice="en" aria-label="English">EN</button><button type="button" class="language-button" id="card-language-zh" data-language-choice="zh-CN" aria-label="简体中文">简</button><button type="button" class="language-button" id="card-language-zh-tw" data-language-choice="zh-TW" aria-label="繁體中文">繁</button></div><div class="card-footer-actions"></div>');
     const footerActions=languageRow.querySelector('.card-footer-actions');
@@ -1109,6 +1127,7 @@ module.exports = function installAgPulseInlineWidget() {
     for(const button of root.querySelectorAll('.refresh'))button.addEventListener('click',()=>refreshManually(false));
     for(const button of root.querySelectorAll('[data-language-choice]'))button.addEventListener('click',()=>void preferences.choose(button.dataset.languageChoice));
     for(const button of root.querySelectorAll('[data-speed-style-choice]'))button.addEventListener('click',()=>void speedStyle.choose(button.dataset.speedStyleChoice));
+    for(const button of root.querySelectorAll('[data-quota-display-choice]'))button.addEventListener('click',()=>void quotaDisplay.choose(button.dataset.quotaDisplayChoice));
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
       setMarkup(section,'<div class="usage-summary"><div><div class="usage-label" id="usage-today-label"></div><div class="usage-val"><strong id="usage-today"></strong><span class="usage-unit" id="usage-today-unit">toks</span></div></div><div><div class="usage-label" id="usage-month-label"></div><div class="usage-val"><strong id="usage-month"></strong><span class="usage-unit" id="usage-month-unit">toks</span></div></div></div><button type="button" id="open-usage"><span id="usage-open-label"></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button>');$('cache-card').append(section);
@@ -1254,7 +1273,7 @@ module.exports = function installAgPulseInlineWidget() {
     const respOut=speed?.counts?.responseOutput,thinkOut=speed?.counts?.thinkingOutput;
     text('tokens',speed?`${count(respOut)} / ${count(thinkOut)} ${tokUnit((respOut||0)+(thinkOut||0))}`:'—');
     const usage=taskUsage||speed,cache=usage?.cache;
-    text('cache-rate',pct(cache?.hitRate));text('cache-detail-rate',pct(cache?.hitRate));
+    text('cache-detail-rate',pct(cache?.hitRate));
     const tokens=usage?.tokens || cache;
     // Keep coverage in the data model; the compact card shows readable counters.
     const hasTotal=tokens?.measuredRequests&&Number.isSafeInteger(tokens.totalTokens)&&tokens.totalTokens>=0;
@@ -1420,6 +1439,39 @@ module.exports = function installAgPulseInlineWidget() {
         attribute(btn,'title',tipParts.join(' · '));
       }
     }
+    // Composer quota ring: one ring for the remaining allowance of the active
+    // model's group (the context ring above shows usage). Shared view logic in
+    // i18n.cjs picks the painted window per quotaDisplay; unknown stays an
+    // em-dash on a dashed ring, never 0%.
+    const quotaChip=root.querySelector('[data-card="quota"]'),quotaArcEl=$('quota-ring-arc'),quotaTextEl=$('quota-text');
+    if(quotaChip&&quotaArcEl){
+      hidden(quotaChip,!group);
+      if(group){
+        const view=language.quotaRingView(group,quotaDisplay.value),RING=2*Math.PI*8;
+        const ringPct=v=>`${Math.round(v*100)}%`;
+        attribute(quotaArcEl,'stroke-dasharray',view.arcValue===null?'2 3':`${(RING*Math.min(1,Math.max(0,view.arcValue))).toFixed(3)} ${RING.toFixed(3)}`);
+        attribute(quotaChip,'data-quota-level',view.level==='ok'?null:view.level);
+        attribute(quotaChip,'data-quota-dot',view.dot);
+        const tag=w=>w==='5h'?'5h':t('weekShort');
+        const seg=(w,strong)=>{const v=w==='5h'?view.five?.remaining??null:view.week?.remaining??null;return v!==null?`<${strong?'strong':'span'}>${tag(w)} ${ringPct(v)}</${strong?'strong':'span'}>`:`<span class="dim">${tag(w)} —</span>`;};
+        let html='';
+        if(quotaDisplay.value==='both'){
+          const parts=[];
+          if(view.five)parts.push(seg('5h',view.show==='5h'&&view.five.remaining!==null));
+          if(view.week){if(parts.length)parts.push('<span class="dim">·</span>');parts.push(seg('weekly',view.show==='weekly'&&view.week.remaining!==null));}
+          html=parts.join('')||'<span class="dim">—</span>';
+        }else if(view.show){
+          const v=view.show==='5h'?view.five?.remaining??null:view.week?.remaining??null;
+          html=`<span class="dim">${tag(view.show)}</span> `+(v!==null?`<strong>${ringPct(v)}</strong>`:'<span class="dim">—</span>');
+        }else html='<span class="dim">—</span>';
+        setMarkup(quotaTextEl,html);
+        const tips=[];
+        if(view.five)tips.push(`5h ${t('remaining')} ${view.five.remaining!==null?ringPct(view.five.remaining):'—'}`);
+        if(view.week)tips.push(`${t('weekShort')} ${t('remaining')} ${view.week.remaining!==null?ringPct(view.week.remaining):'—'}`);
+        const tip=`${t('quotaRingTitle')} · ${tips.length?tips.join(' · '):t('quotaRingUnknown')}`;
+        attribute(quotaChip,'title',tip);attribute(quotaChip,'aria-label',tip);
+      }
+    }
     attribute($('dot'),'class',`dot ${data.connection}`);attribute($('dot'),'title',t(data.connection==='live'?'live':data.connection==='stale'?'stale':'offline'));tick();fit();position();
   }
   function tick(){
@@ -1492,6 +1544,7 @@ module.exports = function installAgPulseInlineWidget() {
     },
     onLocaleChanged(){if(root){localize();render();tick();position();}},
     onSpeedStyleChanged(){if(root){attribute(node,'data-speed-style',speedStyle.style);localize();paintSpeed([],'idle',0.36,false);render();tick();position();}},
+    onQuotaDisplayChanged(){if(root){localize();render();position();}},
     onUsageScopeChanged(){if(root){render();}},
     syncUsageGuide(){usageDashboard?.syncGuideDismissed();},
     poll(){
