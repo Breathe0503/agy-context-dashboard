@@ -29,7 +29,7 @@
 
 ## 看看效果
 
-<img src="docs/assets/responsive-zh.png?v=0.8.0" width="100%" alt="最新版主对话窄窗口三图标布局，以及子代理输入框旁的独立统计。">
+<img src="docs/assets/responsive-zh.png?v=0.9.7" width="100%" alt="最新版主对话窄窗口三图标布局，以及子代理输入框旁的独立统计。">
 
 <table>
 <tr><th width="50%">生成速度与缓存</th><th width="50%">上下文与共享额度</th></tr>
@@ -43,7 +43,7 @@
 <tr><th width="50%">每日 / 每周活动</th><th width="50%">按模型统计用量</th></tr>
 <tr>
 <td width="50%"><img src="docs/assets/usage-overview-zh.png?v=0.9.7" width="100%" alt="最新版 Token 用量活动概览，支持每日和每周贡献图"></td>
-<td width="50%"><img src="docs/assets/usage-details-zh.png?v=0.8.0" width="100%" alt="最新版模型用量柱状图，支持天周月切换和主题配色"></td>
+<td width="50%"><img src="docs/assets/usage-details-zh.png?v=0.9.7" width="100%" alt="最新版模型用量柱状图，支持天周月切换和主题配色"></td>
 </tr>
 </table>
 
