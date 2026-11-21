@@ -1,16 +1,27 @@
-# AGY Context Dashboard (Antigrative Dashboard) v0.9.6
+# AGY Context Dashboard v0.9.6
 
-Release `v0.9.6` for [`wycocoyu/agy-context-dashboard`](https://github.com/wycocoyu/agy-context-dashboard) under the MIT License, adding **Antigravity Desktop `2.34.0+` daemon CSRF credential discovery** and syncing upstream `v0.9.9`–`v0.9.10` discovery hardening and context UI enhancements while retaining all `v0.9.5` launch self-healing, default-on `autoRelaunchDebug`, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS `language_server.native`, `agy 1.5.x` CLI `statusLine`, and IDE `2.6.0` capabilities.
+`wycocoyu/agy-context-dashboard` `v0.9.6`（MIT 协议）修复 **Antigravity Desktop `2.34.0+` 凭据断连**，并同步上游 `v0.9.9`–`v0.9.10` 上下文提示与探测稳定性优化。
+
+## 更新内容
+
+- **适配 `2.34.0+` daemon 凭据**：自动从 `~/.gemini/<appDataDir>/daemon/*.json` 双校验读取凭据，兼容移除 `--csrf_token` 的新版与 `<= 2.33.x`。
+- **上下文压缩与容量预警**：新增压缩次数徽标，上下文圆环与进度条按 `75%` 黄色、`90%` 红色分档预警。
+- **探测保活与报错去重**：15 秒租约到期先验活端口再重扫，探测失败三语脱敏并收敛至单栏提示。
+
+## 安装或更新
+
+- **Antigravity 桌面 App**：上下文详情 → **检查更新**（`v0.8.14+`），或解压 `antigrative-dashboard-0.9.6.zip` 后运行 `python3 manage.py install`（Windows 用 `python`）。
+- **Antigravity CLI / 独立 IDE**：CLI 运行 `python3 manage.py install-cli`；IDE 安装 `antigrative-dashboard-ide-0.9.6.vsix`。现有配置与统计自动保留。
+
+---
 
 ## What changed in v0.9.6
 
-- **Antigravity Desktop `2.34.0+` daemon CSRF credential discovery (`sidecars/panel/discovery.mjs`, `sidecars/panel/client.mjs`, `ide/client.mjs`):** Antigravity `2.34.0` removes `--csrf_token` from `language_server` command-line arguments and writes `{ pid, httpsPort, httpPort, lsVersion, csrfToken }` under `~/.gemini/<appDataDir>/daemon/*.json`. Adds `resolveDaemonCredential` to fall back to PID-matched, live-port-verified daemon metadata while keeping full backward compatibility with `<= 2.33.x`.
-- **Context compaction count & threshold colors (`compat/inline-widget.cjs`, `compat/i18n.cjs`, `sidecars/panel/{app.js,index.html,styles.css}`):** Displays `🗜 {n}×` / `🗜 {n} 次` badges when `transcriptStats.compactionMarkers > 0`, highlights context ring & progress bar at `>= 75%` warning and `>= 90%` danger thresholds, preserves dynamic `[data-card]` chip titles during `localize()`, and disposes `speedStyle` on `pagehide`.
-- **Discovery lease verification & error deduplication (`sidecars/panel/`, `ide/discovery.mjs`, `compat/i18n.cjs`, `compat/inline-widget.cjs`):** Renews 15s discovery leases via live PID + loopback port checks (`verifyCachedServer`), sanitizes discovery command timeouts/failures (`discoveryCommandError`) across `zh-CN` / `zh-TW` / `en`, and renders global connection/quota errors once in `#quota-error`.
+- **Antigravity `2.34.0+` daemon auth:** Reads PID- and port-verified metadata from `~/.gemini/<appDataDir>/daemon/*.json` when `--csrf_token` is omitted, while keeping `<= 2.33.x` compatibility.
+- **Compaction badge & threshold colors:** Shows context compaction count badges and highlights the context ring and bar at `>= 75%` warning and `>= 90%` danger thresholds.
+- **Discovery lease & deduplicated errors:** Verifies live PID and loopback port before rescanning, sanitizes probe errors across `en` / `zh-CN` / `zh-TW`, and renders global errors once in `#quota-error`.
 
 ## Install or update
 
-- **Antigravity App:** open context details → **Check for updates** (available from `v0.8.14` onward). Alternatively, extract `antigrative-dashboard-0.9.6.zip` and run `python3 manage.py install` (Windows: `python manage.py install`; add `--with-launcher` on macOS for a zero-relaunch Dock app and `--with-cli` to sync CLI `statusLine`).
-- **Antigravity CLI (`statusLine`):** run `python3 manage.py install-cli` (Windows: `python`; or `--with-cli` with Desktop install), then reopen `agy`.
-- **Standalone Antigravity IDE:** install `antigrative-dashboard-ide-0.9.6.vsix` using **Install from VSIX…**. This is separate from the App installer.
-- Existing settings, language choices, `history-v1` and `usage-v1` are preserved. SHA-256 checksum files accompany both packages.
+- **Antigravity App:** Open context details → **Check for updates** (`v0.8.14+`), or extract `antigrative-dashboard-0.9.6.zip` and run `python3 manage.py install` (`python` on Windows).
+- **Antigravity CLI / Standalone IDE:** Run `python3 manage.py install-cli` for CLI `statusLine`, or install `antigrative-dashboard-ide-0.9.6.vsix` via **Install from VSIX…**. Settings, history, and SHA-256 verification remain intact.
