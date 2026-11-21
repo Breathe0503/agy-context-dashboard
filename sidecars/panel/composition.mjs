@@ -20,10 +20,11 @@ export function tokenBaseMetrics(response) {
 }
 
 // Dynamic-layer buckets from per-step usage metadata, classified with the same
-// step-type semantics as transcript.mjs. A step contributes only when it
-// carries at least one non-zero bucket, so absent metadata falls back cleanly.
+// step-type semantics as transcript.mjs. In Antigravity 2.34+, only
+// PLANNER_RESPONSE carries modelUsage, so non-assistant buckets stay zero
+// unless other step types report modelUsage.
 function stepBuckets(steps) {
-  const out = { user: 0, thinking: 0, reply: 0, tool: 0, system: 0, available: false };
+  const out = { user: 0, thinking: 0, reply: 0, tool: 0, system: 0, hasNonAssistant: false, hasAssistant: false };
   if (!Array.isArray(steps)) return out;
   for (const step of steps) {
     const usage = step?.metadata?.modelUsage;
@@ -32,33 +33,59 @@ function stepBuckets(steps) {
     const input = tokenCount(usage.inputTokens) ?? 0, thinking = tokenCount(usage.thinkingOutputTokens) ?? 0;
     const reply = tokenCount(usage.responseOutputTokens) ?? Math.max(0, (tokenCount(usage.outputTokens) ?? 0) - thinking);
     if (!(input || thinking || reply)) continue;
-    out.available = true;
-    if (/USER_INPUT/.test(type)) out.user += input;
-    else if (/PLANNER_RESPONSE/.test(type)) { out.thinking += thinking; out.reply += reply; }
-    else if (/COMPACTION|CHECKPOINT|SYSTEM_MESSAGE/.test(type)) out.system += input;
-    else out.tool += input;
+    if (/USER_INPUT/.test(type)) { out.user += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
+    else if (/PLANNER_RESPONSE/.test(type)) { out.thinking += thinking; out.reply += reply; out.hasAssistant = out.hasAssistant || thinking > 0 || reply > 0; }
+    else if (/COMPACTION|CHECKPOINT|SYSTEM_MESSAGE/.test(type)) { out.system += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
+    else { out.tool += input; out.hasNonAssistant = out.hasNonAssistant || input > 0; }
   }
   return out;
 }
 
 function dynamicBuckets({ steps = [], transcript = null } = {}) {
   const buckets = stepBuckets(steps);
-  if (buckets.available) return { source: 'steps', parts: [['user', buckets.user], ['thinking', buckets.thinking], ['reply', buckets.reply], ['tool', buckets.tool], ['system', buckets.system]] };
-  // Logged-text classification cannot split thinking from replies; the merged
-  // assistant segment is labelled accordingly by the renderer.
-  if (transcript && ['ready', 'partial'].includes(transcript.status) && transcript.matchedSteps > 0)
-    return { source: 'transcript', parts: [['user', transcript.userTokens], ['assistant', transcript.assistantTokens], ['tool', transcript.toolTokens], ['system', transcript.systemTokens]] };
-  return { source: null, parts: [] };
+  if (buckets.hasNonAssistant) {
+    return { source: 'steps', complete: true, parts: [['user', buckets.user], ['thinking', buckets.thinking], ['reply', buckets.reply], ['tool', buckets.tool], ['system', buckets.system]] };
+  }
+  const hasTranscript = Boolean(transcript && ['ready', 'partial'].includes(transcript.status) && transcript.matchedSteps > 0);
+  if (hasTranscript) {
+    // Combine exact planner thinking/reply buckets with logged-text user/tool/system
+    // estimates when non-assistant steps lack per-step modelUsage.
+    if (buckets.hasAssistant) {
+      return { source: 'hybrid', complete: true, parts: [['user', transcript.userTokens], ['thinking', buckets.thinking], ['reply', buckets.reply], ['tool', transcript.toolTokens], ['system', transcript.systemTokens]] };
+    }
+    // Logged-text classification cannot split thinking from replies; the merged
+    // assistant segment is labelled accordingly by the renderer.
+    return { source: 'transcript', complete: true, parts: [['user', transcript.userTokens], ['assistant', transcript.assistantTokens], ['tool', transcript.toolTokens], ['system', transcript.systemTokens]] };
+  }
+  if (buckets.hasAssistant) {
+    return { source: 'steps', complete: false, parts: [['thinking', buckets.thinking], ['reply', buckets.reply]] };
+  }
+  return { source: null, complete: false, parts: [] };
 }
 
 function compositionSegments(usedTokens, maxTokens, dynamic, tokenBase = null) {
   const segments = [];
   const custom = tokenBase ? tokenBase.totalTokens : null;
-  if (custom !== null) segments.push({ id: 'customization', tokens: custom, fraction: Math.min(1, custom / maxTokens) });
-  const sum = dynamic.parts.reduce((n, [, v]) => n + Math.max(0, v), 0);
-  const room = Math.max(0, usedTokens - (custom ?? 0));
-  const scale = sum > 0 ? room / sum : 0;
-  for (const [id, value] of dynamic.parts) if (value > 0) segments.push({ id, tokens: value, fraction: value * scale / maxTokens });
+  const parts = Array.isArray(dynamic?.parts) ? dynamic.parts : [];
+  const sum = parts.reduce((n, [, v]) => n + Math.max(0, v), 0);
+  if (custom === null && sum === 0) {
+    segments.push({ id: 'remaining', tokens: Math.max(0, maxTokens - usedTokens), fraction: Math.max(0, 1 - Math.min(1, usedTokens / maxTokens)) });
+    return segments;
+  }
+  const totalScale = usedTokens > maxTokens ? maxTokens / usedTokens : 1;
+  const customBudget = custom !== null ? Math.min(custom, usedTokens) : 0;
+  if (custom !== null) segments.push({ id: 'customization', tokens: custom, fraction: (customBudget / maxTokens) * totalScale });
+  const room = Math.max(0, usedTokens - customBudget);
+  if (dynamic?.complete) {
+    const scale = sum > 0 ? room / sum : 0;
+    for (const [id, value] of parts) if (value > 0) segments.push({ id, tokens: value, fraction: ((value * scale) / maxTokens) * totalScale });
+    if (sum === 0 && room > 0) segments.push({ id: 'other', tokens: room, fraction: (room / maxTokens) * totalScale });
+  } else {
+    const scale = sum > room && sum > 0 ? room / sum : 1;
+    for (const [id, value] of parts) if (value > 0) segments.push({ id, tokens: value, fraction: ((value * scale) / maxTokens) * totalScale });
+    const unattributed = Math.max(0, room - sum * scale);
+    if (unattributed > 0) segments.push({ id: 'other', tokens: Math.round(unattributed), fraction: (unattributed / maxTokens) * totalScale });
+  }
   const filled = segments.reduce((n, s) => n + s.fraction, 0);
   segments.push({ id: 'remaining', tokens: Math.max(0, maxTokens - usedTokens), fraction: Math.max(0, 1 - filled) });
   return segments;
@@ -111,7 +138,7 @@ export function compositionMetrics({ context = null, steps = [], generators = []
   if (usedTokens === null || !maxTokens) return null;
   const dynamic = dynamicBuckets({ steps, transcript });
   return {
-    version: 1, usedTokens, maxTokens, source: dynamic.source, parts: dynamic.parts,
+    version: 1, usedTokens, maxTokens, source: dynamic.source, complete: dynamic.complete, parts: dynamic.parts,
     customization: tokenBase
       ? { available: true, tokens: tokenBase.totalTokens, budget: tokenBase.budget, remainingBudget: tokenBase.remainingBudget, groups: tokenBase.groups }
       : { available: false, tokens: null, budget: null, remainingBudget: null, groups: null },
@@ -127,5 +154,5 @@ export function compositionMetrics({ context = null, steps = [], generators = []
 export function attachTokenBase(composition, tokenBase) {
   if (!composition || !tokenBase || tokenCount(tokenBase.totalTokens) === null) return composition || null;
   return { ...composition, customization: { available: true, tokens: tokenBase.totalTokens, budget: tokenBase.budget, remainingBudget: tokenBase.remainingBudget, groups: tokenBase.groups },
-    segments: compositionSegments(composition.usedTokens, composition.maxTokens, { source: composition.source, parts: composition.parts }, tokenBase) };
+    segments: compositionSegments(composition.usedTokens, composition.maxTokens, { source: composition.source, complete: Boolean(composition.complete), parts: composition.parts }, tokenBase) };
 }

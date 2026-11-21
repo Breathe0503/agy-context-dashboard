@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { tokenBaseMetrics, compositionMetrics, attachTokenBase } from '../composition.mjs';
 import { MetricsStore } from '../store.mjs';
-import { SessionHistory } from '../history.mjs';
+import { SessionHistory, reconcileMetrics, safeMetrics } from '../history.mjs';
 import { TrajectoryJson } from '../trajectory-json.mjs';
 import { validatedInput } from '../../../compat/runtime-ui.mjs';
 
@@ -154,4 +154,84 @@ test('metrics request validation passes contextDetail through explicitly',()=>{
   assert.equal(validatedInput({conversationId:null}).contextDetail,undefined);
   assert.equal(validatedInput({conversationId:null,contextDetail:'yes'}).contextDetail,undefined);
   assert.equal(validatedInput({conversationId:null,force:true}).contextDetail,undefined);
+});
+
+test('real Antigravity planner-only buckets combine with transcript in hybrid mode',()=>{
+  const steps=[
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{}},
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'29171',outputTokens:'870',thinkingOutputTokens:'788',responseOutputTokens:'82'}}},
+    {type:'CORTEX_STEP_TYPE_RUN_COMMAND',metadata:{}},
+    {type:'CORTEX_STEP_TYPE_VIEW_FILE',metadata:{}},
+  ];
+  const transcript={status:'partial',matchedSteps:4,userTokens:500,assistantTokens:900,toolTokens:8000,systemTokens:200,totalTokens:9600};
+  const base=tokenBaseMetrics(tokenBaseResponse);
+  const comp=attachTokenBase(compositionMetrics({context,steps,generators:[],transcript}),base);
+  assert.equal(comp.source,'hybrid');
+  assert.equal(comp.complete,true);
+  assert.deepEqual(comp.parts,[['user',500],['thinking',788],['reply',82],['tool',8000],['system',200]]);
+  const byId=Object.fromEntries(comp.segments.map(s=>[s.id,s]));
+  assert.ok(byId.user&&byId.thinking&&byId.reply&&byId.tool&&byId.system&&byId.customization);
+  assert.ok(Math.abs(comp.segments.reduce((n,s)=>n+s.fraction,0)-1)<1e-9);
+});
+
+test('planner-only steps without transcript leave unattributed space as other without inflating output',()=>{
+  const steps=[{type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE',metadata:{modelUsage:{inputTokens:'29171',outputTokens:'870',thinkingOutputTokens:'788',responseOutputTokens:'82'}}}];
+  const comp=compositionMetrics({context,steps,generators:[],transcript:null});
+  assert.equal(comp.source,'steps');
+  assert.equal(comp.complete,false);
+  const byId=Object.fromEntries(comp.segments.map(s=>[s.id,s]));
+  assert.ok(Math.abs(byId.thinking.fraction-788/1000000)<1e-9);
+  assert.ok(Math.abs(byId.reply.fraction-82/1000000)<1e-9);
+  assert.ok(Math.abs(byId.other.fraction-(100000-870)/1000000)<1e-9);
+  assert.equal(byId.other.tokens,100000-870);
+  const withBase=attachTokenBase(comp,tokenBaseMetrics(tokenBaseResponse));
+  const byIdBase=Object.fromEntries(withBase.segments.map(s=>[s.id,s]));
+  assert.equal(byIdBase.other.tokens,100000-16489-870);
+  assert.ok(Math.abs(withBase.segments.reduce((n,s)=>n+s.fraction,0)-1)<1e-9);
+});
+
+test('composition keeps non-negative fractions when custom exceeds used or used exceeds max',()=>{
+  const hugeCustom=tokenBaseMetrics({customizationTokenBase:{totalTokens:150000,groups:[{name:'Rules',numTokens:150000}]}});
+  const overUsed=attachTokenBase(compositionMetrics({context:{usedTokens:100000,maxTokens:1000000},steps:[stepUsage('USER_INPUT',5000)],generators:[]}),hugeCustom);
+  assert.ok(overUsed.segments.every(s=>s.fraction>=0));
+  assert.ok(Math.abs(overUsed.segments.reduce((n,s)=>n+s.fraction,0)-1)<1e-9);
+  const overflow=compositionMetrics({context:{usedTokens:1200000,maxTokens:1000000},steps:[stepUsage('USER_INPUT',5000)],generators:[],tokenBase:hugeCustom});
+  assert.ok(overflow.segments.every(s=>s.fraction>=0));
+  assert.ok(Math.abs(overflow.segments.reduce((n,s)=>n+s.fraction,0)-1)<1e-9);
+});
+
+test('reconcileMetrics keeps live contextComposition while safeMetrics keeps disk whitelist clean',()=>{
+  const comp=compositionMetrics({context,steps:[stepUsage('USER_INPUT',3000)],generators:[]});
+  const saved={conversationId:GUID,requests:10,counts:{output:5000},tps:50,measuredRequests:5,tokens:{measuredRequests:5,totalTokens:1000},cache:{measuredRequests:5,hitRate:0.5}};
+  const fresh={conversationId:GUID,requests:2,counts:{output:100},tps:40,measuredRequests:1,complete:false,context,contextComposition:comp};
+  const reconciled=reconcileMetrics(saved,fresh,'2026-11-21T08:00:00Z');
+  assert.equal(reconciled.contextComposition,comp);
+  const persisted=safeMetrics(reconciled,GUID);
+  assert.equal(persisted.contextComposition,undefined);
+});
+
+test('account switch and server pid change invalidate cached tokenBase',async t=>{
+  const directory=await mkdtemp(join(tmpdir(),'ag-comp-inval-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  let email='a@example.test',pid=1,tokenBaseCalls=0;
+  const raw={trajectory:{cascadeId:GUID,steps:[{type:'CORTEX_STEP_TYPE_USER_INPUT',metadata:{createdAt:'2026-11-21T08:00:00Z',modelUsage:{inputTokens:'3000'}}}],generatorMetadata:[{stepIndices:[0],chatModel:{usage:{messageId:'m1',inputTokens:'1000'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:100000,maxContextTokens:1000000}}}}]},numTotalSteps:1};
+  const client={call:async method=>{
+    if(method==='GetUserStatus')return{userStatus:{email}};
+    if(method==='RetrieveUserQuotaSummary')return{response:{groups:[]}};
+    if(method==='GetTokenBase'){tokenBaseCalls++;return tokenBaseResponse;}
+    throw new Error('unexpected '+method);
+  },discover:async()=>({pid}),trajectory:async()=>raw,resetTrajectories(){}};
+  const store=new MetricsStore(client,{history:new SessionHistory(directory),transcripts:null});
+  const s1=await store.snapshot({conversationId:GUID,contextDetail:true});
+  assert.equal(tokenBaseCalls,1);assert.equal(s1.speed.contextComposition.customization.available,true);
+  email='b@example.test';
+  const s2=await store.snapshot({conversationId:GUID,force:true,contextDetail:false});
+  assert.equal(s2.speed.contextComposition.customization.available,false);
+  const s3=await store.snapshot({conversationId:GUID,contextDetail:true});
+  assert.equal(tokenBaseCalls,2);assert.equal(s3.speed.contextComposition.customization.available,true);
+  pid=2;
+  const s4=await store.snapshot({conversationId:GUID,contextDetail:false});
+  assert.equal(s4.speed.contextComposition.customization.available,false);
+  const s5=await store.snapshot({conversationId:GUID,contextDetail:true});
+  assert.equal(tokenBaseCalls,3);assert.equal(s5.speed.contextComposition.customization.available,true);
+  store.dispose();
 });
