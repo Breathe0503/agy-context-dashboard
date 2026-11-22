@@ -470,7 +470,8 @@ function render() {
           }
           nodes.push(sec);
         }else if(roleMeta?.isSubagent||roleMeta?.isSidecar){
-          nodes.push(mkRow(roleMeta.isSidecar?t('roleSidecar'):t('roleWorker'),t(roleMeta.agentRole==='monitor'?'roleMonitor':roleMeta.isSidecar?'roleSidecar':'roleWorker')));
+          const roleKey=roleMeta.isSidecar?'roleSidecar':roleMeta.agentRole==='monitor'?'roleMonitor':roleMeta.agentRole==='coordinator'?'roleCoordinator':'roleWorker';
+          nodes.push(mkRow(t('sessionRoleLabel'),t(roleKey)));
         }
         if(models.length){
           const sec=mkEl('div','breakdown-section');

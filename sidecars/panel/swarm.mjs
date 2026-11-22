@@ -16,12 +16,14 @@ export function cleanAgentLabel(value,maxLen=32){
  return safe?safe.slice(0,maxLen):'';
 }
 
-export function classifyAgentRole({isRoot=false,memberName='',memberRole='',subagentSpec=null,agentScript=null,sourceMetadata=null}={}){
+export function classifyAgentRole({isRoot=false,isSubagent=false,memberName='',memberRole='',subagentSpec=null,agentScript=null,sourceMetadata=null}={}){
  if(sourceMetadata?.sidecar)return 'sidecar';
  const tags=[memberName,memberRole,subagentSpec?.typeName,subagentSpec?.role,agentScript?.name].filter(v=>typeof v==='string').join(' ');
  if(/\b(?:monitor|swarm[-_\s]?monitor|watchdog|guardian)\b/i.test(tags))return 'monitor';
  const mr=typeof memberRole==='string'?memberRole.trim().toLowerCase():'';
- if(mr==='coordinator'||isRoot)return 'coordinator';
+ if(mr==='coordinator')return 'coordinator';
+ if(mr==='worker'||isSubagent||subagentSpec)return 'worker';
+ if(isRoot)return 'coordinator';
  return 'worker';
 }
 
@@ -64,13 +66,14 @@ export async function readSwarmMembers(brainRoot,conversationId,{maxBytes=512*10
  return byId.size?{swarmId,byId,ids:[...byId.keys()]}:null;
 }
 
-export function agentDescriptor(conversationId,{isRoot=false,summaries={},swarmMembers=null}={}){
+export function agentDescriptor(conversationId,{isRoot=false,isSubagent=false,selfMember=null,summaries={},swarmMembers=null}={}){
  const cid=normalizeConversationId(conversationId);
  const sum=cid?(summaries[cid]??Object.entries(summaries).find(([k])=>k.toLowerCase()===cid)?.[1]??null):null;
  const meta=sum?.trajectoryMetadata||null;
- const sm=cid&&swarmMembers?.byId?.get(cid)||null;
+ const sm=selfMember||(cid&&swarmMembers?.byId?.get(cid))||null;
+ const metaIsSub=Boolean(isSubagent||meta?.parentConversationId||meta?.subagentSpec||Number(meta?.nestingDepth)>0);
  const role=classifyAgentRole({
-  isRoot,memberName:sm?.name,memberRole:sm?.role,
+  isRoot:isRoot&&!metaIsSub,isSubagent:metaIsSub,memberName:sm?.name,memberRole:sm?.role,
   subagentSpec:meta?.subagentSpec,agentScript:meta?.agentScript,sourceMetadata:meta?.sourceMetadata,
  });
  if(!ROLES.has(role))return {role:'worker',label:'Worker',modelHint:''};

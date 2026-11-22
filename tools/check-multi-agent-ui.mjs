@@ -50,6 +50,7 @@ const transcriptStats = {
   matchedSteps: 12, compactionMarkers: 1, imageSteps: 0, heavyToolCalls: 2,
   toolBreakdown: [
     { name: 'view_file', calls: 3, argTokens: 120, resultTokens: 58000, maxResultTokens: 55000, source: 'builtin' },
+    { name: 'multi_replace_file_content_very_long_tool_name_ellipsis_check', calls: 66, argTokens: 8200, resultTokens: 11700000, maxResultTokens: 24000, source: 'builtin' },
     { name: 'grep_search', calls: 4, argTokens: 680, resultTokens: 6000, maxResultTokens: 4000, source: 'builtin' },
   ],
   bloatWarnings: [
@@ -72,15 +73,18 @@ const usageFixture = {
 };
 
 let prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
+let workerMode = false;
 const snapshot = () => ({
   connection: 'live', serverTime: new Date().toISOString(), quotaUpdatedAt: new Date().toISOString(), preferences: prefs,
   groups: [{ id: 'gemini', name: 'Gemini', windows: { '5h': { available: true, remaining: 0.7 }, weekly: { available: true, remaining: 0.8 } } }],
-  speed: { ...baseMetrics, taskUsage, transcriptStats },
+  speed: workerMode
+    ? { ...baseMetrics, cacheMissSurges: 1, cacheMissSurgeTokens: 9000, taskUsage: null, sessionMeta: { agentRole: 'worker', isSubagent: true, isSidecar: false }, transcriptStats }
+    : { ...baseMetrics, taskUsage, transcriptStats },
   usage: usageFixture,
 });
 
 const panelHtml = panelPageSource(), panelCode = panelAppSource();
-const inlineHtml = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#17181a;color:#ddd;font:13px sans-serif;padding:50px}.rounded-composer{max-width:900px;margin:260px auto 0;background:#27282a;padding:12px;border-radius:18px}.editor{height:45px}.actions{display:flex;align-items:center;gap:5px}.left{display:flex;flex:1;min-width:0;gap:6px}.right{display:flex;gap:5px}button{background:transparent;border:0;color:inherit;height:28px}</style></head><body><div class="rounded-composer"><div class="editor" contenteditable="true" role="combobox" aria-label="Message input"></div><div class="actions"><div class="left"><button aria-label="Add context">＋</button><button data-testid="model-selector-trigger">Orchestrator (Neon)</button></div><div class="right"><button aria-label="Record voice memo">♩</button><button aria-label="Send message">➜</button></div></div></div><script>
+const inlineHtml = (narrow = false) => `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#17181a;color:#ddd;font:13px sans-serif;padding:${narrow ? 8 : 50}px}.rounded-composer{max-width:900px;margin:260px auto 0;background:#27282a;padding:${narrow ? 6 : 12}px;border-radius:18px}.editor{height:45px}.actions{display:flex;align-items:center;gap:5px}.left{display:flex;flex:1;min-width:0;gap:6px}.right{display:flex;gap:5px}button{background:transparent;border:0;color:inherit;height:28px}</style></head><body><div class="rounded-composer"><div class="editor" contenteditable="true" role="combobox" aria-label="Message input"></div><div class="actions"><div class="left"><button aria-label="Add context">＋</button><button data-testid="model-selector-trigger">${narrow ? 'M' : 'Orchestrator (Neon)'}</button></div><div class="right"><button aria-label="Record voice memo">♩</button><button aria-label="Send message">➜</button></div></div></div><script>
 history.replaceState({}, '', '/c/${coord}');
 window.agPulseHost = { getMetrics: async () => (window.__snap()), getPreferences: async () => (window.__prefs()), setPreferences: async x => Object.assign(window.__prefs(), x) };
 window.__agPulseI18nFactory = (${extract(sources[0])});
@@ -101,9 +105,9 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/theme.css') { res.setHeader('Content-Type', 'text/css'); res.end(createTheme().css(':root')); return; }
   if (url.pathname === '/preload.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
   if (url.pathname === '/inline') {
-    prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
+    prefs = { language: url.searchParams.get('lang') || 'en', languageGuideDismissed: true, revision: 1 };
     res.setHeader('Content-Type', 'text/html;charset=utf-8');
-    res.end(inlineHtml.replace('window.__snap()', JSON.stringify(snapshot())).replaceAll('window.__prefs()', JSON.stringify(prefs)));
+    res.end(inlineHtml(url.searchParams.get('narrow') === '1').replace('window.__snap()', JSON.stringify(snapshot())).replaceAll('window.__prefs()', JSON.stringify(prefs)));
     return;
   }
   res.setHeader('Content-Type', 'text/html'); res.end(panelHtml);
@@ -170,8 +174,102 @@ try {
   const poolText = await strip.locator('#usage-dashboard #pool-strip').textContent();
   assert.ok(poolText.includes('Gemini') && poolText.includes('Claude / 3p') && poolText.includes('Local / BYOM'), poolText);
 
+  // 3. Narrow ~270px card non-clipping assertions (#34 defect 3) in both inline and panel
+  const assertNoClipping = async (container, bodyLocator) => {
+    const metrics = await bodyLocator.evaluate((body, boxEl) => {
+      const boxRect = boxEl.getBoundingClientRect();
+      const rows = [...body.querySelectorAll('.breakdown-row')].map(r => {
+        const name = r.querySelector('.breakdown-row-name');
+        const val = r.querySelector('.breakdown-row-val');
+        const valRect = val?.getBoundingClientRect();
+        return {
+          nameText: name?.textContent || '',
+          valText: val?.textContent || '',
+          ellipsized: Boolean(name && name.scrollWidth > name.clientWidth),
+          valRight: valRect ? valRect.right : 0,
+        };
+      });
+      return {
+        boxWidth: Math.round(boxRect.width),
+        boxRight: boxRect.right,
+        scrollWidth: body.scrollWidth,
+        clientWidth: body.clientWidth,
+        rows,
+      };
+    }, await container.elementHandle());
+    assert.ok(metrics.rows.length > 0, 'Expected visible breakdown rows');
+    assert.ok(metrics.scrollWidth <= metrics.clientWidth + 1, `Horizontal overflow in breakdown body: ${JSON.stringify(metrics)}`);
+    assert.ok(metrics.rows.some(r => r.ellipsized), `Expected long row name to ellipsize cleanly: ${JSON.stringify(metrics.rows)}`);
+    for (const r of metrics.rows) {
+      assert.ok(r.valRight <= metrics.boxRight + 1, `Value clipped past right edge (${r.valRight} > ${metrics.boxRight}): ${JSON.stringify(r)}`);
+    }
+    return metrics;
+  };
+
+  const narrowInline = await browser.newPage({ viewport: { width: 294, height: 640 } });
+  narrowInline.on('pageerror', e => errors.push(e.message));
+  await narrowInline.goto(base + '/inline?narrow=1');
+  const narrowStrip = narrowInline.locator('#ag-pulse-status-bar');
+  await narrowStrip.waitFor();
+  await narrowStrip.locator('[data-card=cache]').click();
+  await narrowStrip.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+  await narrowStrip.locator('#orchestration-breakdown summary').click();
+  const narrowCacheMetrics = await assertNoClipping(narrowStrip.locator('#cache-card'), narrowStrip.locator('#orch-body'));
+  assert.equal(narrowCacheMetrics.boxWidth, 270, `Expected 270px live narrow inline card, got ${narrowCacheMetrics.boxWidth}`);
+  await narrowStrip.locator('[data-card=context]').click();
+  await narrowStrip.locator('#context-breakdown').waitFor({ state: 'visible' });
+  await narrowStrip.locator('#context-breakdown summary').click();
+  await assertNoClipping(narrowStrip.locator('#context-card'), narrowStrip.locator('#ctx-breakdown-body'));
+
+  const narrowPanel = await browser.newPage({ viewport: { width: 294, height: 640 } });
+  narrowPanel.on('pageerror', e => errors.push(e.message));
+  prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
+  await narrowPanel.goto(base + '/');
+  await narrowPanel.locator('#cache-tab').click();
+  await narrowPanel.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+  await narrowPanel.locator('#orchestration-breakdown summary').click();
+  await assertNoClipping(narrowPanel.locator('#cache-card'), narrowPanel.locator('#orch-body'));
+  await narrowPanel.locator('#context-tab').click();
+  await narrowPanel.locator('#context-breakdown').waitFor({ state: 'visible' });
+  await narrowPanel.locator('#context-breakdown summary').click();
+  await assertNoClipping(narrowPanel.locator('#context-card'), narrowPanel.locator('#ctx-breakdown-body'));
+
+  // 4. Worker/subagent fallback renders distinct role label (#34 defect 1) in en & zh-CN
+  workerMode = true;
+  const checkWorkerRow = async (rootLoc, cardLoc, summarySel, bodySel, expectedName, expectedVal) => {
+    await cardLoc.click();
+    await rootLoc.locator(summarySel).click();
+    const pairs = await rootLoc.locator(`${bodySel} .breakdown-row`).evaluateAll(rows =>
+      rows.map(r => [r.querySelector('.breakdown-row-name')?.textContent?.trim(), r.querySelector('.breakdown-row-val')?.textContent?.trim()])
+    );
+    assert.ok(
+      pairs.some(([k, v]) => k === expectedName && v === expectedVal && k !== v),
+      `Expected distinct (${expectedName} | ${expectedVal}) in ${JSON.stringify(pairs)}`
+    );
+  };
+
+  prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
+  const workerPanel = await browser.newPage({ viewport: { width: 420, height: 640 } });
+  workerPanel.on('pageerror', e => errors.push(e.message));
+  await workerPanel.goto(base + '/');
+  await checkWorkerRow(workerPanel, workerPanel.locator('#cache-tab'), '#orchestration-breakdown summary', '#orch-body', 'Agent role', 'Worker');
+  await workerPanel.locator('#language-toggle').click();
+  await workerPanel.locator('[data-language-menu] [data-language="zh-CN"]').click();
+  await workerPanel.locator('#orchestration-breakdown summary').filter({ hasText: '多代理与模型拆分' }).waitFor();
+  const zhPairs = await workerPanel.locator('#orch-body .breakdown-row').evaluateAll(rows =>
+    rows.map(r => [r.querySelector('.breakdown-row-name')?.textContent?.trim(), r.querySelector('.breakdown-row-val')?.textContent?.trim()])
+  );
+  assert.ok(zhPairs.some(([k, v]) => k === '代理角色' && v === '执行子代理' && k !== v), JSON.stringify(zhPairs));
+
+  const workerInline = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+  workerInline.on('pageerror', e => errors.push(e.message));
+  await workerInline.goto(base + '/inline?lang=zh-CN');
+  const workerStrip = workerInline.locator('#ag-pulse-status-bar');
+  await workerStrip.waitFor();
+  await checkWorkerRow(workerStrip, workerStrip.locator('[data-card=cache]'), '#orchestration-breakdown summary', '#orch-body', '代理角色', '执行子代理');
+
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, pageErrors: [] }));
+  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, pageErrors: [] }));
 } finally {
   await browser.close();
   server.closeAllConnections?.();

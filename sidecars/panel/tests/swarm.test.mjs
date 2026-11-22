@@ -4,7 +4,7 @@ import {mkdtemp,mkdir,writeFile,rm,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {cleanAgentLabel,classifyAgentRole,readSwarmMembers,agentDescriptor} from '../swarm.mjs';
-import {delegatedIds} from '../delegation.mjs';
+import {delegatedIds,isSwarmOwner} from '../delegation.mjs';
 
 const coord='11111111-1111-1111-1111-111111111111';
 const w1='22222222-2222-2222-2222-222222222222';
@@ -65,4 +65,28 @@ test('classifyAgentRole and agentDescriptor separate coordinator, worker, monito
   const desc=agentDescriptor(w1,{summaries});
   assert.equal(desc.role,'worker');
   assert.equal(desc.modelHint,'Gemini 4 Hydrogen (Orchestrator)');
+});
+
+test('subagent/worker never owns swarm or overwrites role to coordinator (#34 defects 1 & 2)',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'ag-swarm-worker-'));t.after(()=>rm(root,{recursive:true,force:true}));
+  const dir=join(root,coord,'.system_generated','swarm');await mkdir(dir,{recursive:true});
+  await writeFile(join(dir,'members.json'),JSON.stringify({members:{
+    coordinator:{conversation_id:coord,role:'coordinator',model:'MODEL_PLACEHOLDER_M537'},
+    'feat-multi-16':{conversation_id:w1,role:'worker',model:'MODEL_PLACEHOLDER_M669'},
+    verifier:{conversation_id:w2,role:'worker',model:'MODEL_PLACEHOLDER_M405'},
+  }}));
+  const swarm=await readSwarmMembers(root,coord);
+  assert.equal(isSwarmOwner(swarm,coord),true);
+  assert.equal(isSwarmOwner(swarm,w1),false);
+  assert.equal(isSwarmOwner(swarm,w2),false);
+  assert.equal(classifyAgentRole({isRoot:true,isSubagent:true}),'worker');
+  assert.equal(classifyAgentRole({isRoot:true,memberRole:'worker'}),'worker');
+  const summaries={
+    [w1]:{trajectoryMetadata:{parentConversationId:coord,rootConversationId:coord,nestingDepth:1,subagentSpec:{typeName:'worker',model:'MODEL_PLACEHOLDER_M669'}}},
+    [w2]:{trajectoryMetadata:{parentConversationId:coord,rootConversationId:coord,nestingDepth:1,subagentSpec:{typeName:'worker',model:'MODEL_PLACEHOLDER_M405'}}},
+  };
+  assert.deepEqual(delegatedIds(w1,{trajectory:{steps:[]}},summaries,swarm),[]);
+  const desc=agentDescriptor(w1,{isRoot:true,isSubagent:true,selfMember:swarm.byId.get(w1),summaries,swarmMembers:null});
+  assert.equal(desc.role,'worker');
+  assert.equal(desc.label,'Worker (feat-multi-16)');
 });

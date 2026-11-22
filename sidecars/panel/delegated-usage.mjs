@@ -1,7 +1,7 @@
 // Background task accounting. Every source remains an independent conversation;
 // only numeric request projections are combined, never timing or context windows.
 import {setImmediate as yieldLoop} from 'node:timers/promises';
-import {delegatedIds,normalizeConversationId} from './delegation.mjs';
+import {delegatedIds,isSwarmOwner,normalizeConversationId} from './delegation.mjs';
 import {taskRecords,mergeTaskRecords,aggregateTaskUsage,safeTaskUsage} from './task-usage.mjs';
 import {readSwarmMembers,agentDescriptor} from './swarm.mjs';
 
@@ -22,17 +22,24 @@ export class DelegatedUsage {
     if(!this.brainRoot||this.swarmProbes.has(id))return;
     const negAt=this.swarmNegative.get(id);
     if(negAt!==undefined&&this.now()-negAt<15000)return;
+    const summaries=this.client.reader?.summaries||{};
+    const rootSum=summaries[id]||Object.entries(summaries).find(([k])=>k.toLowerCase()===id)?.[1];
+    const meta=rootSum?.trajectoryMetadata;
+    if(meta?.parentConversationId||meta?.subagentSpec||Number(meta?.nestingDepth)>0){
+      this.swarmNegative.set(id,this.now());
+      while(this.swarmNegative.size>64)this.swarmNegative.delete(this.swarmNegative.keys().next().value);
+      return;
+    }
     const epoch=this.epoch;
-    const job=(async()=>{
+    let settled=false,job=null;
+    job=(async()=>{
       try{
-        const summaries=this.client.reader?.summaries||{};
-        const rootSum=summaries[id]||Object.entries(summaries).find(([k])=>k.toLowerCase()===id)?.[1];
-        const rootId=normalizeConversationId(rootSum?.trajectoryMetadata?.rootConversationId)||
-          normalizeConversationId(rootSum?.trajectoryMetadata?.sourceMetadata?.rootConversationId)||id;
+        const rootId=normalizeConversationId(meta?.rootConversationId)||
+          normalizeConversationId(meta?.sourceMetadata?.rootConversationId)||id;
         let swarm=await readSwarmMembers(this.brainRoot,rootId);
         if(!swarm&&rootId!==id)swarm=await readSwarmMembers(this.brainRoot,id);
         if(this.disposed||!this.owns()||epoch!==this.epoch||scope!==this.scope||isCurrent()!==true)return;
-        const valid=swarm&&(swarm.swarmId===id||swarm.byId.has(id))?swarm:null;
+        const valid=isSwarmOwner(swarm,id)?swarm:null;
         if(!valid||!valid.ids.some(cid=>cid!==id)){
           this.swarmNegative.set(id,this.now());
           while(this.swarmNegative.size>64)this.swarmNegative.delete(this.swarmNegative.keys().next().value);
@@ -40,9 +47,9 @@ export class DelegatedUsage {
         }
         const refreshed=this.request(scope,id,raw,{saved,knownIds:valid.ids,force:false,isCurrent,swarmMembers:valid});
         if(refreshed)await this.onUpdate(scope,id,refreshed,valid.ids.filter(cid=>cid!==id));
-      }catch{}finally{if(this.swarmProbes.get(id)===job)this.swarmProbes.delete(id);}
+      }catch{}finally{settled=true;if(this.swarmProbes.get(id)===job)this.swarmProbes.delete(id);}
     })();
-    this.swarmProbes.set(id,job);
+    if(!settled)this.swarmProbes.set(id,job);
   }
   request(scope,id,raw,{saved=null,knownIds=[],force=false,isCurrent=()=>true,swarmMembers=null}={}) {
     if(this.disposed||!scope||!this.owns())return safeTaskUsage(saved);
@@ -89,7 +96,10 @@ export class DelegatedUsage {
   }
   result(task,state){
     const summaries=this.client.reader?.summaries||{};
-    const rootDesc=agentDescriptor(task.id,{isRoot:true,summaries,swarmMembers:task.swarmMembers});
+    const selfSum=summaries[task.id]||Object.entries(summaries).find(([k])=>k.toLowerCase()===task.id)?.[1]||null;
+    const selfMeta=selfSum?.trajectoryMetadata;
+    const selfIsSub=Boolean(selfMeta?.parentConversationId||selfMeta?.subagentSpec||Number(selfMeta?.nestingDepth)>0);
+    const rootDesc=agentDescriptor(task.id,{isRoot:!selfIsSub,isSubagent:selfIsSub,selfMember:task.selfSwarmMember||null,summaries,swarmMembers:task.swarmMembers});
     const childSets=[...task.children].filter(id=>task.sources.has(id)).map((id,idx)=>{
       const desc=agentDescriptor(id,{isRoot:false,summaries,swarmMembers:task.swarmMembers});
       const label=desc.label==='Worker'?`Worker #${idx+1}`:desc.label;
@@ -128,9 +138,11 @@ export class DelegatedUsage {
         let swarm=await readSwarmMembers(this.brainRoot,swarmRootId);
         if(!swarm&&swarmRootId!==task.id)swarm=await readSwarmMembers(this.brainRoot,task.id);
         if(!current())return;
-        if(swarm&&(swarm.swarmId===task.id||swarm.byId.has(task.id))){
+        if(isSwarmOwner(swarm,task.id)){
           task.swarmMembers=swarm;
           this.addChildren(task,swarm.ids);
+        }else if(swarm?.byId?.has(task.id)){
+          task.selfSwarmMember=swarm.byId.get(task.id);
         }
       }
       // Resume oldest/unread sources first after a bounded pass. Starting from
