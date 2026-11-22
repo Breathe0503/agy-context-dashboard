@@ -1535,6 +1535,7 @@ module.exports = function installAgPulseInlineWidget() {
   const COMPOSITION_LABELS={customization:'compositionCustomization',user:'compositionUser',thinking:'compositionThinking',reply:'compositionReply',assistant:'compositionAssistant',tool:'compositionTool',system:'compositionSystem',other:'compositionOther',remaining:'compositionRemaining',systemPrompt:'compositionSystemPrompt',mcpTools:'compositionMcpTools',subagents:'compositionSubagents',skills:'compositionSkills',plugins:'compositionPlugins',rules:'compositionRules',tools:'compositionTools',chatMessages:'compositionChatMessages'};
   const COMPOSITION_SOURCES={hybrid:'compositionSourceHybrid',transcript:'compositionSourceTranscript',steps:'compositionSourceSteps','host-token-groups':'compositionSourceHost'};
   const COMPOSITION_GROUPS={Rules:['compositionGroupRules','group-rules'],Skills:['compositionGroupSkills','group-skills'],Subagents:['compositionGroupSubagents','group-subagents'],'Mcp Tools':['compositionGroupMcpTools','group-mcp']};
+  const HOST_SEGMENTS=new Set(['systemPrompt','mcpTools','subagents','skills','plugins','rules','tools','chatMessages']);
   // The panel side computes every number (issue #34); the widget only maps
   // segment ids to labels, colors and titles. The composition bar matches the
   // host usage percent because dynamic estimates are scaled panel-side.
@@ -1548,16 +1549,17 @@ module.exports = function installAgPulseInlineWidget() {
     const trend=composition?.trend,trendOk=Boolean(trend&&Array.isArray(trend.points)&&trend.points.length>=2);
     if(trendSection)hidden(trendSection,!trendOk);
     if(usable&&section){
+      const isHost=composition.source==='host-token-groups';
       const injection=composition.customization?.available?t('compositionCustomizationValue',{tokens:compact(composition.customization.tokens)}):t('compositionCustomizationValue',{tokens:'—'});
       const sourceKey=COMPOSITION_SOURCES[composition.source];
       const sourceTag=sourceKey?t(sourceKey):'';
-      text('composition-source',[injection,sourceTag].filter(Boolean).join(' · '));
+      text('composition-source',isHost?sourceTag:[injection,sourceTag].filter(Boolean).join(' · '));
       attribute(section,'title',t('compositionBasis',{source:sourceTag||'—'}));
       for(const button of root.querySelectorAll('[data-composition-view]'))attribute(button,'aria-pressed',button.dataset.compositionView===compositionView);
       const meter=$('composition-meter'),listEl=$('composition-list'),legend=$('composition-legend');
       if(listEl)hidden(listEl,compositionView!=='list');
       if(legend)hidden(legend,compositionView!=='bar');
-      const sig=JSON.stringify([composition.segments,composition.customization?.budget??null,composition.customization?.groups??null,compositionView,language.language]);
+      const sig=JSON.stringify([composition.segments,composition.source,composition.customization?.budget??null,composition.customization?.groups??null,compositionView,language.language]);
       if(meter&&meter.dataset.signature!==sig){
         meter.dataset.signature=sig;
         const visible=composition.segments.filter(segment=>segment.fraction>0&&segment.tokens>0);
@@ -1574,7 +1576,7 @@ module.exports = function installAgPulseInlineWidget() {
             }
             continue;
           }
-          expanded.push({cls:segment.id,label:t(COMPOSITION_LABELS[segment.id]||'compositionTitle'),tokens:segment.tokens,fraction:segment.fraction,exact:segment.id==='customization',budget:segment.id==='customization'?composition.customization?.budget:null});
+          expanded.push({cls:segment.id,label:t(COMPOSITION_LABELS[segment.id]||'compositionTitle'),tokens:segment.tokens,fraction:segment.fraction,exact:segment.id==='customization'||HOST_SEGMENTS.has(segment.id),budget:segment.id==='customization'?composition.customization?.budget:null});
         }
         const totalFilled=expanded.reduce((n,item)=>n+item.fraction,0);
         const tipFor=item=>{

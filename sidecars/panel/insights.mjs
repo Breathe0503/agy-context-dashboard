@@ -23,7 +23,7 @@ const FLUSH_MAX_RECORDS = 64;
 const FLUSH_MAX_BYTES = 4 * 1024 * 1024;
 const ACTIVE_GAP_CAP_MS = 15 * 60 * 1000;
 const SCHEMA_VERSION = 1;
-const VERSIONS = { timeline: 1, activity: 1, config: 1 };
+const VERSIONS = { timeline: 1, activity: 2, config: 1 };
 
 const stripQuotes = value => {
   let text = typeof value === 'string' ? value.trim() : '';
@@ -115,12 +115,18 @@ function inferProjectName(pathValue, isCwd = false) {
   if (!clean || clean === '/' || clean.startsWith('/tmp/')) return null;
   if (/\/\.gemini\/(?:config|antigravity\/brain|antigravity\/daemon)\b/i.test(clean)) return null;
 
-  const known = clean.match(/\/(?:Code|dev|projects|repos|workspace|worktrees\/[^/]+)\/([^/]+)/);
+  const repoWt = clean.match(/\/([^/.][^/]*)\/\.worktrees\/[^/]+/);
+  if (repoWt?.[1] && !/^(?:Code|dev|projects|repos|workspace)$/i.test(repoWt[1])) return cleanText(repoWt[1], 64);
+
+  const agWt = clean.match(/\/\.gemini\/antigravity\/worktrees\/[^/]+\/([^/.][^/]*)/i);
+  if (agWt?.[1]) return cleanText(agWt[1], 64);
+
+  const known = clean.match(/\/(?:Code|dev|projects|repos|workspace)\/([^/.][^/]*)/);
   if (known?.[1]) return cleanText(known[1], 64);
 
   if (isCwd) {
     const base = basename(clean);
-    if (base && base !== 'mac' && base !== 'Users' && base !== 'home') return cleanText(base, 64);
+    if (base && !base.startsWith('.') && base !== 'mac' && base !== 'Users' && base !== 'home') return cleanText(base, 64);
   }
   return null;
 }

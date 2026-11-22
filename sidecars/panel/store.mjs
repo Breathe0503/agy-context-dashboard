@@ -6,9 +6,9 @@ import { AntigravityClient } from './client.mjs';
 import { quotaMetrics, trajectoryMetrics } from './metrics.mjs';
 import { compositionMetrics, attachTokenBase, tokenBaseMetrics, hostContextMetrics, attachHostContextUsage } from './composition.mjs';
 import { extractAccountCredits, extractCreditUsageSummary, estimateModelsCost } from './pricing.mjs';
-import { makeFoldCache } from './audit.mjs';
+import { makeFoldCache, summarizeTranscriptArchive } from './audit.mjs';
 import { SessionHistory, usableMetrics, reconcileMetrics, safeMetrics } from './history.mjs';
-import { TranscriptReader } from './transcript.mjs';
+import { TranscriptReader, transcriptBrainRoot } from './transcript.mjs';
 import {DelegatedUsage} from './delegated-usage.mjs';
 import {safeTaskUsage} from './task-usage.mjs';
 import {delegatedIds} from './delegation.mjs';
@@ -47,6 +47,8 @@ export class MetricsStore {
   hostContextCache = makeFoldCache({ maxEntries: 4, idleMs: 20_000 });
   hostContextPending = new Map();
   hostContextFailedAt = new Map();
+  archivedCache = makeFoldCache({ maxEntries: 4, idleMs: 20_000 });
+  archivedPending = new Map();
   identity = null;
   serverPid = null;
   summaries = [];
@@ -92,9 +94,18 @@ export class MetricsStore {
       if (!this.owned() || epoch !== this.epoch) throw new Error('后台已重新连接，请等待刷新');
       const email = user.userStatus?.email;
       const identity = email ? createHash('sha256').update(email).digest('hex') : null;
-      if (identity !== this.identity) { this.background?.reset();this.delegated.reset();this.transcripts?.reset(); this.client.resetTrajectories?.(); this.quota = null; this.quotaAt = 0; this.accountCredits = null; this.tokenBase = null; this.tokenBaseAt = 0; this.tokenBaseFailedAt = 0; this.hostContextCache.clear(); this.hostContextFailedAt.clear(); this.sessions.clear(); this.summaries = []; this.summariesAt = 0;this.clearUsagePersistenceErrors(); }
+      if (identity !== this.identity) { this.background?.reset();this.delegated.reset();this.transcripts?.reset(); this.client.resetTrajectories?.(); this.quota = null; this.quotaAt = 0; this.accountCredits = null; this.tokenBase = null; this.tokenBaseAt = 0; this.tokenBaseFailedAt = 0; this.hostContextCache.clear(); this.hostContextFailedAt.clear(); this.archivedCache.clear(); this.sessions.clear(); this.summaries = []; this.summariesAt = 0;this.clearUsagePersistenceErrors(); }
       this.identity = identity;
       this.accountCredits = extractAccountCredits(user?.userStatus);
+      const modelConfigs = user?.userStatus?.cascadeModelConfigData?.clientModelConfigs;
+      if (Array.isArray(modelConfigs) && this.client) {
+        const aliases = new Map();
+        for (const cfg of modelConfigs) {
+          const m = cfg?.modelOrAlias?.model, lbl = cfg?.label;
+          if (typeof m === 'string' && typeof lbl === 'string' && m && lbl) aliases.set(m.toLowerCase(), lbl);
+        }
+        if (aliases.size) this.client.modelAliases = aliases;
+      }
       const response = await this.client.call('RetrieveUserQuotaSummary',force?{forceRefresh:true}:{});
       if (!this.owned() || epoch !== this.epoch || identity !== this.identity) throw new Error('后台已重新连接，请等待刷新');
       this.quota = quotaMetrics(response);
@@ -261,6 +272,87 @@ export class MetricsStore {
     return entry.pending;
   }
 
+  async fetchDirectTrajectory(id, budgetBytes = 8 * 1024 * 1024) {
+    if (typeof this.client?.call !== 'function') return null;
+    const steps = [];
+    const generators = [];
+    let bytes = 0;
+    const appendWithinBudget = (target, items) => {
+      for (const item of items) {
+        bytes += Buffer.byteLength(JSON.stringify(item)) + 1;
+        if (bytes > budgetBytes) return false;
+        target.push(item);
+      }
+      return true;
+    };
+    let lastStepLen = -1;
+    for (let page = 0; page < 256; page++) {
+      const res = await this.client.call('GetCascadeTrajectorySteps', { cascadeId: id, stepOffset: steps.length, trajectoryVerbosity: 3 });
+      const items = Array.isArray(res?.steps) ? res.steps : [];
+      if (!items.length) break;
+      if (!appendWithinBudget(steps, items)) return null;
+      if (steps.length === lastStepLen) break;
+      lastStepLen = steps.length;
+    }
+    let lastGenLen = -1;
+    for (let page = 0; page < 256; page++) {
+      const res = await this.client.call('GetCascadeTrajectoryGeneratorMetadata', { cascadeId: id, generatorMetadataOffset: generators.length, includeMessages: false });
+      const items = Array.isArray(res?.generatorMetadata || res?.generatorMetadatas) ? (res.generatorMetadata || res.generatorMetadatas) : [];
+      if (!items.length) break;
+      if (!appendWithinBudget(generators, items)) return null;
+      if (generators.length === lastGenLen) break;
+      lastGenLen = generators.length;
+    }
+    if (!steps.length && !generators.length) return null;
+    return {
+      trajectory: { cascadeId: id, steps, generatorMetadata: generators },
+      numTotalSteps: steps.length,
+      numTotalGeneratorMetadata: generators.length,
+      status: 'CASCADE_RUN_STATUS_ARCHIVED',
+    };
+  }
+
+  async archivedSession(id, { force = false } = {}) {
+    if (!this.owned() || !GUID.test(id || '')) return null;
+    const lower = id.toLowerCase();
+    if (!force) {
+      const cached = this.archivedCache.get(lower);
+      if (cached) return cached;
+    }
+    if (this.archivedPending.has(lower)) return this.archivedPending.get(lower);
+    const epoch = this.epoch;
+    const run = (async () => {
+      let result = null;
+      try {
+        const budget = this.client?.reader?.budgetBytes || 8 * 1024 * 1024;
+        const raw = await this.fetchDirectTrajectory(lower, budget);
+        if (raw && this.owned() && epoch === this.epoch) {
+          const fresh = trajectoryMetrics(raw);
+          try { if (this.transcripts) fresh.transcriptStats = this.transcripts.request(this.storageScope(), lower, raw); } catch {}
+          fresh.contextComposition = compositionMetrics({
+            context: fresh.context,
+            steps: raw.trajectory?.steps,
+            generators: raw.trajectory?.generatorMetadata,
+            transcript: fresh.transcriptStats,
+          });
+          result = { ...fresh, conversationId: lower, archivedFallback: 'rpc' };
+        }
+      } catch {}
+      if (!result && this.owned() && epoch === this.epoch) {
+        const root = this.transcripts?.root || transcriptBrainRoot();
+        result = await summarizeTranscriptArchive(root, lower, { modelAliases: this.client?.modelAliases || null }).catch(() => null);
+      }
+      if (result && this.owned() && epoch === this.epoch) {
+        this.archivedCache.set(lower, result);
+      }
+      return result;
+    })().finally(() => {
+      if (this.archivedPending.get(lower) === run) this.archivedPending.delete(lower);
+    });
+    this.archivedPending.set(lower, run);
+    return run;
+  }
+
   async snapshot({ conversationId, force = false, quotaRefresh = false, selectLatest = true, contextDetail = false } = {}) {
     let connection = 'live', error = null, speed = null, sessionError = null, collection = null;
     try {
@@ -268,7 +360,7 @@ export class MetricsStore {
       const server = await this.client.discover();
       if (!this.owned()) throw new Error('后台已重新连接，请等待刷新');
       if (server.pid !== this.serverPid) {
-        this.epoch++; this.background?.reset();this.delegated.reset();this.transcripts?.reset(); this.quota = null; this.quotaAt = 0; this.accountCredits = null; this.tokenBase = null; this.tokenBaseAt = 0; this.tokenBaseFailedAt = 0; this.hostContextCache.clear(); this.hostContextFailedAt.clear(); this.sessions.clear(); this.identity = null; this.summaries = []; this.summariesAt = 0; this.serverPid = server.pid;this.clearUsagePersistenceErrors();
+        this.epoch++; this.background?.reset();this.delegated.reset();this.transcripts?.reset(); this.quota = null; this.quotaAt = 0; this.accountCredits = null; this.tokenBase = null; this.tokenBaseAt = 0; this.tokenBaseFailedAt = 0; this.hostContextCache.clear(); this.hostContextFailedAt.clear(); this.archivedCache.clear(); this.sessions.clear(); this.identity = null; this.summaries = []; this.summariesAt = 0; this.serverPid = server.pid;this.clearUsagePersistenceErrors();
       }
       try { await this.refreshQuota(force || quotaRefresh); }
       catch (e) { connection = this.quota ? 'stale' : 'offline'; error = e.message; }
@@ -284,13 +376,23 @@ export class MetricsStore {
       const selected = conversationId || (selectLatest !== false ? summaries[0]?.id : null);
       if (selected) {
         try { speed = await this.session(selected, force); }
-        catch (e) { sessionError = e.message; }
+        catch (e) {
+          if (conversationId && GUID.test(conversationId) && !collectionFailure(e)) {
+            try { speed = await this.archivedSession(selected, { force }); } catch {}
+          }
+          if (!speed) sessionError = e.message;
+        }
         const entry=this.sessions.get(selected.toLowerCase());
         if(entry?.collection||this.background?.state(selected.toLowerCase()))collection={...entry?.collection,...this.background?.state(selected.toLowerCase()),freshness:usableMetrics(speed)?'saved':'unavailable',lastSuccessAt:entry.lastSuccessAt||null};
       }
     } catch (e) {
       connection = this.quota ? 'stale' : 'offline'; error = e.message;
-      if (conversationId) speed = await this.cachedSession(conversationId);
+      if (conversationId) {
+        speed = await this.cachedSession(conversationId);
+        if (!speed && GUID.test(conversationId)) {
+          try { speed = await this.archivedSession(conversationId, { force }); } catch {}
+        }
+      }
     }
     if(!collection&&conversationId){
       const entry=this.sessions.get(conversationId.toLowerCase());
@@ -336,5 +438,5 @@ export class MetricsStore {
       source: 'Antigravity local API',
     };
   }
-  dispose(){this.disposed=true;this.background?.dispose();this.delegated.dispose();this.transcripts?.reset();this.hostContextCache.dispose();this.hostContextPending.clear();this.epoch++;}
+  dispose(){this.disposed=true;this.background?.dispose();this.delegated.dispose();this.transcripts?.reset();this.hostContextCache.dispose();this.hostContextPending.clear();this.archivedCache.dispose();this.archivedPending.clear();this.epoch++;}
 }

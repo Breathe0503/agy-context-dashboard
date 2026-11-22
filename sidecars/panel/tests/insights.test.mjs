@@ -108,3 +108,22 @@ test('InsightsScanner uses 64-shard incremental cache and builds filtered/sorted
   assert.equal(direct.kpis.totalSessions, 0);
   assert.equal(direct.kpis.estimatedCostUsd, null);
 });
+
+test('parseTranscriptSummaryStream resolves .worktrees paths cleanly without creating a .worktrees project bucket', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'ag-insights-wt-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'transcript.jsonl');
+  await writeFile(file, [
+    JSON.stringify({
+      step_index: 0,
+      type: 'PLANNER_RESPONSE',
+      created_at: '2026-11-21T08:00:00Z',
+      tool_calls: [
+        { name: 'read_file', args: { Path: '/Users/mac/Code/.worktrees/scratch/a.js' } },
+        { name: 'run_command', args: { CommandLine: 'npm test', cwd: '/Users/mac/Code/demo-repo/.worktrees/feat-x' } },
+      ],
+    }),
+  ].join('\n') + '\n');
+  const summary = await parseTranscriptSummaryStream(file, ID1);
+  assert.equal(summary.project, 'demo-repo');
+});

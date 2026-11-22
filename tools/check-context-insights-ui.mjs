@@ -108,6 +108,21 @@ const auditById = {
       { index: 3, type: 'RUN_COMMAND', categories: ['tools'], model: 'Gemini 4 Neon (High)', contextDeltaTokens: 250, deltaEstimated: true, label: '$ npm test' },
     ],
   },
+  [cidB]: {
+    version: 1,
+    conversationId: cidB,
+    totalSteps: 2,
+    totalFiles: 1,
+    totalCommands: 0,
+    counts: { user: 1, thinking: 1, tools: 1, answer: 1, compactions: 0 },
+    truncated: false,
+    files: [{ path: '/repo/sidecars/panel/store.mjs', name: 'store.mjs', ops: ['read'], reads: 1, edits: 0, writes: 0, searches: 0, additions: 0, deletions: 0, stepIndices: [1], lastStepIndex: 1 }],
+    commands: [],
+    steps: [
+      { index: 0, type: 'USER_INPUT', categories: ['user'], model: null, contextDeltaTokens: 300, deltaEstimated: true, label: 'User message' },
+      { index: 1, type: 'PLANNER_RESPONSE', categories: ['thinking', 'tools', 'answer'], model: 'Claude Sonnet 4.6 (Thinking)', thinkingTokens: 500, responseTokens: 200, contextDeltaTokens: 25000, deltaEstimated: false, label: 'read: store.mjs' },
+    ],
+  },
 };
 
 const insightsPayload = {
@@ -163,9 +178,28 @@ const appJs = panelAppSource();
 const stylesCss = await readFile(join(repo, 'sidecars/panel/styles.css'), 'utf8');
 const themeCss = createTheme().css(':root');
 
+const [i18nSrc, themeSrc, widgetSrc, surfaceSrc] = await Promise.all([
+  'compat/i18n.cjs', 'compat/theme.cjs', 'compat/inline-widget.cjs', 'ide/surface.cjs',
+].map(file => readFile(join(repo, file), 'utf8')));
+const extract = s => s.slice(s.indexOf('module.exports = ') + 17).trim().replace(/;$/, '');
+const inlineBundle = `window.__agPulseSurface=(${extract(surfaceSrc)})();window.__agPulseI18nFactory=(${extract(i18nSrc)});window.__agPulseThemeFactory=(${extract(themeSrc)});(${extract(widgetSrc)})();`;
+const inlineHostHtml = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; require-trusted-types-for 'script'; trusted-types 'none'"><style>body{margin:0;background:#202124;color:#eee;font:12px Arial}.panel{width:100%;box-sizing:border-box;padding:16px}.box{border-radius:16px;background:#292a2d;padding:4px}.editor{height:40px;padding:8px}.row{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px}.native{display:flex;flex:1;min-width:0;align-items:center;gap:1px}.model-wrap{display:flex;min-width:0;gap:4px}.model{display:flex;min-width:0;align-items:center;padding:0 8px;gap:4px;height:28px}.protected{flex:none;width:28px;height:28px;border:0;color:inherit;background:transparent}.controls{display:flex;flex:none;gap:4px}.top{height:240px}</style></head><body><div class="antigravity-agent-side-panel panel"><div class="top"></div><div id="conversation" role="region"><div id="antigravity.agentSidePanelInputBox" class="box"><div class="editor" contenteditable="true" role="combobox"></div><div class="row"><div class="native"><button class="protected">＋</button><div class="model-wrap"><button class="model" data-testid="model-selector-trigger">Gemini 4 Neon (High)</button></div></div><div class="controls"><button class="protected">➤</button></div></div></div></div></div><script>
+const box=document.getElementById('antigravity.agentSidePanelInputBox'),panel=document.querySelector('.panel');
+const owner={props:{cascadeId:${JSON.stringify(cidA)}},__k:[]},vnode={type:'div',__e:box,props:{id:box.id},__:owner,__k:[]};owner.__k=[vnode];panel.__k=owner;
+window.agPulseHost={
+  getPreferences:async()=>({language:'en',languageGuideDismissed:true,quotaDisplay:'both',revision:1}),
+  setPreferences:async input=>({language:'en',languageGuideDismissed:true,quotaDisplay:'both',...input,revision:2}),
+  getMetrics:async()=>window.__inlineHostMetrics,
+};
+</script><script defer src="/inline-bundle.js"></script></body></html>`;
+
+let forceDegradedCidB = false;
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(html); return; }
+  if (url.pathname === '/inline-host') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(inlineHostHtml); return; }
+  if (url.pathname === '/inline-bundle.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(inlineBundle); return; }
   if (url.pathname === '/styles.css') { res.setHeader('Content-Type', 'text/css'); res.end(stylesCss); return; }
   if (url.pathname === '/theme.css') { res.setHeader('Content-Type', 'text/css'); res.end(themeCss); return; }
   if (url.pathname === '/app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(appJs); return; }
@@ -181,6 +215,20 @@ const server = createServer(async (req, res) => {
     const cid = url.searchParams.get('conversationId') || cidA;
     const contextDetail = url.searchParams.get('contextDetail') === '1';
     calls.metrics.push({ cid, contextDetail });
+    if (forceDegradedCidB && cid === cidB) {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        connection: 'live',
+        serverTime: new Date().toISOString(),
+        quotaUpdatedAt: new Date().toISOString(),
+        groups: [{ id: 'gemini', name: 'Gemini', windows }],
+        accountCredits: insightsPayload.accountCredits,
+        preferences: prefs,
+        speed: null,
+        sessionError: '会话暂时没有可用统计',
+      }));
+      return;
+    }
     let speed = sessions[cid] || sessions[cidA];
     if (contextDetail) {
       speed = { ...speed, contextComposition: attachHostContextUsage(attachTokenBase(speed.contextComposition, tokenBase), hostUsage) };
@@ -309,6 +357,50 @@ try {
   await page.setViewportSize({ width: 280, height: 700 });
   const overflow = await page.locator('.widget').evaluate(el => el.scrollWidth > el.clientWidth);
   assert.equal(overflow, false);
+
+  // 6. Clicking an archived row must keep Audit toggle visible even when speed is null
+  forceDegradedCidB = true;
+  await page.locator('#insights-sessions-list .session-row').first().click();
+  await page.locator('#context-card').waitFor({ state: 'visible' });
+  await page.locator('#context-model').filter({ hasText: /^—$/ }).waitFor();
+  assert.equal(await page.locator('#context-audit-toggle').isVisible(), true);
+  await page.locator('#context-audit-toggle').click();
+  await page.locator('#panel-audit-section').waitFor({ state: 'visible' });
+  await page.locator('[data-audit-tab="files"]').click();
+  await page.locator('#audit-pane-files .audit-row').filter({ hasText: 'store.mjs' }).waitFor();
+
+  // 7. Inline widget host-token-groups source omits Injection prefix and labels host categories as exact
+  const inlinePage = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+  inlinePage.on('pageerror', err => errors.push(err.message));
+  const inlineSpeed = {
+    ...sessions[cidA],
+    contextComposition: attachHostContextUsage(attachTokenBase(sessions[cidA].contextComposition, tokenBase), hostUsage),
+  };
+  await inlinePage.addInitScript(payload => {
+    window.__inlineHostMetrics = payload;
+  }, {
+    connection: 'live',
+    serverTime: new Date().toISOString(),
+    quotaUpdatedAt: new Date().toISOString(),
+    groups: [{ id: 'gemini', name: 'Gemini', windows }],
+    speed: inlineSpeed,
+  });
+  await inlinePage.goto(`${base}/inline-host`);
+  await inlinePage.waitForFunction(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('composition-source')?.textContent);
+  await inlinePage.locator('#ag-pulse-status-bar').locator('[data-card="context"]').click();
+  await inlinePage.locator('#ag-pulse-status-bar').locator('#context-card').waitFor({ state: 'visible' });
+  const inlineHostCheck = await inlinePage.evaluate(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const rows = [...sr.querySelectorAll('#composition-list .composition-row')];
+    return {
+      source: sr.getElementById('composition-source').textContent,
+      titles: rows.map(r => r.getAttribute('title')),
+    };
+  });
+  assert.equal(inlineHostCheck.source, 'host 8-category breakdown');
+  assert.ok(inlineHostCheck.titles.length === 8);
+  assert.ok(inlineHostCheck.titles.every(t => t && t.endsWith('· exact')), `Expected exact tag on all 8 host categories, got: ${inlineHostCheck.titles.join(', ')}`);
+  await inlinePage.close();
 
   assert.deepEqual(errors, [], 'Trusted Types CSP must produce zero page errors');
   console.log(JSON.stringify({ ok: true, auditCalls: calls.audit.length, insightsCalls: calls.insights.length, pageErrors: errors }));

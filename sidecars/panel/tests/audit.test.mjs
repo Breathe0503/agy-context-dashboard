@@ -5,7 +5,10 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AntigravityClient } from '../client.mjs';
-import { makeFoldCache, buildSessionAudit, SessionAuditService } from '../audit.mjs';
+import { MetricsStore } from '../store.mjs';
+import { SessionHistory } from '../history.mjs';
+import { TranscriptReader } from '../transcript.mjs';
+import { makeFoldCache, buildSessionAudit, SessionAuditService, resolveAuditModel } from '../audit.mjs';
 
 const CID = '11111111-2222-3333-4444-555555555555';
 
@@ -201,4 +204,123 @@ test('AntigravityClient.streamContextWindowUsage extracts frame-0 tokenGroups wh
   assert.equal(update.creditUsageSummary.consumedCredits[0].credits[0].creditAmount, 10);
   assert.ok(rpcStats[0].bytes > 500_000);
   assert.ok(rpcStats[0].retainedBytes < 4096);
+});
+
+test('resolveAuditModel maps host placeholders and runtime aliases cleanly', () => {
+  assert.equal(resolveAuditModel('MODEL_PLACEHOLDER_M525'), 'Gemini 4 Hydrogen (High)');
+  assert.equal(resolveAuditModel('word/MODEL_PLACEHOLDER_M532'), 'Gemini 4 Neon (High)');
+  assert.equal(resolveAuditModel('MODEL_PLACEHOLDER_M999', new Map([['model_placeholder_m999', 'Future Model (Pro)']])), 'Future Model (Pro)');
+});
+
+test('SessionAuditService and MetricsStore recover unindexed archived sessions via direct RPC and transcript fallback', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'ag-archived-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const rpcCid = 'aaaaaaaa-2222-3333-4444-555555555555';
+  const coldCid = 'bbbbbbbb-2222-3333-4444-555555555555';
+  await mkdir(join(dir, coldCid, '.system_generated', 'logs'), { recursive: true });
+  await writeFile(join(dir, coldCid, '.system_generated', 'logs', 'transcript.jsonl'),
+    JSON.stringify({ step_index: 0, type: 'USER_INPUT', created_at: '2026-11-20T08:00:00Z', content: 'audit me' }) + '\n' +
+    JSON.stringify({
+      step_index: 1,
+      type: 'PLANNER_RESPONSE',
+      created_at: '2026-11-20T08:00:05Z',
+      model: 'MODEL_PLACEHOLDER_M525',
+      input_tokens: 4000,
+      cache_read_tokens: 16000,
+      output_tokens: 300,
+      content: 'fixed it',
+      thinking: 'thinking trace',
+      tool_calls: [
+        { name: 'edit_file', args: { Path: '/repo/src/mod.js' } },
+        { name: 'run_command', args: { CommandLine: 'npm test', cwd: '/repo' } },
+      ],
+    }) + '\n');
+
+  const server = createServer(async (req, res) => {
+    let body = '';
+    for await (const c of req) body += c;
+    const input = body ? JSON.parse(body) : {};
+    const method = req.url.split('/').at(-1);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    if (method === 'GetUserStatus') {
+      res.end(JSON.stringify({ userStatus: { email: 'test@example.com' } }));
+      return;
+    }
+    if (method === 'RetrieveUserQuotaSummary') {
+      res.end(JSON.stringify({ groups: [] }));
+      return;
+    }
+    if (method === 'GetAllCascadeTrajectories') {
+      res.end(JSON.stringify({ trajectorySummaries: {} })); // Unindexed archived sessions!
+      return;
+    }
+    if (method === 'GetCascadeTrajectorySteps') {
+      if (input.cascadeId === rpcCid && input.stepOffset === 0) {
+        res.end(JSON.stringify({
+          steps: [
+            { type: 'CORTEX_STEP_TYPE_USER_INPUT', metadata: { createdAt: '2026-11-21T01:00:00Z' } },
+            { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', metadata: { createdAt: '2026-11-21T01:00:02Z', generatorModel: 'MODEL_PLACEHOLDER_M525', modelUsage: { inputTokens: '1000', outputTokens: '200' } }, plannerResponse: { response: true } },
+          ],
+        }));
+      } else {
+        res.end(JSON.stringify({ steps: [] }));
+      }
+      return;
+    }
+    if (method === 'GetCascadeTrajectoryGeneratorMetadata') {
+      if (input.cascadeId === rpcCid && input.generatorMetadataOffset === 0) {
+        res.end(JSON.stringify({
+          generatorMetadata: [{
+            stepIndices: [1],
+            chatModel: {
+              modelDisplayName: 'Gemini 4 Hydrogen (High)',
+              streamingDuration: '2s',
+              chatStartMetadata: { contextWindowMetadata: { estimatedTokensUsed: 50000, maxContextTokens: 1048576 } },
+              usage: { messageId: 'arch-1', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: '1000', cacheReadTokens: '49000', outputTokens: '200', responseOutputTokens: '200' },
+            },
+          }],
+        }));
+      } else {
+        res.end(JSON.stringify({ generatorMetadata: [] }));
+      }
+      return;
+    }
+    res.end(JSON.stringify({}));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  t.after(() => server.close());
+  const port = server.address().port;
+  const client = new AntigravityClient({
+    paths: () => ({ log: 'fixture' }),
+    readLog: async () => `listening on random port at ${port} for HTTP\n`,
+    processes: async () => [{ ProcessId: 91, CommandLine: 'language_server --standalone --csrf_token=tok', Ports: [port] }],
+  });
+
+  const store = new MetricsStore(client, {
+    history: new SessionHistory(join(dir, 'history')),
+    transcripts: new TranscriptReader({ root: dir }),
+    background: null,
+  });
+  const auditService = new SessionAuditService(client, { transcriptRoot: dir });
+  t.after(() => { store.dispose(); auditService.dispose(); });
+
+  const rpcSnap = await store.snapshot({ conversationId: rpcCid, force: true });
+  assert.equal(rpcSnap.sessionError, null);
+  assert.equal(rpcSnap.speed.archivedFallback, 'rpc');
+  assert.equal(rpcSnap.speed.model, 'Gemini 4 Hydrogen (High)');
+  assert.equal(rpcSnap.speed.context.usedTokens, 50000);
+  assert.equal(rpcSnap.speed.context.maxTokens, 1048576);
+
+  const coldSnap = await store.snapshot({ conversationId: coldCid, force: true });
+  assert.equal(coldSnap.sessionError, null);
+  assert.equal(coldSnap.speed.archivedFallback, 'transcript');
+  assert.equal(coldSnap.speed.model, 'Gemini 4 Hydrogen (High)');
+  assert.equal(coldSnap.speed.context.usedTokens, 20000);
+  assert.equal(coldSnap.speed.context.maxTokens, 1048576);
+
+  const coldAudit = await auditService.getAudit(coldCid, { force: true });
+  assert.equal(coldAudit.archivedFallback, 'transcript');
+  assert.equal(coldAudit.files[0].name, 'mod.js');
+  assert.equal(coldAudit.commands[0].command, 'npm test');
+  assert.equal(coldAudit.steps[1].model, 'Gemini 4 Hydrogen (High)');
 });

@@ -59,7 +59,8 @@ function activeConversationId(){
 }
 function setInspectedConversation(id){
   inspectedConversationId=id||null;
-  auditData=null;auditConvId=null;auditError=null;highlightedStepIndex=null;
+  auditOpen=false;auditData=null;auditConvId=null;auditError=null;highlightedStepIndex=null;
+  renderAuditSection();
   lastContextDetailAt=0;
   refreshEpoch+=1;auditEpoch+=1;
 }
@@ -1039,10 +1040,10 @@ function render() {
   $('strip-context').textContent=hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—';
   $('strip-context-size').textContent=context?`${compact(context.usedTokens)} / ${context.maxTokens===null?'—':compact(context.maxTokens)}`:'—';
   $('context-tab').title=(context?t('contextTokens',{used:count(context.usedTokens),max:context.maxTokens===null?'—':count(context.maxTokens)}):t('contextUnknown'))+compSuffix;
-  $('context-summary').textContent=hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):t('contextUnknown');
+  $('context-summary').textContent=hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):(speed?.archivedFallback&&Number.isSafeInteger(context?.usedTokens)?`${compact(context.usedTokens)} ${tokUnit(context.usedTokens)}`:t('contextUnknown'));
   $('context-tokens').textContent=context?t('contextTokens',{used:compact(context.usedTokens),max:context.maxTokens===null?'—':compact(context.maxTokens)}):'—';
-  $('context-model').textContent=context?.model||'—';
-  hidden('context-audit-toggle',!speed?.conversationId);
+  $('context-model').textContent=context?.model||speed?.model||'—';
+  hidden('context-audit-toggle',!(activeConversationId()||speed?.conversationId));
   const compactionPill=$('context-compaction-pill');
   if(compactionPill){
     hidden('context-compaction-pill',!(compactions!==null&&compactions>0));
@@ -1252,7 +1253,7 @@ function refresh(force = false) {
   pending = true;
   const epoch = refreshEpoch;
   inFlightRefreshEpoch = epoch;
-  const needContextDetail = selectedCard==='context' && (force || Date.now()-lastContextDetailAt >= 12000 || !snapshot?.speed?.contextComposition?.customization?.available);
+  const needContextDetail = selectedCard==='context' && (force || Date.now()-lastContextDetailAt >= 12000 || (!snapshot?.speed?.archivedFallback && !snapshot?.speed?.contextComposition?.customization?.available));
   inFlightNeedDetail = needContextDetail;
   refreshRequest=(async()=>{
   try {

@@ -5,13 +5,43 @@ import { open, realpath, stat } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { setImmediate as yieldLoop } from 'node:timers/promises';
-import { formatModelName } from './context.mjs';
+import { compositionMetrics } from './composition.mjs';
+import { contextMetrics, formatModelName, modelContextReference } from './context.mjs';
 import { tokenCount } from './metrics.mjs';
+import { estimateModelsCost } from './pricing.mjs';
 import { TrajectoryJson } from './trajectory-json.mjs';
 import { transcriptBrainRoot } from './transcript.mjs';
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const scalar = 'scalar', presence = 'presence';
+
+const HOST_MODEL_PLACEHOLDERS = new Map([
+  ['model_placeholder_m525', 'Gemini 4 Hydrogen (High)'],
+  ['model_placeholder_m526', 'Gemini 4 Hydrogen (Medium)'],
+  ['model_placeholder_m527', 'Gemini 4 Hydrogen (Low)'],
+  ['model_placeholder_m528', 'Gemini 4 Hydrogen (XHigh)'],
+  ['model_placeholder_m532', 'Gemini 4 Neon (High)'],
+  ['model_placeholder_m533', 'Gemini 4 Neon (Medium)'],
+  ['model_placeholder_m534', 'Gemini 4 Neon (Low)'],
+  ['model_placeholder_m535', 'Gemini 4 Neon (XHigh)'],
+  ['model_placeholder_m427', 'Gemini 4 Carbon (High)'],
+  ['model_placeholder_m437', 'Gemini 4 Carbon (Medium)'],
+  ['model_placeholder_m438', 'Gemini 4 Carbon (Low)'],
+  ['model_placeholder_m417', 'Gemini 4 Argon (High)'],
+  ['model_placeholder_m418', 'Gemini 4 Argon (Medium)'],
+  ['model_placeholder_m419', 'Gemini 4 Argon (Low)'],
+  ['model_placeholder_m537', 'Orchestrator (Neon)'],
+  ['model_placeholder_m667', 'Orchestrator (Carbon)'],
+  ['model_placeholder_m681', 'Orchestrator (Argon)'],
+]);
+
+export function resolveAuditModel(raw, runtimeAliases = null) {
+  const cleaned = typeof raw === 'string' ? raw.replace(/^word\//i, '').trim() : '';
+  if (!cleaned) return null;
+  const lower = cleaned.toLowerCase();
+  const mapped = (runtimeAliases instanceof Map ? runtimeAliases.get(lower) : null) || HOST_MODEL_PLACEHOLDERS.get(lower) || null;
+  return formatModelName(mapped || cleaned) || mapped || cleaned;
+}
 
 const cleanText = (value, max = 200) => typeof value === 'string'
   ? value.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
@@ -105,6 +135,14 @@ export const AUDIT_STEPS_PROJECTION = {
 
 const TRANSCRIPT_AUDIT_PROJECTION = {
   step_index: scalar,
+  type: scalar,
+  status: scalar,
+  created_at: scalar,
+  model: scalar,
+  input_tokens: scalar,
+  cache_read_tokens: scalar,
+  cache_write_tokens: scalar,
+  output_tokens: scalar,
   content: 'textEstimate',
   thinking: 'textEstimate',
   tool_calls: {
@@ -116,8 +154,10 @@ const TRANSCRIPT_AUDIT_PROJECTION = {
         TargetFile: scalar,
         DirectoryPath: scalar,
         SearchPath: scalar,
+        File: scalar,
         CommandLine: scalar,
         cwd: scalar,
+        Action: scalar,
       },
     },
   },
@@ -258,7 +298,7 @@ function stepDurationMs(metadata) {
   return Math.round(end - start);
 }
 
-function buildGeneratorDeltaMap(generators) {
+function buildGeneratorDeltaMap(generators, modelAliases = null) {
   const stepToDelta = new Map();
   const seen = new Set();
   let prevTotal = null;
@@ -282,7 +322,7 @@ function buildGeneratorDeltaMap(generators) {
       const anchor = Math.min(...indices);
       stepToDelta.set(anchor, {
         delta,
-        model: formatModelName(g.chatModel?.modelDisplayName || g.chatModel?.responseModel || g.chatModel?.model || usage.model || ''),
+        model: resolveAuditModel(g.chatModel?.modelDisplayName || g.chatModel?.responseModel || g.chatModel?.model || usage.model || '', modelAliases),
       });
     }
   }
@@ -307,12 +347,12 @@ function buildStepSummaryLabel(type, step, fileInfo, commandText) {
   return type.toLowerCase().replace(/_/g, ' ');
 }
 
-export function createAuditAccumulator({ conversationId = null, generators = [], transcriptSteps = null } = {}) {
+export function createAuditAccumulator({ conversationId = null, generators = [], transcriptSteps = null, modelAliases = null } = {}) {
   const fileMap = new Map();
   const commands = [];
   const stepEntries = [];
   const counts = { user: 0, thinking: 0, tools: 0, answer: 0, compactions: 0 };
-  const stepDeltaMap = buildGeneratorDeltaMap(generators);
+  const stepDeltaMap = buildGeneratorDeltaMap(generators, modelAliases);
   const maxSteps = 1000;
   const maxCommands = 500;
   let totalSteps = 0;
@@ -426,7 +466,7 @@ export function createAuditAccumulator({ conversationId = null, generators = [],
       categories,
       status: cleanText(String(step.status || '').replace(/^CORTEX_STEP_STATUS_/, ''), 32) || null,
       createdAt: typeof step.metadata?.createdAt === 'string' ? step.metadata.createdAt : null,
-      model: formatModelName(reqInfo?.model || step.metadata?.generatorModel || '') || null,
+      model: resolveAuditModel(reqInfo?.model || step.metadata?.generatorModel || '', modelAliases),
       inputTokens,
       thinkingTokens,
       responseTokens,
@@ -473,24 +513,19 @@ export function createAuditAccumulator({ conversationId = null, generators = [],
  * Build lazy File Activity, Command Executions, and Step/Context Browser
  * projections from streamed steps, generators, and optional transcript estimates.
  */
-export function buildSessionAudit({ conversationId = null, steps = [], generators = [], transcriptSteps = null } = {}) {
+export function buildSessionAudit({ conversationId = null, steps = [], generators = [], transcriptSteps = null, modelAliases = null } = {}) {
   const safeSteps = Array.isArray(steps) ? steps : [];
-  const acc = createAuditAccumulator({ conversationId, generators, transcriptSteps });
+  const acc = createAuditAccumulator({ conversationId, generators, transcriptSteps, modelAliases });
   for (let i = 0; i < safeSteps.length; i++) acc.addStep(safeSteps[i], i);
   return acc.finish();
 }
 
-/**
- * Stream local transcript.jsonl (fallback transcript_full.jsonl) for per-step
- * text token estimates and tool args without retaining message bodies.
- */
-export async function readTranscriptStepEstimates(root, conversationId, { maxRows = 8192 } = {}) {
+export async function resolveTranscriptFile(root, conversationId) {
   if (!root || !GUID.test(conversationId || '')) return null;
   const id = conversationId.toLowerCase();
   let resolvedRoot;
   try { resolvedRoot = await realpath(root); } catch { return null; }
 
-  let targetFile = null;
   for (const name of ['transcript.jsonl', 'transcript_full.jsonl']) {
     const candidate = join(root, id, '.system_generated', 'logs', name);
     try {
@@ -499,38 +534,25 @@ export async function readTranscriptStepEstimates(root, conversationId, { maxRow
       const rel = relative(resolvedRoot, file);
       if (!rel || rel.startsWith('..') || isAbsolute(rel) || file !== expected) continue;
       const info = await stat(file);
-      if (info.isFile()) { targetFile = file; break; }
+      if (info.isFile()) return file;
     } catch {}
   }
-  if (!targetFile) return null;
+  return null;
+}
 
-  const map = new Map();
-  const handle = await open(targetFile, 'r');
+async function streamTranscriptJsonl(filePath, projection, onRecord) {
+  const handle = await open(filePath, 'r');
   try {
     const buf = Buffer.allocUnsafe(65536);
     const decoder = new StringDecoder('utf8');
-    let lineParser = null;
+    const lineParser = new TrajectoryJson({ projection, maxRetainedBytes: 32768 });
     let lineStarted = false;
     let badLine = false;
     const finishLine = () => {
-      if (lineStarted && !badLine && lineParser) {
-        try {
-          const obj = lineParser.end();
-          if (Number.isSafeInteger(obj?.step_index) && obj.step_index >= 0) {
-            const contentTokens = obj.content?.tokens || 0;
-            const thinkingTokens = obj.thinking?.tokens || 0;
-            const firstTool = Array.isArray(obj.tool_calls) ? obj.tool_calls[0] : null;
-            if (map.size < maxRows) {
-              map.set(obj.step_index, {
-                tokens: contentTokens + thinkingTokens,
-                toolName: cleanText(firstTool?.name || '', 64),
-                args: firstTool?.args || null,
-              });
-            }
-          }
-        } catch {}
+      if (lineStarted && !badLine) {
+        try { onRecord(lineParser.end()); } catch {}
       }
-      lineParser = null;
+      lineParser.reset();
       lineStarted = false;
       badLine = false;
     };
@@ -546,7 +568,6 @@ export async function readTranscriptStepEstimates(root, conversationId, { maxRow
         start = i + 1;
         if (part.trim().length || lineStarted) {
           lineStarted = true;
-          lineParser ??= new TrajectoryJson({ projection: TRANSCRIPT_AUDIT_PROJECTION, maxRetainedBytes: 32768 });
           if (!badLine) {
             try { lineParser.write(part); } catch { badLine = true; }
           }
@@ -558,14 +579,240 @@ export async function readTranscriptStepEstimates(root, conversationId, { maxRow
     const tail = decoder.end();
     if (tail.trim().length) {
       lineStarted = true;
-      lineParser ??= new TrajectoryJson({ projection: TRANSCRIPT_AUDIT_PROJECTION, maxRetainedBytes: 32768 });
       if (!badLine) { try { lineParser.write(tail); } catch { badLine = true; } }
     }
     finishLine();
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * Stream local transcript.jsonl (fallback transcript_full.jsonl) for per-step
+ * text token estimates and tool args without retaining message bodies.
+ */
+export async function readTranscriptStepEstimates(root, conversationId, { maxRows = 8192 } = {}) {
+  const targetFile = await resolveTranscriptFile(root, conversationId);
+  if (!targetFile) return null;
+  const map = new Map();
+  await streamTranscriptJsonl(targetFile, TRANSCRIPT_AUDIT_PROJECTION, obj => {
+    if (Number.isSafeInteger(obj?.step_index) && obj.step_index >= 0 && map.size < maxRows) {
+      const contentTokens = obj.content?.tokens || 0;
+      const thinkingTokens = obj.thinking?.tokens || 0;
+      const firstTool = Array.isArray(obj.tool_calls) ? obj.tool_calls[0] : null;
+      map.set(obj.step_index, {
+        tokens: contentTokens + thinkingTokens,
+        toolName: cleanText(firstTool?.name || '', 64),
+        args: firstTool?.args || null,
+      });
+    }
+  });
   return map;
+}
+
+/**
+ * Build a complete Session Audit fallback directly from local transcript*.jsonl
+ * when a cold/archived conversation is absent from the running daemon.
+ */
+export async function buildAuditFromTranscript(root, conversationId, { modelAliases = null } = {}) {
+  const targetFile = await resolveTranscriptFile(root, conversationId);
+  if (!targetFile) return null;
+  const id = conversationId.toLowerCase();
+  const acc = createAuditAccumulator({ conversationId: id, modelAliases });
+  let prevContext = null;
+  let lastIdx = -1;
+
+  await streamTranscriptJsonl(targetFile, TRANSCRIPT_AUDIT_PROJECTION, obj => {
+    if (!obj || typeof obj !== 'object') return;
+    const rawType = cleanText(String(obj.type || '').replace(/^CORTEX_STEP_TYPE_/, ''), 64) || 'UNKNOWN';
+    const baseIdx = Number.isSafeInteger(obj.step_index) && obj.step_index >= 0 ? obj.step_index : (lastIdx + 1);
+    const stepIdx = Math.max(baseIdx, lastIdx + 1);
+    lastIdx = stepIdx;
+
+    const inTok = tokenCount(obj.input_tokens);
+    const readTok = tokenCount(obj.cache_read_tokens) ?? 0;
+    const writeTok = tokenCount(obj.cache_write_tokens) ?? 0;
+    const outTok = tokenCount(obj.output_tokens);
+    const contentTok = obj.content?.tokens || 0;
+    const thinkingTok = obj.thinking?.tokens || 0;
+    const hasUsage = inTok !== null || readTok > 0 || outTok !== null;
+    const ctxTotal = inTok !== null ? inTok + readTok + writeTok : null;
+    if (ctxTotal !== null) prevContext = ctxTotal;
+
+    const toolCalls = Array.isArray(obj.tool_calls) ? obj.tool_calls.filter(Boolean) : [];
+    const createdAt = typeof obj.created_at === 'string' ? obj.created_at : null;
+    const resolvedModel = resolveAuditModel(obj.model || '', modelAliases);
+
+    acc.addStep({
+      type: `CORTEX_STEP_TYPE_${rawType}`,
+      status: obj.status ? `CORTEX_STEP_STATUS_${cleanText(obj.status, 32)}` : null,
+      metadata: {
+        createdAt,
+        generatorModel: resolvedModel || obj.model || null,
+        modelUsage: hasUsage ? {
+          inputTokens: inTok ?? 0,
+          cacheReadTokens: readTok,
+          cacheWriteTokens: writeTok,
+          outputTokens: outTok ?? 0,
+          thinkingOutputTokens: thinkingTok > 0 ? thinkingTok : undefined,
+          responseOutputTokens: contentTok > 0 ? contentTok : undefined,
+        } : undefined,
+      },
+      plannerResponse: rawType === 'PLANNER_RESPONSE' ? {
+        thinking: thinkingTok > 0,
+        response: contentTok > 0,
+        toolCalls: toolCalls.map(tc => ({ name: cleanText(tc.name || '', 48) })).filter(c => c.name),
+      } : undefined,
+    }, stepIdx);
+
+    for (let j = 0; j < toolCalls.length; j++) {
+      const tc = toolCalls[j];
+      const name = cleanText(tc?.name || '', 64);
+      if (!name) continue;
+      const args = tc.args || {};
+      const toolIdx = stepIdx + j + 1;
+      lastIdx = Math.max(lastIdx, toolIdx);
+      const isCmd = /^run_command$/i.test(name);
+      acc.addStep({
+        type: isCmd ? 'CORTEX_STEP_TYPE_RUN_COMMAND' : 'CORTEX_STEP_TYPE_GENERIC',
+        status: 'CORTEX_STEP_STATUS_DONE',
+        metadata: { createdAt, toolCall: { name } },
+        generic: { args },
+        runCommand: isCmd ? {
+          commandLine: cleanText(args.CommandLine || '', 240),
+          cwd: cleanText(args.cwd || '', 180) || null,
+        } : undefined,
+      }, toolIdx);
+    }
+  });
+
+  const audit = acc.finish();
+  return audit.totalSteps > 0 ? { ...audit, archivedFallback: 'transcript' } : null;
+}
+
+/**
+ * Summarize a local transcript*.jsonl conversation into a single-session speed/context
+ * snapshot for archived sessions absent from GetAllCascadeTrajectories.
+ */
+export async function summarizeTranscriptArchive(root, conversationId, { modelAliases = null } = {}) {
+  const targetFile = await resolveTranscriptFile(root, conversationId);
+  if (!targetFile) return null;
+  const id = conversationId.toLowerCase();
+  let steps = 0, rounds = 0, measuredRequests = 0, compactions = 0;
+  let userTokens = 0, assistantTokens = 0, toolTokens = 0, systemTokens = 0;
+  let uncached = 0, cacheRead = 0, cacheWrite = 0, output = 0;
+  let lastContextTokens = 0, lastActiveAt = null;
+  const modelMap = new Map();
+  let primaryRawModel = null, maxModelReqs = -1;
+
+  await streamTranscriptJsonl(targetFile, TRANSCRIPT_AUDIT_PROJECTION, obj => {
+    if (!obj || typeof obj !== 'object') return;
+    steps += 1;
+    const rawType = cleanText(String(obj.type || '').replace(/^CORTEX_STEP_TYPE_/, ''), 64);
+    const createdAt = typeof obj.created_at === 'string' ? obj.created_at : null;
+    if (createdAt && Number.isFinite(Date.parse(createdAt))) {
+      if (!lastActiveAt || Date.parse(createdAt) > Date.parse(lastActiveAt)) lastActiveAt = createdAt;
+    }
+    const contentTok = obj.content?.tokens || 0;
+    const thinkingTok = obj.thinking?.tokens || 0;
+    if (rawType === 'USER_INPUT') { rounds += 1; userTokens += contentTok; }
+    else if (rawType === 'PLANNER_RESPONSE') { assistantTokens += contentTok + thinkingTok; }
+    else if (/COMPACTION|CHECKPOINT/.test(rawType)) { compactions += 1; systemTokens += contentTok; }
+    else if (rawType === 'SYSTEM_MESSAGE') { systemTokens += contentTok; }
+    else { toolTokens += contentTok; }
+
+    const inTok = tokenCount(obj.input_tokens) ?? 0;
+    const readTok = tokenCount(obj.cache_read_tokens) ?? 0;
+    const writeTok = tokenCount(obj.cache_write_tokens) ?? 0;
+    const outTok = tokenCount(obj.output_tokens) ?? 0;
+    if (inTok || readTok || writeTok || outTok) {
+      measuredRequests += 1;
+      uncached += inTok;
+      cacheRead += readTok;
+      cacheWrite += writeTok;
+      output += outTok;
+      const ctx = inTok + readTok + writeTok;
+      if (ctx > 0) lastContextTokens = ctx;
+      const rawModel = cleanText(obj.model || '', 120);
+      const display = resolveAuditModel(rawModel, modelAliases) || 'Unknown';
+      const entry = modelMap.get(display) || { uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, requests: 0 };
+      entry.uncached += inTok; entry.cacheRead += readTok; entry.cacheWrite += writeTok; entry.output += outTok;
+      entry.requests += 1;
+      modelMap.set(display, entry);
+      if (entry.requests > maxModelReqs) { maxModelReqs = entry.requests; primaryRawModel = rawModel || display; }
+    }
+  });
+
+  if (steps === 0) return null;
+  const model = resolveAuditModel(primaryRawModel || '', modelAliases);
+  const totalInput = uncached + cacheRead + cacheWrite;
+  const totalTokens = totalInput + output;
+  const ref = model ? modelContextReference(model) : null;
+  const maxTokens = ref?.tokens ?? null;
+  const context = lastContextTokens > 0
+    ? (contextMetrics({ estimatedTokensUsed: lastContextTokens, maxContextTokens: maxTokens ?? 0 }, { model, sampledAt: lastActiveAt }) || {
+      usedTokens: lastContextTokens,
+      maxTokens: null,
+      remainingTokens: null,
+      usedFraction: null,
+      remainingFraction: null,
+      model,
+    })
+    : null;
+  const transcriptStats = {
+    status: 'ready',
+    matchedSteps: steps,
+    tokens: { user: userTokens, assistant: assistantTokens, tool: toolTokens, system: systemTokens },
+    compactionMarkers: compactions,
+  };
+  const contextComposition = context && context.maxTokens ? compositionMetrics({ context, transcript: transcriptStats }) : null;
+  const est = estimateModelsCost(Object.fromEntries(modelMap));
+
+  return {
+    source: 'Local archived transcript',
+    archivedFallback: 'transcript',
+    conversationId: id,
+    status: 'CASCADE_RUN_STATUS_ARCHIVED',
+    steps,
+    rounds,
+    requests: measuredRequests,
+    measuredRequests,
+    model,
+    lastActiveAt,
+    tps: null,
+    latestTps: null,
+    peakTps: null,
+    ttftSeconds: null,
+    modelSeconds: null,
+    toolSeconds: null,
+    counts: { responseOutput: output || null, thinkingOutput: null },
+    tokens: {
+      uncachedTokens: uncached,
+      cachedTokens: cacheRead,
+      cacheWriteTokens: cacheWrite,
+      inputTokens: totalInput,
+      outputTokens: output,
+      totalTokens,
+      measuredRequests,
+      complete: true,
+    },
+    cache: {
+      inputTokens: totalInput,
+      cachedTokens: cacheRead,
+      uncachedTokens: uncached,
+      cacheWriteTokens: cacheWrite,
+      outputTokens: output,
+      totalTokens,
+      hitRate: totalInput > 0 ? cacheRead / totalInput : null,
+      measuredRequests,
+      complete: true,
+    },
+    context,
+    transcriptStats,
+    contextComposition,
+    ...(est.hasPriced ? { estimatedCost: est } : {}),
+    complete: true,
+  };
 }
 
 export class SessionAuditService {
@@ -657,26 +904,37 @@ export class SessionAuditService {
 
     if (this.pending.has(id)) return this.pending.get(id);
     const run = (async () => {
+      const modelAliases = this.client?.modelAliases || null;
       const [generators, transcriptSteps] = await Promise.all([
         this.fetchAllGenerators(id).catch(() => []),
         readTranscriptStepEstimates(this.transcriptRoot, id).catch(() => null),
       ]);
-      const acc = createAuditAccumulator({ conversationId: id, generators, transcriptSteps });
+      const acc = createAuditAccumulator({ conversationId: id, generators, transcriptSteps, modelAliases });
       let result = null;
+      let stepErr = null;
       try {
         await this.fetchAndFoldSteps(id, acc);
         result = acc.finish();
       } catch (err) {
-        if (typeof this.client.trajectory === 'function') {
+        stepErr = err;
+      }
+      if (!result || result.totalSteps === 0) {
+        const transcriptFallback = await buildAuditFromTranscript(this.transcriptRoot, id, { modelAliases }).catch(() => null);
+        if (transcriptFallback) {
+          result = transcriptFallback;
+        } else if (stepErr && typeof this.client.trajectory === 'function') {
           const raw = await this.client.trajectory(id, { force });
           result = buildSessionAudit({
             conversationId: id,
             steps: raw?.trajectory?.steps || [],
             generators: generators.length ? generators : (raw?.trajectory?.generatorMetadata || []),
             transcriptSteps,
+            modelAliases,
           });
+        } else if (stepErr) {
+          throw stepErr;
         } else {
-          throw err;
+          result ||= acc.finish();
         }
       }
       this.cache.set(id, result, mark ?? String(result.totalSteps));
