@@ -131,7 +131,6 @@ function showPanelView(nextView,{fromUsageUi=false}={}){
   const isUsage=nextView==='activity'||nextView==='models';
   const isInsights=nextView==='insights';
   hidden('session-status-strip',!isSession);
-  hidden('quota-overview',!isSession);
   hidden('session-card-stage',!isSession);
   const wasUsage=prevView==='activity'||prevView==='models';
   const targetUsageTab=nextView==='models'?'details':'overview';
@@ -1049,10 +1048,9 @@ function render() {
   }
   const visibleQuotaWindows=language.quotaWindows(group),isArgon=language.quotaGroupKind(group)==='gemini-argon';
   for(const [key,prefix]of[['5h','five'],['weekly','week']]){
-    hidden(`${prefix}-summary`,!visibleQuotaWindows.includes(key));hidden(`${prefix}-details`,!visibleQuotaWindows.includes(key));
+    hidden(`${prefix}-details`,!visibleQuotaWindows.includes(key));
   }
-  $('quota-overview').dataset.windows=String(visibleQuotaWindows.length);
-  text('week-summary-label',t(isArgon?'argonWeek':'weekShort'));text('week-quota-title',t(isArgon?'argonWeek':'week'));
+  text('week-quota-title',t(isArgon?'argonWeek':'week'));
   $('week-details').setAttribute('aria-label',t(isArgon?'argonWeek':'week'));
   renderQuota('5h','five',now); renderQuota('weekly','week',now);
   const sibWrap = $('panel-quota-siblings');
@@ -1476,10 +1474,6 @@ function updateCountdowns() {
   for (const [window,prefix] of [['5h','five'],['weekly','week']]) {
     const bucket = group?.windows?.[window];
     $(`${prefix}-countdown`).textContent = language.countdown(bucket?.resetAt,now);
-    $(`${prefix}-summary-countdown`).textContent=language.countdown(bucket?.resetAt,now,true);
-    const remaining=language.quotaRemaining(bucket);
-    $(`${prefix}-summary-balance`).textContent=bucket?.disabled?t('unavailableQuota'):percent(remaining);
-    $(`${prefix}-summary-fill`).style.width=remaining!==null?`${remaining*100}%`:'0%';
     if (bucket?.resetAt && Date.parse(bucket.resetAt) <= now && snapshot?.connection === 'live' && now - lastExpiredRefresh > 30000) {
       lastExpiredRefresh = now; setTimeout(() => refresh(true),0);
     }

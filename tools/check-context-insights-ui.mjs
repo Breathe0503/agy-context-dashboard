@@ -402,6 +402,7 @@ try {
   assert.equal(await page.locator('#audit-steps-list .audit-row').count(), 1);
 
   // 3b. Token Usage entry inside Cache card + Daily/Weekly Activity & By Model embedded tabs
+  assert.equal(await page.locator('#quota-overview,#five-summary,#week-summary').count(), 0);
   await page.locator('#cache-tab').click();
   await page.locator('#panel-usage-entry').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#panel-usage-today').textContent(), '480K');

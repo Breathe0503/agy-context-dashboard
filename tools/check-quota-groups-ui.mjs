@@ -66,8 +66,7 @@ try{
   assert.equal(await scope.locator('#week-forecast').isVisible(),true);
   if(mode==='panel'){
    assert.equal(await scope.locator('#quota-group').inputValue(),'gemini-argon-wtu');
-   assert.equal(await scope.locator('#five-summary').isVisible(),false);
-   assert.equal(await scope.locator('#quota-overview').getAttribute('data-windows'),'1');
+   assert.equal(await scope.locator('#quota-overview,#five-summary,#week-summary').count(),0);
    assert.match(await scope.locator('#panel-group-name').textContent(),/Gemini \(Argon\)/);
    assert.match(await scope.locator('#panel-quota-siblings').textContent(),/Claude/);
    assert.equal(await scope.locator('#panel-quota-siblings .quota-sibling').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)','Collapsed sibling rows default to transparent');
