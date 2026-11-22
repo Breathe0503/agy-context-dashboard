@@ -1055,7 +1055,8 @@ module.exports = function installAgPulseInlineWidget() {
       #usage-entry{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-top:9px;margin-top:10px;border-top:1px solid var(--pulse-separator)}#usage-entry[hidden]{display:none}
       .usage-summary{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 auto}.usage-summary>div{min-width:0}.usage-label{font-size:11px;line-height:1.25;color:var(--pulse-muted);white-space:nowrap}.usage-val{display:flex;align-items:baseline;gap:2px;white-space:nowrap;line-height:1.3}.usage-summary strong{font-size:13px;font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums}.usage-unit{font-size:11px;color:var(--pulse-muted)}
       #open-usage{display:inline-flex;align-items:center;gap:4px;flex:none;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--pulse-accent);font:inherit;font-size:11px;font-weight:550;white-space:nowrap;transition:background-color 120ms ease,transform 120ms ease}#open-usage:hover{background:var(--pulse-hover)}#open-usage:active{transform:scale(.98)}#open-usage svg{width:12px;height:12px;flex:none}
-      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.context-hero-meta{display:inline-flex;align-items:baseline;gap:6px;min-width:0}.context-compaction-pill{padding:1px 6px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums;white-space:nowrap}.context-compaction-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.context-hero-meta{display:inline-flex;align-items:baseline;gap:6px;min-width:0}.context-compaction-pill,.context-bloat-pill{padding:1px 6px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums;white-space:nowrap}.context-bloat-pill{color:var(--pulse-warning);background:color-mix(in srgb,var(--pulse-warning) 14%,transparent);font-weight:600}.context-bloat-pill[data-critical=true]{color:var(--pulse-danger);background:color-mix(in srgb,var(--pulse-danger) 14%,transparent)}.context-compaction-pill[hidden],.context-bloat-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .breakdown-details{margin-top:8px;padding-top:7px;border-top:1px solid var(--pulse-separator);font-size:11px;min-width:0}.breakdown-details[hidden]{display:none}.breakdown-details>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--pulse-label);font-weight:500;list-style:none;min-width:0}.breakdown-details>summary>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.breakdown-details>summary::-webkit-details-marker{display:none}.breakdown-meta{font-variant-numeric:tabular-nums;color:var(--pulse-muted);font-weight:500;font-size:10px;white-space:nowrap;flex:0 0 auto}.breakdown-body{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin-top:7px;font-variant-numeric:tabular-nums;min-width:0}.breakdown-chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.breakdown-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:5px;background:var(--pulse-control);color:var(--pulse-label);font-size:10px}.breakdown-chip strong{color:var(--pulse-foreground);font-weight:600}.breakdown-section{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;min-width:0}.breakdown-head{font-size:10px;color:var(--pulse-muted);font-weight:600}.breakdown-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35;min-width:0}.breakdown-row-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--pulse-label)}.breakdown-row-val{flex:0 0 auto;color:var(--pulse-foreground);white-space:nowrap;font-variant-numeric:tabular-nums}.breakdown-row-warn{color:var(--pulse-warning);font-weight:550}.breakdown-row-warn[data-critical=true]{color:var(--pulse-danger)}
       .context-composition{margin-top:8px}.context-composition[hidden]{display:none}.composition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;font-weight:500;color:var(--pulse-label)}.composition-title-wrap{display:inline-flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}.composition-title-wrap .tag{font-weight:400;font-size:10px;color:var(--pulse-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
       .composition-toggle{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:var(--pulse-control);flex:none}.composition-toggle-btn{border:0;background:none;font:inherit;font-size:10px;padding:2px 6px;margin:0;border-radius:4px;color:var(--pulse-muted);line-height:14px;cursor:pointer;transition:background-color 140ms ease,color 140ms ease}.composition-toggle-btn:hover{color:var(--pulse-hover-text);background:var(--pulse-hover)}.composition-toggle-btn[aria-pressed=true]{color:var(--pulse-foreground);background:var(--pulse-hover);box-shadow:0 1px 2px var(--pulse-shadow)}
       .composition-meter{display:flex;gap:1px;height:6px;border-radius:999px;overflow:hidden;margin-top:6px;background:var(--pulse-track)}.composition-meter i{display:block;height:100%;min-width:0}
@@ -1119,6 +1120,7 @@ module.exports = function installAgPulseInlineWidget() {
     </section><section class="card" id="cache-card" role="region" data-i18n-aria="cacheTitle" aria-label="Token cache" hidden>
       <div class="heading cache-hero"><div class="cache-hero-main"><div class="hero-label">${svg('cache')}<span data-i18n="cacheTitle">Token cache</span></div><div class="cache-hero-value"><span class="cache-hero-total" id="cache-hero-total"><strong id="cache-coverage">—</strong><span class="speed-unit" id="cache-coverage-unit">toks</span></span><span class="rate-pill" id="cache-detail-rate">—</span></div></div><div class="cache-meter" aria-hidden="true"><i id="cache-seg-read"></i><i id="cache-seg-miss"></i><i id="cache-seg-out"></i></div></div>
       <dl class="stats-grid cache-stats">${[['cacheRead','cache-read'],['cacheMiss','cache-miss'],['cacheOutput','cache-output']].map(([key,id])=>`<div id="${id}-cell"><dt data-i18n="${key}">${t(key)}</dt><dd><strong id="${id}">—</strong><span class="speed-unit" id="${id}-unit" hidden> toks</span></dd></div>`).join('')}<div id="cache-write-row" class="span-row" hidden><dt data-i18n="cacheWrite">${t('cacheWrite')}</dt><dd id="cache-write">—</dd></div><div class="span-row" id="task-own-row" hidden><dt data-i18n="taskOwn">${t('taskOwn')}</dt><dd id="task-own">—</dd></div><div class="span-row" id="task-subagents-row" hidden><dt id="task-subagents-label"></dt><dd id="task-subagents">—</dd></div></dl><p class="footnote" id="cache-note" hidden></p>
+      <details class="breakdown-details" id="orchestration-breakdown" hidden><summary><span id="orch-summary-label"></span><strong class="breakdown-meta" id="orch-summary-meta"></strong></summary><div class="breakdown-body" id="orch-body"></div></details>
     </section><section class="card quota-card" id="quota-card" role="region" data-i18n-aria="quotaRingTitle" hidden>
       <div class="heading quota-hero"><div class="quota-spotlight-head" id="active-quota-group"><i class="spot-dot" id="spot-dot" aria-hidden="true"></i><strong class="spot-name" id="active-group-name">—</strong></div><div class="quota-actions"><span class="refresh quota-spinner" id="quota-spinner" role="status" data-i18n-aria="refreshing" aria-label="Refreshing…" aria-busy="false" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.8 6a5.1 5.1 0 1 0 .1 4M12.8 2.5V6H9.2"/></svg></span><span class="pace-badge" id="quota-pace" hidden><i class="pace-dot" aria-hidden="true"></i><span id="quota-pace-text"></span></span></div></div>
       <div class="quota-details">${['five','week'].map(name=>`<section class="quota-section" id="${name}-quota-section" data-i18n-aria="${name}" aria-label="${t(name)}"><div class="quota-row-top"><span class="quota-name">${svg(name)}<span id="${name}-quota-title" data-i18n="${name}">${t(name)}</span></span><span class="quota-meta"><span class="reset" id="${name}-countdown">—</span></span><strong id="${name}-balance">—</strong></div><div class="track quota-track" role="progressbar" data-i18n-aria="${name}" id="${name}-track"><i class="track-actual" id="${name}-fill"></i></div><div class="quota-forecast" id="${name}-forecast" hidden><span class="forecast-main" id="${name}-forecast-text"></span><span class="usage-hint" id="${name}-usage" hidden></span></div><p class="footnote" id="${name}-note" hidden></p></section>`).join('')}</div>
@@ -1126,11 +1128,12 @@ module.exports = function installAgPulseInlineWidget() {
       <div class="quota-siblings" id="quota-siblings" hidden></div>
     </section><section class="card context-card" id="context-card" role="region" data-i18n-aria="context" hidden>
       <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span></span><span class="tag" id="context-model">—</span></div>
-      <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span id="context-tokens">—</span></span></div>
+      <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span class="tag context-bloat-pill" id="context-bloat-pill" hidden></span><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span id="context-tokens">—</span></span></div>
       <div class="track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
       <section class="context-composition" id="context-composition" hidden><div class="composition-meter" id="composition-meter" aria-hidden="true"></div><div class="composition-head"><span class="composition-title-wrap"><span data-i18n="compositionTitle">Context composition</span><span class="tag" id="composition-source"></span></span><div class="composition-toggle" role="group" data-i18n-aria="compositionViewToggle"><button type="button" class="composition-toggle-btn" data-composition-view="list" data-i18n="compositionViewList">List</button><button type="button" class="composition-toggle-btn" data-composition-view="bar" data-i18n="compositionViewBar">Bar</button></div></div><div class="composition-list" id="composition-list"></div><div class="composition-legend" id="composition-legend" hidden></div></section>
       <div class="context-cache-row" id="context-cache-row" hidden><span data-i18n="avgCacheHitRate">Avg cache hit rate</span><strong id="context-cache-rate">—</strong></div>
       <section class="context-trend-section" id="context-trend-section" hidden><div class="composition-head"><span data-i18n="trendTitle">Context trend</span><span class="tag" id="trend-sample"></span></div><svg id="context-trend-svg" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true"></svg></section>
+      <details class="breakdown-details" id="context-breakdown" hidden><summary><span id="ctx-breakdown-label"></span><strong class="breakdown-meta" id="ctx-breakdown-meta"></strong></summary><div class="breakdown-body" id="ctx-breakdown-body"></div></details>
     </section>`);
     row.insertBefore(node,branch.nextSibling);
     attribute(node,'data-speed-style',speedStyle.style);paintSpeed([],'idle',0.36,false);updateCatBadge($('style-cat-icon'),'idle');
@@ -1288,6 +1291,70 @@ module.exports = function installAgPulseInlineWidget() {
         hidden(compactionPill,true);
       }
     }
+    const mkEl=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
+    const mkRow=(name,val,warn=false,critical=false)=>{
+      const r=mkEl('div','breakdown-row');
+      const v=mkEl('span',warn?'breakdown-row-val breakdown-row-warn':'breakdown-row-val',val);
+      if(critical)v.dataset.critical='true';
+      r.append(mkEl('span','breakdown-row-name',name),v);
+      return r;
+    };
+    const bloatPill=$('context-bloat-pill');
+    const bloatWarnings=Array.isArray(transcript?.bloatWarnings)?transcript.bloatWarnings:[];
+    const hasBloat=bloatWarnings.length>0;
+    if(bloatPill){
+      hidden(bloatPill,!hasBloat);
+      if(hasBloat){
+        text('context-bloat-pill',`⚠ ${t('bloatBadge',{n:bloatWarnings.length})}`);
+        attribute(bloatPill,'data-critical',bloatWarnings.some(w=>w.severity==='critical')?'true':null);
+        attribute(bloatPill,'title',bloatWarnings.map(w=>t('bloatWarningLine',{tool:w.tool,step:w.stepIndex,tokens:compact(w.tokens)})).join('\n'));
+      }else attribute(bloatPill,'data-critical',null);
+    }
+    const ctxBreakdown=$('context-breakdown');
+    if(ctxBreakdown){
+      const hasSteps=Boolean(transcript&&['ready','partial'].includes(transcript.status)&&transcript.matchedSteps>0);
+      const stepTools=Array.isArray(speed?.toolSummary?.tools)?speed.toolSummary.tools:[];
+      const txTools=Array.isArray(transcript?.toolBreakdown)?transcript.toolBreakdown:[];
+      const tools=txTools.length?txTools:stepTools;
+      const showCtx=hasSteps||tools.length>0||hasBloat;
+      hidden(ctxBreakdown,!showCtx);
+      if(showCtx){
+        const ctxSig=JSON.stringify([language.language,hasSteps,transcript?.userTokens,transcript?.assistantTokens,transcript?.responseTokens,transcript?.thinkingTokens,transcript?.toolTokens,transcript?.toolCallTokens,transcript?.systemTokens,transcript?.totalTokens,tools,bloatWarnings]);
+        if(ctxBreakdown.dataset.signature!==ctxSig){
+          ctxBreakdown.dataset.signature=ctxSig;
+          text('ctx-breakdown-label',t('contextBreakdown'));
+          text('ctx-breakdown-meta',hasBloat?t('bloatBadge',{n:bloatWarnings.length}):hasSteps?`${compact(transcript.totalTokens)} ${tokUnit(transcript.totalTokens)}`:`${tools.length}`);
+          const nodes=[];
+          if(hasSteps){
+            const chips=mkEl('div','breakdown-chips');
+            const think=transcript.thinkingTokens||0;
+            const reply=transcript.responseTokens||Math.max(0,(transcript.assistantTokens||0)-think);
+            const pairs=[['breakdownUser',transcript.userTokens||0],['breakdownReply',reply],['breakdownThinking',think],['breakdownToolCalls',transcript.toolCallTokens||0],['breakdownTools',transcript.toolTokens||0],['breakdownSystem',transcript.systemTokens||0]];
+            for(const [k,v]of pairs)if(v>0){const c=mkEl('span','breakdown-chip');c.append(mkEl('span','',t(k)),mkEl('strong','',compact(v)));chips.append(c);}
+            if(chips.childNodes.length)nodes.push(chips);
+          }
+          if(tools.length){
+            const sec=mkEl('div','breakdown-section');
+            sec.append(mkEl('div','breakdown-head',t('topTools')));
+            for(const tl of tools.slice(0,5)){
+              const res=tl.resultTokens||0,args=tl.argTokens||0,total=res+args;
+              const detail=res>0?`${compact(total)} (${tl.calls}×)`:args>0?`${compact(args)} args · ${tl.calls}×`:`${tl.calls}×`;
+              sec.append(mkRow(tl.name,detail,tl.maxResultTokens>=20000||args>=20000,tl.maxResultTokens>=50000||args>=50000));
+            }
+            nodes.push(sec);
+          }
+          if(hasBloat){
+            const sec=mkEl('div','breakdown-section');
+            sec.append(mkEl('div','breakdown-head',t('bloatHint')));
+            for(const w of bloatWarnings.slice(0,4))sec.append(mkRow(`${w.tool} #${w.stepIndex}`,`${compact(w.tokens)} ${tokUnit(w.tokens)}`,true,w.severity==='critical'));
+            nodes.push(sec);
+          }
+          $('ctx-breakdown-body').replaceChildren(...nodes);
+        }
+      }else if(ctxBreakdown.dataset.signature){
+        delete ctxBreakdown.dataset.signature;$('ctx-breakdown-body').replaceChildren();
+      }
+    }
     const updateMenuState=updateMenu?.getState?.();
     const updateSuppressed=['current','installed','reloading'].includes(updateMenuState?.state);
     const hasUpdate=!updateSuppressed&&Boolean(updateMenuState?.state==='available'||data?.update?.available);
@@ -1399,6 +1466,75 @@ module.exports = function installAgPulseInlineWidget() {
     }
     const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t(taskUsage.loadedSubagents===0?'taskCurrentOnly':'taskPartial'):'';
     text('cache-note',taskNote);hidden($('cache-note'),!taskNote);
+    const orchEl=$('orchestration-breakdown');
+    if(orchEl){
+      const sessionModels=Array.isArray(speed?.modelBreakdown)?speed.modelBreakdown:[];
+      const taskModels=Array.isArray(taskUsage?.modelBreakdown)?taskUsage.modelBreakdown:[];
+      const models=taskUsage&&taskModels.length?taskModels:sessionModels;
+      const surges=speed?.cacheMissSurges||0;
+      const roleMeta=speed?.sessionMeta||null;
+      const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar);
+      hidden(orchEl,!showOrch);
+      if(showOrch){
+        const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta]);
+        if(orchEl.dataset.signature!==orchSig){
+          orchEl.dataset.signature=orchSig;
+          text('orch-summary-label',t('multiAgentDetails'));
+          const poolMap=taskUsage?.poolBreakdown||(()=>{
+            const out={gemini:{totalTokens:0,requests:0},'3p':{totalTokens:0,requests:0},local:{totalTokens:0,requests:0},other:{totalTokens:0,requests:0}};
+            for(const m of models){const b=out[m.pool]||out.other;b.totalTokens+=m.totalTokens||0;b.requests+=m.requests||0;}
+            return out;
+          })();
+          const poolNames={gemini:t('poolGemini'),'3p':t('pool3p'),local:t('poolLocal'),other:t('poolOther')};
+          const activePools=Object.entries(poolMap).filter(([,v])=>v&&(v.totalTokens>0||v.requests>0));
+          const poolTotal=activePools.reduce((n,[,v])=>n+(v.totalTokens||0),0);
+          text('orch-summary-meta',activePools.length?activePools.map(([p,v])=>`${poolNames[p]||p} ${compact(v.totalTokens)}`).slice(0,2).join(' · '):`${models.length}`);
+          const nodes=[];
+          if(activePools.length){
+            const sec=mkEl('div','breakdown-section');
+            sec.append(mkEl('div','breakdown-head',t('poolRollup')));
+            const chips=mkEl('div','breakdown-chips');
+            for(const [pk,pv]of activePools){
+              const c=mkEl('span','breakdown-chip'),sharePct=poolTotal?` (${Math.round((pv.totalTokens||0)/poolTotal*100)}%)`:'';
+              c.append(mkEl('span','',poolNames[pk]||pk),mkEl('strong','',`${compact(pv.totalTokens)}${sharePct}`));
+              chips.append(c);
+            }
+            sec.append(chips);nodes.push(sec);
+          }
+          const rb=taskUsage?.roleBreakdown;
+          if(rb&&(rb.worker.agents>0||rb.monitor.agents>0||rb.sidecar.agents>0)){
+            const sec=mkEl('div','breakdown-section');
+            const roleLabels={coordinator:t('roleCoordinator'),worker:t('roleWorker'),monitor:t('roleMonitor'),sidecar:t('roleSidecar')};
+            for(const rk of ['coordinator','worker','monitor','sidecar']){
+              const rv=rb[rk];if(!rv||(!rv.agents&&!rv.requests))continue;
+              sec.append(mkRow(`${roleLabels[rk]} (${rv.agents})`,`${compact(rv.totalTokens)} ${tokUnit(rv.totalTokens)}`));
+            }
+            nodes.push(sec);
+          }else if(roleMeta?.isSubagent||roleMeta?.isSidecar){
+            const roleKey=roleMeta.isSidecar?'roleSidecar':roleMeta.agentRole==='monitor'?'roleMonitor':roleMeta.agentRole==='coordinator'?'roleCoordinator':'roleWorker';
+            nodes.push(mkRow(t('sessionRoleLabel'),t(roleKey)));
+          }
+          if(models.length){
+            const sec=mkEl('div','breakdown-section');
+            for(const m of models.slice(0,6)){
+              const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
+              sec.append(mkRow(`${m.model} [${poolNames[m.pool]||m.pool}]`,`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`,m.cacheMissSurges>0,false));
+            }
+            if(surges>0)sec.append(mkRow('⚠',t('cacheMissSurge',{n:surges,tokens:compact(speed?.cacheMissSurgeTokens||0)}),true,false));
+            nodes.push(sec);
+          }
+          const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
+          if(agList.length>1){
+            const sec=mkEl('div','breakdown-section');
+            for(const a of agList.slice(0,6))sec.append(mkRow(`${a.label} · ${a.model}`,`${compact(a.tokens)} (${a.requests}×)`));
+            nodes.push(sec);
+          }
+          $('orch-body').replaceChildren(...nodes);
+        }
+      }else if(orchEl.dataset.signature){
+        delete orchEl.dataset.signature;$('orch-body').replaceChildren();
+      }
+    }
     const visibleQuotaWindows=language.quotaWindows(group),isArgon=language.quotaGroupKind(group)==='gemini-argon';
     const nextQuotaSig=JSON.stringify([data.quotaUpdatedAt||null,groups]);
     if(nextQuotaSig!==quotaSigCache){quotaSigCache=nextQuotaSig;quotaObservedAt=Date.now();}
