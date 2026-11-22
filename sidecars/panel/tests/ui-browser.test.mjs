@@ -264,6 +264,9 @@ test('font sync, scope switching and quota window reference render end-to-end in
   const quotaText = await evalJs(`() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     sr.querySelector('[data-card="context"]').click();
+    const contextTokens = sr.getElementById('context-tokens').textContent;
+    const contextFillBg = getComputedStyle(sr.getElementById('context-fill')).backgroundColor;
+    sr.querySelector('[data-card="quota"]').click();
     const fiveUsage = sr.getElementById('five-usage');
     const weekUsage = sr.getElementById('week-usage');
     const fiveForecast = sr.getElementById('five-forecast-text');
@@ -271,18 +274,20 @@ test('font sync, scope switching and quota window reference render end-to-end in
     const fRect = fiveForecast.getBoundingClientRect();
     return {
       density: document.getElementById('ag-pulse-status-bar').dataset.density,
-      contextTokens: sr.getElementById('context-tokens').textContent,
+      quotaVisible: !sr.getElementById('quota-card').hidden,
+      contextTokens,
       fiveHidden: fiveUsage.hidden,
       fiveVal: fiveUsage.textContent,
       fiveTitle: fiveUsage.getAttribute('title'),
       weekVal: weekUsage.textContent,
       weekTitle: weekUsage.getAttribute('title'),
       sameRow: Math.abs(uRect.top - fRect.top) < 6 && uRect.left >= fRect.right - 1,
-      contextFillBg: getComputedStyle(sr.getElementById('context-fill')).backgroundColor,
+      contextFillBg,
       fiveFillBg: getComputedStyle(sr.getElementById('five-fill')).backgroundColor,
     };
   }`);
   assert.equal(quotaText.density, 'full');
+  assert.equal(quotaText.quotaVisible, true);
   assert.ok(quotaText.contextTokens.endsWith('toks'), 'contextTokens should use plural toks: ' + quotaText.contextTokens);
   assert.equal(quotaText.fiveHidden, false);
   assert.equal(quotaText.fiveVal, '81.1M');
