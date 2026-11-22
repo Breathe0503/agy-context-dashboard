@@ -10,7 +10,10 @@ const generators={'*':{stepIndices:{'*':scalar},chatModel:{usage,model:scalar,mo
  chatStartMetadata:{createdAt:scalar,contextWindowMetadata:{estimatedTokensUsed:scalar,maxContextTokens:scalar}}}}};
 const subagentResult={conversationId:guid},subagentResults={'*':subagentResult};
 const invokeSubagent={conversationId:guid,results:subagentResults};
-const steps={'*':{type:scalar,metadata:{createdAt:scalar,startedAt:scalar,completedAt:scalar,toolCall:presence},
+const steps={'*':{type:scalar,metadata:{createdAt:scalar,startedAt:scalar,completedAt:scalar,toolCall:presence,
+ // Per-step usage buckets feed the context composition (issue #34). Scalars
+ // only: no step text or identifiers beyond the existing allowlist.
+ modelUsage:{inputTokens:scalar,outputTokens:scalar,responseOutputTokens:scalar,thinkingOutputTokens:scalar,cacheReadTokens:scalar,cacheWriteTokens:scalar}},
  plannerResponse:{response:nonempty,toolCalls:calls},invokeSubagent}};
 const trajectoryMetadata={parentConversationId:guid,rootConversationId:guid,nestingDepth:scalar};
 const summary={summary:scalar,stepCount:scalar,lastModifiedTime:scalar,status:scalar,lastUserInputStepIndex:scalar,
@@ -29,6 +32,7 @@ const DROP=Symbol('discard');
 export class TrajectoryJson {
  constructor({maxRetainedBytes=8*1024*1024,projection=schema,onRecord=null,recordKeys=null}={}){this.maxRetainedBytes=maxRetainedBytes;this.projection=projection;this.onRecord=onRecord;this.recordCounts={steps:0,generatorMetadata:0};this.streamedKinds=new Set();this.recordKeys=recordKeys;this.emitted=0;if(recordKeys&&(!Array.isArray(recordKeys)||recordKeys.length>8||recordKeys.some(k=>typeof k!=='string'||!Object.hasOwn(projection,k))))throw Error('Invalid streamed record keys');}
  stack=[];token=null;result=undefined;done=false;retained=0;
+ reset(){this.stack.length=0;this.token=null;this.result=undefined;this.done=false;this.retained=0;this.emitted=0;this.streamedKinds.clear();this.recordCounts={steps:0,generatorMetadata:0};return this;}
  fail(){throw new Error('Antigravity 接口返回了无法解析的数据');}
  charge(n){if((this.retained+=n)>this.maxRetainedBytes)throw budgetError('retained-fields',this.retained,this.maxRetainedBytes);}
  node(){
