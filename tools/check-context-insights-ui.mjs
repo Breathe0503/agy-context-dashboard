@@ -165,6 +165,64 @@ const insightsPayload = {
 
 let prefs = { language: 'en', revision: 1 };
 const calls = { metrics: [], audit: [], insights: [] };
+const usagePayloadLocal = {
+  scope: 'local',
+  accountKey: 'acct-1',
+  accountAvailable: true,
+  today: '2026-11-22',
+  timeZone: 'Asia/Shanghai',
+  firstDate: '2026-11-01',
+  todayTokens: 480000,
+  weekTokens: 960000,
+  monthTokens: 1850000,
+  totalTokens: 1850000,
+  requests: 142,
+  models: ['gemini-4-hydrogen-xhigh', 'claude-sonnet-4-6'],
+  days: [
+    {
+      date: '2026-11-22',
+      models: {
+        'gemini-4-hydrogen-xhigh': { total: 320000, requests: 28, uncached: 40000, cacheRead: 270000, cacheWrite: 0, output: 10000 },
+        'claude-sonnet-4-6': { total: 160000, requests: 14, uncached: 20000, cacheRead: 130000, cacheWrite: 5000, output: 5000 },
+      },
+    },
+    {
+      date: '2026-11-21',
+      models: {
+        'gemini-4-hydrogen-xhigh': { total: 480000, requests: 40, uncached: 60000, cacheRead: 405000, cacheWrite: 0, output: 15000 },
+        'claude-sonnet-4-6': { total: 890000, requests: 60, uncached: 90000, cacheRead: 760000, cacheWrite: 20000, output: 20000 },
+      },
+    },
+  ],
+};
+const usagePayloadAccount = {
+  scope: 'account',
+  accountKey: 'acct-1',
+  accountAvailable: true,
+  today: '2026-11-22',
+  timeZone: 'Asia/Shanghai',
+  firstDate: '2026-11-01',
+  todayTokens: 320000,
+  weekTokens: 640000,
+  monthTokens: 1200000,
+  totalTokens: 1200000,
+  requests: 90,
+  models: ['gemini-4-hydrogen-xhigh'],
+  days: [
+    {
+      date: '2026-11-22',
+      models: {
+        'gemini-4-hydrogen-xhigh': { total: 320000, requests: 28, uncached: 40000, cacheRead: 270000, cacheWrite: 0, output: 10000 },
+      },
+    },
+    {
+      date: '2026-11-21',
+      models: {
+        'gemini-4-hydrogen-xhigh': { total: 880000, requests: 62, uncached: 80000, cacheRead: 775000, cacheWrite: 0, output: 25000 },
+      },
+    },
+  ],
+};
 const windows = {
   '5h': { available: true, remaining: 0.85, resetAt: new Date(Date.now() + 3600000).toISOString() },
   weekly: { available: true, remaining: 0.72, resetAt: new Date(Date.now() + 86400000).toISOString() },
@@ -214,7 +272,22 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/metrics') {
     const cid = url.searchParams.get('conversationId') || cidA;
     const contextDetail = url.searchParams.get('contextDetail') === '1';
-    calls.metrics.push({ cid, contextDetail });
+    const usageSync = url.searchParams.get('usageSync') === '1';
+    const usageOnly = url.searchParams.get('usageOnly') === '1';
+    const requestedScope = url.searchParams.get('usageScope') || prefs.usageScope || 'local';
+    calls.metrics.push({ cid, contextDetail, usageSync, usageOnly, usageScope: requestedScope });
+    const usagePayload = requestedScope === 'account' ? usagePayloadAccount : usagePayloadLocal;
+    if (usageOnly) {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        connection: 'live',
+        groups: [{ id: 'gemini', name: 'Gemini', windows }],
+        speed: null,
+        usage: usagePayload,
+        preferences: prefs,
+      }));
+      return;
+    }
     if (forceDegradedCidB && cid === cidB) {
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
@@ -225,6 +298,7 @@ const server = createServer(async (req, res) => {
         accountCredits: insightsPayload.accountCredits,
         preferences: prefs,
         speed: null,
+        usage: usagePayload,
         sessionError: '会话暂时没有可用统计',
       }));
       return;
@@ -242,6 +316,7 @@ const server = createServer(async (req, res) => {
       accountCredits: insightsPayload.accountCredits,
       preferences: prefs,
       speed,
+      usage: usagePayload,
     }));
     return;
   }
@@ -325,6 +400,54 @@ try {
   await page.locator('[data-step-filter="thinking"]').click();
   assert.equal(await page.locator('#audit-steps-list .audit-row').count(), 1);
 
+  // 3b. Token Usage entry inside Cache card + Daily/Weekly Activity & By Model embedded tabs
+  await page.locator('#cache-tab').click();
+  await page.locator('#panel-usage-entry').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#panel-usage-today').textContent(), '480K');
+  assert.equal(await page.locator('#panel-usage-month').textContent(), '1.9M');
+  await page.locator('#open-panel-activity').click();
+  await page.locator('#usage-panel-view').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#view-activity-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(calls.metrics.some(c => c.usageSync), true);
+  await page.waitForFunction(() => Boolean(document.querySelector('#usage-embed > div')?.shadowRoot?.querySelector('#heat button')));
+  const activityCheck = await page.evaluate(() => {
+    const sr = document.querySelector('#usage-embed > div').shadowRoot;
+    return {
+      overviewHidden: sr.getElementById('overview').hidden,
+      detailsHidden: sr.getElementById('details').hidden,
+      heatCount: sr.querySelectorAll('#heat button').length,
+      tabsHidden: sr.querySelector('.tabs-bar')?.dataset.hideTabs,
+    };
+  });
+  assert.equal(activityCheck.overviewHidden, false);
+  assert.equal(activityCheck.detailsHidden, true);
+  assert.ok(activityCheck.heatCount >= 365);
+  assert.equal(activityCheck.tabsHidden, 'true');
+
+  // Clicking "View breakdown" inside embedded Activity switches top-level panel tab to By model
+  await page.evaluate(() => document.querySelector('#usage-embed > div').shadowRoot.getElementById('selection-details').click());
+  await page.locator('#view-models-tab[aria-selected="true"]').waitFor();
+  const modelsText = await page.evaluate(() => {
+    const sr = document.querySelector('#usage-embed > div').shadowRoot;
+    return {
+      detailsHidden: sr.getElementById('details').hidden,
+      tableText: sr.getElementById('table-body').textContent,
+      totalsText: sr.getElementById('totals').textContent,
+    };
+  });
+  assert.equal(modelsText.detailsHidden, false);
+  assert.match(modelsText.tableText, /Gemini 4 Hydrogen \(XHigh\)/);
+  assert.match(modelsText.tableText, /Claude Sonnet 4\.6/);
+  assert.match(modelsText.totalsText, /480K/);
+
+  // Scope switch (local -> account) uses usageOnly=1&usageScope=account and updates totals in place
+  await page.evaluate(() => document.querySelector('#usage-embed > div').shadowRoot.querySelector('[data-usage-scope="account"]').click());
+  await page.waitForFunction(() => document.querySelector('#usage-embed > div')?.shadowRoot?.getElementById('totals')?.textContent?.includes('320K'));
+  assert.equal(calls.metrics.some(c => c.usageOnly && c.usageScope === 'account'), true);
+  assert.equal(await page.locator('#view-models-tab').getAttribute('aria-selected'), 'true');
+  await page.locator('#view-session-tab').click();
+  await page.locator('#view-session-tab[aria-selected="true"]').waitFor();
+
   // 4. Cross-Session Insights tab
   assert.equal(calls.insights.length, 0);
   await page.locator('#view-insights-tab').click();
@@ -347,16 +470,39 @@ try {
   await page.locator('#strip-session-reset').click();
   await page.locator('#context-model').filter({ hasText: 'Gemini 4 Neon (High)' }).waitFor();
 
-  // 5. Language switching + narrow viewport overflow check
+  // 5. Language switching + narrow viewport overflow check (all 4 top-level tabs)
   await page.locator('#language-toggle').click();
   await page.locator('[data-language-menu] [data-language="zh-CN"]').click();
   await page.locator('#view-insights-tab').filter({ hasText: '全局洞察' }).waitFor();
+  assert.equal(await page.locator('#view-activity-tab').textContent(), '每日/每周活动');
+  assert.equal(await page.locator('#view-models-tab').textContent(), '按模型用量');
   await page.locator('#view-insights-tab').click();
   assert.match(await page.locator('#insights-kpis').textContent(), /预估费用/);
 
   await page.setViewportSize({ width: 280, height: 700 });
   const overflow = await page.locator('.widget').evaluate(el => el.scrollWidth > el.clientWidth);
   assert.equal(overflow, false);
+
+  await page.locator('#view-activity-tab').click();
+  await page.locator('#usage-panel-view').waitFor({ state: 'visible' });
+  const activityZhOverflow = await page.evaluate(() => ({
+    overflow: document.querySelector('.widget').scrollWidth > document.querySelector('.widget').clientWidth,
+    title: document.querySelector('#usage-embed > div').shadowRoot.getElementById('activity-title').textContent,
+  }));
+  assert.equal(activityZhOverflow.overflow, false);
+  assert.equal(activityZhOverflow.title, 'Token 活动');
+
+  await page.locator('#view-models-tab').click();
+  await page.waitForFunction(() => document.querySelector('#usage-embed > div')?.shadowRoot?.getElementById('details')?.hidden === false);
+  const modelsZhOverflow = await page.evaluate(() => ({
+    overflow: document.querySelector('.widget').scrollWidth > document.querySelector('.widget').clientWidth,
+    title: document.querySelector('#usage-embed > div').shadowRoot.getElementById('detail-title').textContent,
+  }));
+  assert.equal(modelsZhOverflow.overflow, false);
+  assert.equal(modelsZhOverflow.title, '按模型统计');
+
+  await page.locator('#view-insights-tab').click();
+  await page.locator('#insights-view').waitFor({ state: 'visible' });
 
   // 6. Clicking an archived row must keep Audit toggle visible even when speed is null
   forceDegradedCidB = true;

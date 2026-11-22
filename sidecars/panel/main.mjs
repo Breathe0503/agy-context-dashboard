@@ -54,7 +54,8 @@ const metrics = async input => {
     return {connection:store.quota?'live':'stale',groups:store.quota||[],speed:null,usage:await usage.snapshot({sync:false,scope:requestedScope,groups:store.quota}),preferences:prefs,theme,integration:integration.health,update};
   }
   const base=await store.snapshot(input);if(input?.usageSync===true)void usage.sync(true);
-  return {...base,...(liveComposerModel?{composerModel:liveComposerModel}:{}),usage:await usage.snapshot({sync:input?.usageSync===true,scope:prefs?.usageScope||'local',groups:base.groups}),preferences:prefs,theme,integration:integration.health,update};
+  const requestedScope=(input?.usageScope==='local'||input?.usageScope==='account')?input.usageScope:(prefs?.usageScope||'local');
+  return {...base,...(liveComposerModel?{composerModel:liveComposerModel}:{}),usage:await usage.snapshot({sync:input?.usageSync===true,scope:requestedScope,groups:base.groups}),preferences:prefs,theme,integration:integration.health,update};
 };
 const sessionAudit = async input => {
   if (ownership && !await ownership.isOwner()) throw Error('Sidecar ownership changed');
@@ -197,7 +198,7 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   app.page('/i18n.js',i18nModule);
   app.page('/theme.js',themeModule);
   app.api('/theme.css',()=>new Response(themeCss(),{contentType:'text/css'}),'GET');
-  app.api('/api/metrics', data => metrics({ conversationId: data.conversationId || null, force: data.force === true || data.force === '1', quotaRefresh: data.quotaRefresh === true || data.quotaRefresh === '1', ...(data.contextDetail === true || data.contextDetail === '1' ? { contextDetail: true } : {}), ...(data.usageOnly === true || data.usageOnly === '1' ? { usageOnly: true } : {}), ...(data.usageScope === 'local' || data.usageScope === 'account' ? { usageScope: data.usageScope } : {}) }), 'GET');
+  app.api('/api/metrics', data => metrics({ conversationId: data.conversationId || null, force: data.force === true || data.force === '1', quotaRefresh: data.quotaRefresh === true || data.quotaRefresh === '1', ...(data.contextDetail === true || data.contextDetail === '1' ? { contextDetail: true } : {}), ...(data.usageSync === true || data.usageSync === '1' ? { usageSync: true } : {}), ...(data.usageOnly === true || data.usageOnly === '1' ? { usageOnly: true } : {}), ...(data.usageScope === 'local' || data.usageScope === 'account' ? { usageScope: data.usageScope } : {}) }), 'GET');
   app.api('/api/session-audit', data => sessionAudit({ conversationId: data.conversationId || null, force: data.force === true || data.force === '1' }), 'GET');
   app.api('/api/insights', data => sessionInsights({ force: data.force === true || data.force === '1', status: data.status, sort: data.sort, query: data.query }), 'GET');
   app.api('/api/integration', () => integration.health, 'GET');
@@ -260,7 +261,7 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (url.pathname === '/api/metrics') {
       if (req.headers.origin && req.headers.origin !== `http://${host}`) { res.writeHead(403); res.end(); return; }
-      try { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); const scopeParam = url.searchParams.get('usageScope'); res.end(JSON.stringify(await metrics({ conversationId: url.searchParams.get('conversationId'), force: url.searchParams.get('force') === '1', quotaRefresh: url.searchParams.get('quotaRefresh') === '1', ...(url.searchParams.get('contextDetail') === '1' ? { contextDetail: true } : {}), ...(url.searchParams.get('usageOnly') === '1' ? { usageOnly: true } : {}), ...(scopeParam === 'local' || scopeParam === 'account' ? { usageScope: scopeParam } : {}) }))); }
+      try { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); const scopeParam = url.searchParams.get('usageScope'); res.end(JSON.stringify(await metrics({ conversationId: url.searchParams.get('conversationId'), force: url.searchParams.get('force') === '1', quotaRefresh: url.searchParams.get('quotaRefresh') === '1', ...(url.searchParams.get('contextDetail') === '1' ? { contextDetail: true } : {}), ...(url.searchParams.get('usageSync') === '1' ? { usageSync: true } : {}), ...(url.searchParams.get('usageOnly') === '1' ? { usageOnly: true } : {}), ...(scopeParam === 'local' || scopeParam === 'account' ? { usageScope: scopeParam } : {}) }))); }
       catch { res.writeHead(500); res.end('{"error":"数据暂时不可用"}'); }
       return;
     }

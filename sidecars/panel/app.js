@@ -28,9 +28,9 @@ let snapshot = null, selectedGroup = null, group = null, autoGroupId = null, las
 let pending = false, timer = null, serverOffset = 0, lastExpiredRefresh = 0;
 let panelView='session',selectedCard='speed',cardMotion=null;
 let inspectedConversationId=null,lastContextDetailAt=0;
-let refreshEpoch=0,inFlightRefreshEpoch=-1,inFlightNeedDetail=false,queuedRefresh=false,queuedRefreshForce=false;
+let refreshEpoch=0,inFlightRefreshEpoch=-1,inFlightNeedDetail=false,inFlightUsageSync=false,queuedRefresh=false,queuedRefreshForce=false,queuedRefreshUsageSync=false;
 let insightsEpoch=0,queuedInsights=false,queuedInsightsForce=false;
-let auditEpoch=0;
+let auditEpoch=0,scopeRequestEpoch=0,didInitialUsageSync=false,didSyncUsageScope=false,usageGuideDismissed=false;
 let compositionView='bar',trendMode='total',tokenBaseExpanded=false;
 const expandedDrilldownGroups=new Set(['Rules']);
 const expandedMcpServers=new Set();
@@ -41,18 +41,68 @@ let relaunchBusy=false,relaunchStatusKey='',autoRelaunchState={busy:false,error:
 const host = window.sidecar;
 if (!host) document.body.classList.add('standalone');
 const transportFetch=(url,init)=>(host?.fetch?host.fetch.bind(host):fetch)(url,init);
+let usageDashboard=null;
+const syncUsageGuide=value=>{
+  if(value?.usageGuideDismissed===true){
+    usageGuideDismissed=true;
+    usageDashboard?.syncGuideDismissed();
+  }
+};
 const preferenceRequest=async(input)=>{
   const response=await transportFetch('/api/preferences',input?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}:{cache:'no-store'});
-  if(!response.ok)throw new Error('Preferences unavailable');return response.json();
+  if(!response.ok)throw new Error('Preferences unavailable');
+  const saved=await response.json();
+  syncUsageGuide(saved);
+  return saved;
 };
 const connectPreferences=()=>language.connectPreferences({read:()=>preferenceRequest(),write:preferenceRequest,
-  cache:value=>localSet('ag-pulse-language',value),changed:()=>{localize();render();renderInsightsView();renderAuditSection();updateCountdowns();}});
+  cache:value=>localSet('ag-pulse-language',value),changed:()=>{localize();render();renderInsightsView();renderAuditSection();updateCountdowns();usageDashboard?.renderIfVisible?.();}});
 let languagePicker=null;
 let preferences=connectPreferences();
 const speedStyle=language.connectSpeedStyle({initial:localGet('ag-pulse-speed-style'),cache:value=>localSet('ag-pulse-speed-style',value),write:preferenceRequest,
   changed:()=>{applySpeedStyle();localize();render();}});
 const hostUiLocalization=language.connectHostUiLocalization({initial:localGet('ag-pulse-host-ui-localization')==='true',cache:value=>localSet('ag-pulse-host-ui-localization',value?'true':'false'),write:preferenceRequest,
   changed:()=>{localize();}});
+const usageScope=language.connectUsageScope({initial:localGet('ag-pulse-usage-scope'),cache:value=>localSet('ag-pulse-usage-scope',value),write:preferenceRequest,
+  changed:()=>{usageDashboard?.renderIfVisible?.();}});
+const usageFactory=typeof createUsageDashboard==='function'?createUsageDashboard:window.__agPulseUsageFactory;
+const usagePanelRoot=$('usage-panel-view');
+if(usageFactory&&usagePanelRoot){
+  usageDashboard=usageFactory({
+    root:usagePanelRoot,
+    language,
+    hostLabel:'Antigravity',
+    embedded:true,
+    showHeaderTabs:false,
+    themeHost:document.documentElement,
+    guideDismissed:usageGuideDismissed,
+    onDismissGuide:async()=>{
+      const saved=await preferenceRequest({usageGuideDismissed:true});
+      if(saved?.usageGuideDismissed!==true)throw new Error('Usage guide could not be saved');
+    },
+    onLanguage:next=>preferences.choose(next),
+    onRefresh:()=>refreshManually(true),
+    onTabChange:next=>showPanelView(next==='details'?'models':'activity',{fromUsageUi:true}),
+    onScope:async next=>{
+      didSyncUsageScope=true;
+      const ticket=++scopeRequestEpoch,save=usageScope.choose(next);
+      try{
+        const params=new URLSearchParams({usageOnly:'1',usageScope:next});
+        const response=await transportFetch(`/api/metrics?${params}`,{cache:'no-store'});
+        if(response.ok){
+          const result=await response.json();
+          if(ticket===scopeRequestEpoch&&result?.usage){
+            if(snapshot)snapshot={...snapshot,usage:result.usage};
+            renderUsageSummary(result.usage);
+            usageDashboard?.update(result.usage);
+          }
+        }
+      }finally{
+        await save;
+      }
+    },
+  });
+}
 function applySpeedStyle(){
   document.documentElement.dataset.speedStyle=speedStyle.style;
   $('speed-hero-icon')?.setAttribute('href',speedStyle.style==='cat'?'#gauge':'#pulse');
@@ -68,20 +118,45 @@ function setInspectedConversation(id){
   refreshEpoch+=1;auditEpoch+=1;
 }
 
-function showPanelView(nextView){
-  if(!['session','insights'].includes(nextView))return;
+function showPanelView(nextView,{fromUsageUi=false}={}){
+  if(!['session','activity','models','insights'].includes(nextView))return;
+  const prevView=panelView;
   panelView=nextView;
-  for(const tab of viewTabs)tab.setAttribute('aria-selected',String(tab.dataset.panelView===nextView));
+  for(const tab of viewTabs){
+    const active=tab.dataset.panelView===nextView;
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active?0:-1;
+  }
+  const isSession=nextView==='session';
+  const isUsage=nextView==='activity'||nextView==='models';
   const isInsights=nextView==='insights';
-  hidden('session-status-strip',isInsights);
-  hidden('quota-overview',isInsights);
-  hidden('session-card-stage',isInsights);
+  hidden('session-status-strip',!isSession);
+  hidden('quota-overview',!isSession);
+  hidden('session-card-stage',!isSession);
+  const wasUsage=prevView==='activity'||prevView==='models';
+  const targetUsageTab=nextView==='models'?'details':'overview';
+  if(isUsage&&!wasUsage&&!fromUsageUi)usageDashboard?.setTab(targetUsageTab);
+  hidden('usage-panel-view',!isUsage);
   hidden('insights-view',!isInsights);
-  if(isInsights){if(!insightsData&&!insightsLoading)void loadInsights(false);else renderInsightsView();}
-  else void refresh(false);
+  if(isInsights){if(!insightsData&&!insightsLoading)void loadInsights(false);else renderInsightsView();return;}
+  if(isUsage){
+    $('usage-panel-view')?.setAttribute('aria-labelledby',nextView==='models'?'view-models-tab':'view-activity-tab');
+    if(wasUsage){if(!fromUsageUi)usageDashboard?.setTab(targetUsageTab);}
+    else usageDashboard?.open(snapshot?.usage||null);
+    const needSync=!didInitialUsageSync||!snapshot?.usage;
+    didInitialUsageSync=true;
+    void refresh(false,needSync?{usageSync:true}:{});
+    return;
+  }
+  void refresh(false);
 }
 for(const tab of viewTabs){
   tab.addEventListener('click',()=>showPanelView(tab.dataset.panelView));
+  tab.addEventListener('keydown',event=>{
+    const current=viewTabs.indexOf(tab);let next;
+    if(event.key==='ArrowRight')next=(current+1)%viewTabs.length;else if(event.key==='ArrowLeft')next=(current+viewTabs.length-1)%viewTabs.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=viewTabs.length-1;else return;
+    event.preventDefault();showPanelView(viewTabs[next].dataset.panelView);viewTabs[next].focus();
+  });
 }
 
 function showCard(name,animate=false) {
@@ -127,6 +202,7 @@ function localize(){
   }
   const hostI18nNote=$('host-i18n-save-note');
   if(hostI18nNote){hostI18nNote.hidden=!hostUiLocalization.error;hostI18nNote.textContent=hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):'';}
+  usageDashboard?.renderIfVisible?.();
 }
 
 function chooseGroup(groups, speed, composerModel) {
@@ -915,6 +991,23 @@ function renderInsightsView() {
   }
 }
 
+function renderUsageSummary(usage){
+  const entry=$('panel-usage-entry');
+  if(!entry)return;
+  const hasUsage=Boolean(usage);
+  hidden('panel-usage-entry',!hasUsage);
+  if(!hasUsage)return;
+  const todayTokens=usage.todayTokens,monthTokens=usage.monthTokens;
+  const hasToday=Number.isSafeInteger(todayTokens)&&todayTokens>=0;
+  const hasMonth=Number.isSafeInteger(monthTokens)&&monthTokens>=0;
+  text('panel-usage-today',hasToday?compact(todayTokens):'—');
+  text('panel-usage-today-unit',` ${tokUnit(hasToday?todayTokens:0)}`);
+  hidden('panel-usage-today-unit',!hasToday);
+  text('panel-usage-month',hasMonth?compact(monthTokens):'—');
+  text('panel-usage-month-unit',` ${tokUnit(hasMonth?monthTokens:0)}`);
+  hidden('panel-usage-month-unit',!hasMonth);
+}
+
 function render() {
   if (!snapshot) return;
   const groups = snapshot.groups || [], speed = snapshot.speed, composerModel = snapshot.composerModel || null;
@@ -1277,6 +1370,8 @@ function render() {
     }
   }
   $('connection-dot').className = `connection-dot ${snapshot.connection}`;
+  renderUsageSummary(snapshot.usage||null);
+  usageDashboard?.update(snapshot.usage||null);
   $('connection-dot').title = t(snapshot.connection === 'live'?'live':snapshot.connection === 'stale'?'stale':'offline');
   const timestamp = snapshot.quotaUpdatedAt ? new Date(snapshot.quotaUpdatedAt).toLocaleTimeString(language.language,{hour12:false}) : null;
   $('health-note').textContent = (collectionProcessing?t('collectionProcessingReason'):collectionLimited?t('collectionReason'):language.errorMessage(snapshot.error||snapshot.sessionError)) || (timestamp ? t('health',{time:timestamp}) : t('firstUpdate'));
@@ -1395,14 +1490,15 @@ function refreshBusy(busy){
   const button=$('refresh-button');button.setAttribute('aria-busy',String(busy));button.setAttribute('aria-disabled',String(busy));
   button.dataset.i18nAria=busy?'refreshing':'refreshStats';button.title=t(button.dataset.i18nAria);button.setAttribute('aria-label',button.title);
 }
-function refreshManually(){
+function refreshManually(eventOrSync=false){
   if(panelView==='insights'){void loadInsights(true);return;}
   if(manualRequest)return;
+  const syncUsage=eventOrSync===true||panelView==='activity'||panelView==='models';
   refreshBusy(true);const started=performance.now();
   manualRequest=(async()=>{
     try{
       if(pending)await refreshRequest;
-      await refresh(true);
+      await refresh(true,{usageSync:syncUsage});
       if(auditOpen)await loadAudit(true);
     }finally{
       const remaining=250-(performance.now()-started);
@@ -1411,19 +1507,22 @@ function refreshManually(){
     }
   })();
 }
-function refresh(force = false) {
+function refresh(force = false, {usageSync=false}={}) {
   if (pending) {
-    if (force || inFlightRefreshEpoch !== refreshEpoch || (selectedCard === 'context' && !inFlightNeedDetail)) {
+    if (force || inFlightRefreshEpoch !== refreshEpoch || (selectedCard === 'context' && !inFlightNeedDetail) || (usageSync && !inFlightUsageSync)) {
       queuedRefresh = true;
       queuedRefreshForce = queuedRefreshForce || force;
+      queuedRefreshUsageSync = queuedRefreshUsageSync || usageSync;
     }
     return refreshRequest;
   }
   pending = true;
   const epoch = refreshEpoch;
+  const reqScopeEpoch = scopeRequestEpoch;
   inFlightRefreshEpoch = epoch;
   const needContextDetail = selectedCard==='context' && (force || Date.now()-lastContextDetailAt >= 12000 || (!snapshot?.speed?.archivedFallback && !snapshot?.speed?.contextComposition?.customization?.available));
   inFlightNeedDetail = needContextDetail;
+  inFlightUsageSync = usageSync;
   refreshRequest=(async()=>{
   try {
     const params = new URLSearchParams();
@@ -1431,14 +1530,17 @@ function refresh(force = false) {
     if (cid) params.set('conversationId',cid);
     if (force) params.set('force','1');
     if (needContextDetail) { params.set('contextDetail','1'); lastContextDetailAt = Date.now(); }
+    if (usageSync) params.set('usageSync','1');
+    if (didSyncUsageScope || localGet('ag-pulse-usage-scope')) params.set('usageScope', usageScope.scope);
     const response = await transportFetch(`/api/metrics?${params}`,{cache:'no-store'});
     if (!response.ok) throw new Error(t('panelUnavailable'));
     const value = await response.json();
     if (!['live','stale','offline'].includes(value.connection)) throw new Error(t('invalidData'));
     if (epoch !== refreshEpoch) { queuedRefresh = true; return; }
-    snapshot = value;
+    const preservedUsage = reqScopeEpoch !== scopeRequestEpoch && snapshot?.usage ? snapshot.usage : value.usage;
+    snapshot = preservedUsage === value.usage ? value : {...value, usage: preservedUsage};
     if(Object.hasOwn(value,'theme'))themeController.setHostTheme(value.theme);
-    if(value.preferences){preferences.sync(value.preferences);speedStyle.sync(value.preferences);hostUiLocalization.sync(value.preferences);}
+    if(value.preferences){didSyncUsageScope=true;syncUsageGuide(value.preferences);preferences.sync(value.preferences);speedStyle.sync(value.preferences);hostUiLocalization.sync(value.preferences);usageScope.sync(value.preferences);}
     serverOffset = Date.parse(value.serverTime) - Date.now();
     if (!Number.isFinite(serverOffset)) serverOffset = 0;
     render();
@@ -1447,14 +1549,14 @@ function refresh(force = false) {
     if (snapshot) { snapshot.connection = 'stale'; snapshot.error = error.message; render(); }
     else { $('health-note').textContent = language.errorMessage(error.message); $('health-note').classList.add('warning'); }
   } finally {
-    pending = false; refreshRequest=null;
+    pending = false; refreshRequest=null; inFlightUsageSync=false;
     clearTimeout(timer);
     if (queuedRefresh) {
-      const nextForce = queuedRefreshForce;
-      queuedRefresh = false; queuedRefreshForce = false;
-      void refresh(nextForce);
+      const nextForce = queuedRefreshForce, nextUsageSync = queuedRefreshUsageSync;
+      queuedRefresh = false; queuedRefreshForce = false; queuedRefreshUsageSync = false;
+      void refresh(nextForce, {usageSync: nextUsageSync});
     } else {
-      timer = setTimeout(refresh, document.hidden ? 10000 : 2200);
+      timer = setTimeout(()=>void refresh(), document.hidden ? 10000 : 2200);
     }
   }
   })();
@@ -1491,11 +1593,13 @@ $('heatmap-metric-tokens')?.addEventListener('click',()=>{heatmapMetric='tokens'
 
 $('quota-group').addEventListener('change', event => { selectedGroup = event.target.value === autoGroupId ? null : event.target.value; render(); });
 $('refresh-button').addEventListener('click', refreshManually);
+$('open-panel-activity')?.addEventListener('click',()=>showPanelView('activity'));
+$('open-panel-models')?.addEventListener('click',()=>showPanelView('models'));
 languagePicker=language.mountLanguagePicker({button:$('language-toggle'),parent:document.body,choose:value=>preferences.choose(value)});
 for(const button of document.querySelectorAll('[data-speed-style-choice]'))button.addEventListener('click',()=>void speedStyle.choose(button.dataset.speedStyleChoice));
 for(const button of document.querySelectorAll('[data-host-i18n-choice]'))button.addEventListener('click',()=>void hostUiLocalization.choose(button.dataset.hostI18nChoice==='true'));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-window.addEventListener('pagehide',()=>{preferences.dispose();speedStyle.dispose();hostUiLocalization.dispose();languagePicker.close(false);});
+window.addEventListener('pagehide',()=>{preferences.dispose();speedStyle.dispose();hostUiLocalization.dispose();usageScope.dispose();usageDashboard?.dispose();languagePicker.close(false);});
 window.addEventListener('pageshow',event=>{if(event.persisted)preferences=connectPreferences();});
 setInterval(updateCountdowns,1000);
 applySpeedStyle();

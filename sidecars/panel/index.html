@@ -31,6 +31,8 @@
     <div class="panel-subbar">
       <div class="panel-view-switch" role="tablist" data-i18n-aria="panelViewSwitch" aria-label="Panel view">
         <button class="panel-view-tab" id="view-session-tab" type="button" role="tab" data-panel-view="session" aria-selected="true" data-i18n="panelViewSession">Session</button>
+        <button class="panel-view-tab" id="view-activity-tab" type="button" role="tab" data-panel-view="activity" aria-selected="false" data-i18n="panelViewActivity">Daily/Weekly</button>
+        <button class="panel-view-tab" id="view-models-tab" type="button" role="tab" data-panel-view="models" aria-selected="false" data-i18n="panelViewModels">By model</button>
         <button class="panel-view-tab" id="view-insights-tab" type="button" role="tab" data-panel-view="insights" aria-selected="false" data-i18n="panelViewInsights">Insights</button>
       </div>
       <div class="sampled-model">
@@ -89,6 +91,16 @@
         <div class="cache-meter" aria-hidden="true"><i id="cache-seg-read"></i><i id="cache-seg-miss"></i><i id="cache-seg-out"></i></div>
         <dl class="stats-grid cache-stats"><div id="cache-read-cell"><dt data-i18n="cacheRead">Cache read</dt><dd><strong id="cache-read">—</strong><span class="stat-unit" id="cache-read-unit" hidden> toks</span></dd></div><div id="cache-miss-cell"><dt data-i18n="cacheMiss">Uncached input</dt><dd><strong id="cache-miss">—</strong><span class="stat-unit" id="cache-miss-unit" hidden> toks</span></dd></div><div id="cache-output-cell"><dt data-i18n="cacheOutput">Output</dt><dd><strong id="cache-output">—</strong><span class="stat-unit" id="cache-output-unit" hidden> toks</span></dd></div><div class="span-row" id="cache-write-row" hidden><dt data-i18n="cacheWrite">Cache write</dt><dd id="cache-write">—</dd></div><div class="span-row" id="session-cost-row" hidden><dt data-i18n="estimatedCostLabel">Estimated cost</dt><dd id="session-cost-value">—</dd></div><div class="span-row" id="task-own-row" hidden><dt data-i18n="taskOwn">Current agent</dt><dd id="task-own">—</dd></div><div class="span-row" id="task-subagents-row" hidden><dt id="task-subagents-label"></dt><dd id="task-subagents">—</dd></div></dl><p class="card-footnote" id="cache-note" hidden></p>
         <details class="breakdown-details" id="orchestration-breakdown" hidden><summary><span id="orch-summary-label"></span><strong class="breakdown-meta" id="orch-summary-meta"></strong></summary><div class="breakdown-body" id="orch-body"></div></details>
+        <div class="panel-usage-entry" id="panel-usage-entry" hidden>
+          <div class="panel-usage-summary">
+            <div><div class="panel-usage-label" data-i18n="usageToday">Today</div><div class="panel-usage-val"><strong id="panel-usage-today">—</strong><span class="stat-unit" id="panel-usage-today-unit"> toks</span></div></div>
+            <div><div class="panel-usage-label" data-i18n="usageMonth">This month</div><div class="panel-usage-val"><strong id="panel-usage-month">—</strong><span class="stat-unit" id="panel-usage-month-unit"> toks</span></div></div>
+          </div>
+          <div class="panel-usage-actions">
+            <button type="button" class="mini-pill-btn" id="open-panel-activity" data-i18n="usageViewActivity">Daily/Weekly</button>
+            <button type="button" class="mini-pill-btn" id="open-panel-models" data-i18n="usageViewModels">By model</button>
+          </div>
+        </div>
       </article>
       <article class="detail-card" id="context-card" role="tabpanel" tabindex="0" aria-labelledby="context-tab" hidden>
         <div class="card-heading"><span><svg class="icon"><use href="#gauge"/></svg><span data-i18n="context">Context window</span></span><span class="context-heading-right"><button class="mini-pill-btn" id="context-audit-toggle" type="button" aria-expanded="false" data-i18n="auditButton" hidden>Audit</button><span class="card-tag" id="context-model">—</span></span></div>
@@ -176,6 +188,7 @@
         <p class="card-footnote toggle-note" id="host-i18n-save-note" hidden></p>
       </article>
     </section>
+    <section class="usage-panel-view" id="usage-panel-view" role="tabpanel" aria-labelledby="view-activity-tab" hidden></section>
     <section class="insights-view" id="insights-view" role="tabpanel" aria-labelledby="view-insights-tab" hidden>
       <div class="insights-toolbar">
         <input class="insights-search" id="insights-search" type="search" data-i18n-placeholder="insightsSearchPlaceholder" placeholder="Filter sessions…">

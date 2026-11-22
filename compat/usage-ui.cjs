@@ -1,9 +1,41 @@
 // Shared local usage views. Values and model labels are inserted as text.
-module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope}) {
-  const dialog=document.createElement('dialog');dialog.id='usage-dashboard';dialog.setAttribute('popover','manual');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label',language.language==='zh-TW'?'用量統計':language.language==='zh-CN'?'用量统计':'Token usage');
-  dialog.style.cssText='width:min(1040px,calc(100vw - 40px));max-width:none;height:min(840px,calc(100dvh - 40px));max-height:none;box-sizing:border-box;overflow:hidden;visibility:visible;pointer-events:auto;padding:0;border:1px solid var(--pulse-border);border-radius:14px;background:var(--pulse-background);color:var(--pulse-foreground);box-shadow:0 16px 60px var(--pulse-shadow);';
-  const shell=document.createElement('div'),view=shell.attachShadow({mode:'open'});shell.style.height='100%';dialog.append(shell);root.append(dialog);
-  const backdrop=document.createElement('style');backdrop.textContent='#usage-dashboard{position:fixed;inset:0;margin:auto}#usage-dashboard::backdrop{background:rgba(0,0,0,.48);pointer-events:auto}';root.append(backdrop);
+module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope,embedded=false,showHeaderTabs=!embedded,onTabChange=null,themeHost=null}) {
+  setMarkup||=(target,markup)=>{
+    const fragment=document.createDocumentFragment(),stack=[fragment];let offset=0;
+    const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:'\u00a0'};
+    const decode=s=>s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi,(m,k)=>k[0]==='#'?String.fromCodePoint(parseInt(k.slice(k[1]?.toLowerCase()==='x'?2:1),k[1]?.toLowerCase()==='x'?16:10)):entities[k.toLowerCase()]||m);
+    for(let match,token=/<\/?([a-z][\w-]*)(\s[^<>]*?)?\s*\/?\s*>/gi;(match=token.exec(markup));offset=token.lastIndex){
+      if(match.index>offset)stack.at(-1).append(document.createTextNode(decode(markup.slice(offset,match.index))));
+      const tag=match[1].toLowerCase();
+      if(match[0][1]==='/'){if(stack.length>1&&stack.at(-1).localName===tag)stack.pop();continue;}
+      const parent=stack.at(-1),isSvg=tag==='svg'||parent.namespaceURI==='http://www.w3.org/2000/svg';
+      const el=isSvg?document.createElementNS('http://www.w3.org/2000/svg',tag):document.createElement(tag);
+      for(let a,attr=/([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/g;(a=attr.exec(match[2]||''));){
+        if(a[1]==='/'||/^on/i.test(a[1]))continue;
+        el.setAttribute(a[1],decode(a[2]??a[3]??a[4]??''));
+      }
+      parent.append(el);
+      if(!/\/\s*>$/.test(match[0]))stack.push(el);
+    }
+    if(offset<markup.length)fragment.append(document.createTextNode(decode(markup.slice(offset))));
+    target.replaceChildren(fragment);
+  };
+  let dialog=null,backdrop=null,surface=null,shell=document.createElement('div');
+  if(!embedded){
+    dialog=document.createElement('dialog');dialog.id='usage-dashboard';dialog.setAttribute('popover','manual');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label',language.language==='zh-TW'?'用量統計':language.language==='zh-CN'?'用量统计':'Token usage');
+    dialog.style.cssText='width:min(1040px,calc(100vw - 40px));max-width:none;height:min(840px,calc(100dvh - 40px));max-height:none;box-sizing:border-box;overflow:hidden;visibility:visible;pointer-events:auto;padding:0;border:1px solid var(--pulse-border);border-radius:14px;background:var(--pulse-background);color:var(--pulse-foreground);box-shadow:0 16px 60px var(--pulse-shadow);';
+    shell.style.height='100%';dialog.append(shell);root.append(dialog);
+    backdrop=document.createElement('style');backdrop.textContent='#usage-dashboard{position:fixed;inset:0;margin:auto}#usage-dashboard::backdrop{background:rgba(0,0,0,.48);pointer-events:auto}';root.append(backdrop);
+    surface=dialog;
+  }else{
+    surface=document.createElement('div');surface.id='usage-embed';surface.className='usage-embed';
+    surface.style.cssText='height:100%;width:100%;display:block;';
+    shell.style.cssText='height:100%;width:100%;display:block;';
+    surface.append(shell);root.append(surface);
+  }
+  const view=shell.attachShadow({mode:'open'});
+  const isActive=()=>!disposed&&(embedded?surface.isConnected&&!root.hidden:dialog.open);
+  const themeTarget=()=>themeHost||root.host||surface;
   const css=document.createElement('style');css.textContent=`
     :host{display:block;height:100%;color:var(--pulse-foreground);font:13px/1.5 var(--pulse-font,-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif);font-variant-numeric:tabular-nums}
     *{box-sizing:border-box}button,select{font:inherit;color:inherit}button{cursor:pointer}button,select{border:1px solid var(--pulse-border);background:transparent;border-radius:7px}button{transition:background 140ms ease,transform 120ms cubic-bezier(.23,1,.32,1)}button:active{transform:scale(.97)}button:focus-visible,select:focus-visible{outline:2px solid var(--pulse-accent);outline-offset:3px}button[disabled]{opacity:.35;cursor:default}
@@ -37,15 +69,37 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     @media(max-width:650px){.page-head{padding:14px 16px 0}.page-body{margin-right:2px;padding:0 8px 14px 16px}.tabs-bar{flex-wrap:wrap;gap:8px}.totals{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 0}.metric:first-child{padding-left:0}.metric:nth-child(odd){padding-left:0}.metric:nth-child(3){border-left:0}.value{font-size:19px}.section-head{align-items:flex-start;flex-wrap:wrap}.chart-controls{width:100%;justify-content:space-between}.table-wrap{overflow-x:auto}.footer{align-items:flex-start;flex-direction:column;gap:5px}.selected{align-items:flex-start}.chart{gap:8px}}
     @media(max-width:520px){.intro-bottom{align-items:flex-start}.intro-bottom span{line-height:1.5}}
     @media(prefers-reduced-motion:reduce){button,.year-menu,.year-chevron,.scope-thumb,.totals,#overview,#details{transition:none}button:active{transform:none}}
+    .usage-embed{height:100%;width:100%}
+    .page.embedded{height:100%;display:flex;flex-direction:column;background:var(--pulse-card,var(--pulse-background));border-radius:10px}
+    .page.embedded .page-head{padding:8px 12px 6px;background:var(--pulse-card,var(--pulse-background));border-bottom:1px solid var(--pulse-separator)}
+    .page.embedded .top{align-items:center;gap:8px;min-height:22px}
+    .page.embedded .top h1,.page.embedded #locale,.page.embedded #close{display:none}
+    .page.embedded .tabs-bar{margin-top:6px;border-bottom:0;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .page.embedded .tabs-bar[data-hide-tabs="true"]{margin-top:4px;justify-content:flex-start}
+    .page.embedded .tabs-bar[data-hide-tabs="true"] .tabs{display:none}
+    .page.embedded .scope-seg{margin-bottom:0}
+    .page.embedded .page-body{padding:8px 10px 12px 12px;margin-right:0}
+    .page.embedded .totals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 0;padding:8px 0 10px;margin-bottom:10px}
+    .page.embedded .metric{padding:0 10px}
+    .page.embedded .metric:first-child,.page.embedded .metric:nth-child(odd){padding-left:0}
+    .page.embedded .metric:nth-child(3){border-left:0}
+    .page.embedded .value{font-size:18px}
+    .page.embedded .section-head{align-items:flex-start;flex-wrap:wrap;gap:8px}
+    .page.embedded .chart-controls{width:100%;justify-content:space-between;flex-wrap:wrap;gap:6px}
+    .page.embedded .heat-wrap{padding:2px 2px 6px}
+    .page.embedded .chart{min-width:520px;gap:8px}
+    .page.embedded .table-wrap{overflow-x:auto}
+    .page.embedded .selected{flex-wrap:wrap;gap:8px;align-items:center}
+    .page.embedded .footer{flex-wrap:wrap;gap:4px 12px;padding-top:10px}
   `;view.append(css);
-  const page=document.createElement('div');page.className='page';
-  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div></div></div><div class="legend" id="legend"></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
+  const page=document.createElement('div');page.className=embedded?'page embedded':'page';
+  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"${showHeaderTabs?'':' data-hide-tabs="true"'}><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div></div></div><div class="legend" id="legend"></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
   const intro=document.createElement('section');intro.id='usage-intro';intro.className='usage-intro';intro.hidden=true;intro.setAttribute('aria-labelledby','usage-intro-title');
   setMarkup(intro,'<div class="intro-heading"><span class="intro-mark" aria-hidden="true"><svg viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/></svg></span><h2 id="usage-intro-title"></h2></div><div class="intro-copy"><p id="usage-intro-history"></p><p id="usage-intro-scope"></p><p id="usage-intro-storage"></p></div><div class="intro-bottom"><span id="usage-intro-error" role="status"></span><button id="usage-intro-done" type="button"></button></div>');
   page.querySelector('#totals').before(intro);
   const $=id=>view.getElementById(id),text=(id,value)=>{if($(id).textContent!==value)$(id).textContent=value;};
   let value=null,tab='overview',heatMode='day',period='day',year=null,anchor=null,selected=null,disabledModels=new Set(),lastKey='',busy=false,opener=null;
-  let disposed=false,refreshMotion=null,refreshDelay=null,finishRefresh=null,accountKey=null,tipTarget=null,tipModel=null;
+  let disposed=false,refreshMotion=null,refreshDelay=null,finishRefresh=null,accountKey=null,tipTarget=null,tipModel=null,pendingScrollHeat=embedded,pendingScrollChart=embedded;
   const scopeCache=new Map();let pendingScope=null,scopeLoading=false,scopeAnimations=[];
   function animateScopeChange(){
     for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];
@@ -72,7 +126,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   }
   function dismissGuide(){
     if(disposed)return;const focused=view.activeElement===$('usage-intro-done');guideDismissed=true;renderGuide();
-    if(focused&&dialog.open)$('overview-tab').focus({preventScroll:true});
+    if(focused&&(embedded||dialog?.open))$('overview-tab').focus({preventScroll:true});
   }
   $('usage-intro-done').addEventListener('click',async()=>{
     if(guideSaving||disposed)return;guideSaving=true;guideError=false;renderGuide();
@@ -204,7 +258,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     if(!changed&&sameModels)return data;
     return {...data,days,models};
   }
-  const themeSignature=()=>{const s=getComputedStyle(root.host||dialog);return [s.getPropertyValue('--pulse-accent'),s.getPropertyValue('--pulse-background'),s.getPropertyValue('--pulse-font'),root.host?.dataset.pulseTheme].join('|');};
+  const themeSignature=()=>{const t=themeTarget(),s=getComputedStyle(t);return [s.getPropertyValue('--pulse-accent'),s.getPropertyValue('--pulse-background'),s.getPropertyValue('--pulse-font'),t.dataset?.pulseTheme].join('|');};
   let paletteKey='',modelColors=new Map();
   const colorCanvas=document.createElement('canvas');colorCanvas.width=colorCanvas.height=1;
   const colorContext=colorCanvas.getContext('2d',{willReadFrequently:true});
@@ -215,7 +269,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   const fromHsl=(h,s,l)=>{const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))));};return [f(0),f(8),f(4)];};
   function syncPalette(){
     const models=[...(value?.models||[])].sort(),key=themeSignature()+'|'+models.join('|');if(key===paletteKey)return;paletteKey=key;modelColors.clear();
-    const style=getComputedStyle(root.host||dialog),base=rgb(style.getPropertyValue('--pulse-accent').trim()||'#85a8ff'),background=rgb(style.getPropertyValue('--pulse-background').trim()||'#1c1d1f'),[h,s]=hsl(base);
+    const style=getComputedStyle(themeTarget()),base=rgb(style.getPropertyValue('--pulse-accent').trim()||'#85a8ff'),background=rgb(style.getPropertyValue('--pulse-background').trim()||'#1c1d1f'),[h,s]=hsl(base);
     // An analogous scale stays harmonious as the host accent changes. Tonal
     // variation distinguishes adjacent series without provider brand colors.
     const dark=luminance(background)<.35,offsets=[0,-18,18,-36,36,-9,9,-27,27],tones=dark?[.64,.52,.73,.59,.68]:[.43,.33,.51,.38,.47];
@@ -243,9 +297,9 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     for(const [model,r]of Object.entries(bucket.models).sort((a,b)=>b[1].total-a[1].total)){
       const row=node('div','tip-model'+(activeModel?(activeModel===model?' active':' dimmed'):'')),label=node('span',''),dot=node('i','dot'),amount=node('span','',compact(r.total));dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));amount.append(node('span','model-share',bucket.total?(r.total/bucket.total*100).toFixed(1)+'%':'0%'));row.append(label,amount);tip.append(row);
     }
-    tip.hidden=false;const rect=target.getBoundingClientRect(),bounds=dialog.getBoundingClientRect(),r=tip.getBoundingClientRect();
-    tip.style.left=Math.min(bounds.right-r.width-12,Math.max(bounds.left+12,rect.left+rect.width/2-r.width/2))+'px';
-    tip.style.top=Math.max(bounds.top+12,rect.top-r.height-10)+'px';
+    tip.hidden=false;const rect=target.getBoundingClientRect(),bounds=surface.getBoundingClientRect(),r=tip.getBoundingClientRect();
+    tip.style.left=Math.max(bounds.left+8,Math.min(bounds.right-r.width-8,rect.left+rect.width/2-r.width/2))+'px';
+    tip.style.top=Math.max(bounds.top+8,rect.top-r.height-10)+'px';
   }
   const bindBucket=(button,bucket)=>{
     button.setAttribute('aria-label',(bucket.from===bucket.to?bucket.from:bucket.from+' – '+bucket.to)+': '+full(bucket.total)+' Token');
@@ -281,6 +335,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     text('heat-sub',heatMode==='day'?w('每格代表一天','Each square is one day','每格代表一天'):w('每格代表一周 · 周一开始','Each square is one week · starts Monday','每格代表一週 · 週一開始'));
     const annual=totals(year+'-01-01',year+'-12-31');text('heat-summary',w(`${year} 年 · ${full(annual.total)} Token`,`${year} · ${full(annual.total)} tokens`,`${year} 年 · ${full(annual.total)} Token`));
     for(const b of view.querySelectorAll('[data-heat]'))b.setAttribute('aria-pressed',String(b.dataset.heat===heatMode));showSelection();
+    if(pendingScrollHeat){pendingScrollHeat=false;const wrap=view.querySelector('.heat-wrap');const align=()=>{if(!disposed&&wrap&&wrap.scrollWidth>wrap.clientWidth)wrap.scrollLeft=Math.max(0,wrap.scrollWidth-wrap.clientWidth);};align();requestAnimationFrame(align);}
   }
   function highlightModel(model){
     if(model)$('plot').dataset.highlight=model;else delete $('plot').dataset.highlight;
@@ -332,6 +387,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead,r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));$('table-body').append(row);
     }
     for(const b of view.querySelectorAll('[data-period]'))b.setAttribute('aria-pressed',String(b.dataset.period===period));
+    if(pendingScrollChart){pendingScrollChart=false;const wrap=view.querySelector('.chart-wrap');const lastIdx=buckets.findLastIndex(b=>b.total>0);const align=()=>{if(!disposed&&wrap&&wrap.scrollWidth>wrap.clientWidth){wrap.scrollLeft=lastIdx>=Math.floor(buckets.length/2)?Math.max(0,wrap.scrollWidth-wrap.clientWidth):0;}};align();requestAnimationFrame(align);}
   }
   function render(){
     renderGuide();
@@ -345,7 +401,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     $('usage-waiting').hidden=true;
     syncPalette();
     const activeScope=pendingScope||(value.scope==='local'?'local':'account');
-    text('title',w('用量统计','Token usage','用量統計'));dialog.setAttribute('aria-label',w('用量统计','Token usage','用量統計'));text('subtitle',activeScope==='local'?w(`本机 ${hostLabel} · 全部流经统计`,`Local ${hostLabel} · all local`,`本機 ${hostLabel} · 本機全部`):w(`本机 ${hostLabel} · 当前账号`,`Local ${hostLabel} · current account`,`本機 ${hostLabel} · 目前帳號`));
+    text('title',w('用量统计','Token usage','用量統計'));dialog?.setAttribute('aria-label',w('用量统计','Token usage','用量統計'));text('subtitle',activeScope==='local'?w(`本机 ${hostLabel} · 全部流经统计`,`Local ${hostLabel} · all local`,`本機 ${hostLabel} · 本機全部`):w(`本机 ${hostLabel} · 当前账号`,`Local ${hostLabel} · current account`,`本機 ${hostLabel} · 目前帳號`));
     const scopeControls=$('scope-controls');if(scopeControls){
       const hideControls=typeof onScope!=='function';
       if(scopeControls.hidden!==hideControls)scopeControls.hidden=hideControls;
@@ -362,12 +418,12 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       text('overview-tab',w('概览','Overview','概覽'));text('details-tab',w('详情','Details','詳細資料'));
       closeYear(false);$('tip').hidden=true;$('overview').hidden=true;$('details').hidden=true;$('usage-waiting').hidden=false;
       text('usage-waiting',w('当前未检测到登录账号，可切换到「本机全部」查看统计，或在 Antigravity 登录后重试。','No signed-in account detected. Switch to All local or sign in to view account usage.','目前未偵測到登入帳號，可切換至「本機全部」檢視統計，或於 Antigravity 登入後重試。'));
-      languagePicker.update();for(const [id,label]of [['locale',language.t('language')],['refresh',w('刷新用量','Refresh usage','重新整理用量')],['close',w('关闭','Close','關閉')]]){$(id).setAttribute('aria-label',label);$(id).title=label;}
+      languagePicker?.update();for(const [id,label]of [['locale',language.t('language')],['refresh',w('刷新用量','Refresh usage','重新整理用量')],['close',w('关闭','Close','關閉')]]){$(id).setAttribute('aria-label',label);$(id).title=label;}
       for(const metric of $('totals').children){metric.title='';metric.querySelector('.value')?.replaceChildren(node('span','','—'));}
       text('coverage','');text('timezone','');$('alert').hidden=true;return;
     }
     text('overview-tab',w('活动概览','Activity','活動總覽'));text('details-tab',w('用量详情','Usage details','用量詳細資料'));text('activity-title',w('Token 活动','Token activity','Token 活動'));text('detail-title',w('按模型统计','Usage by model','依模型統計'));
-    languagePicker.update();for(const [id,label]of [['locale',language.t('language')],['refresh',w('刷新用量','Refresh usage','重新整理用量')],['close',w('关闭','Close','關閉')]]){$(id).setAttribute('aria-label',label);$(id).title=label;}text('less',w('少','Less','少'));text('more',w('多','More','多'));text('selection-details',w('查看明细','View breakdown','檢視明細'));
+    languagePicker?.update();for(const [id,label]of [['locale',language.t('language')],['refresh',w('刷新用量','Refresh usage','重新整理用量')],['close',w('关闭','Close','關閉')]]){$(id).setAttribute('aria-label',label);$(id).title=label;}text('less',w('少','Less','少'));text('more',w('多','More','多'));text('selection-details',w('查看明细','View breakdown','檢視明細'));
     for(const b of view.querySelectorAll('[data-heat]'))b.textContent=b.dataset.heat==='day'?w('每天','Daily','每日'):w('每周','Weekly','每週');
     for(const b of view.querySelectorAll('[data-period]'))b.textContent=({day:w('天','Day','日'),week:w('周','Week','週'),month:w('月','Month','月')})[b.dataset.period];
     $('overview-tab').setAttribute('aria-selected',String(tab==='overview'));$('details-tab').setAttribute('aria-selected',String(tab==='details'));$('overview').hidden=tab!=='overview';$('details').hidden=tab!=='details';
@@ -378,7 +434,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     if($('year').dataset.years!==years.join(',')){
       $('year-menu').replaceChildren(...years.map(y=>{const option=node('button','year-option');option.type='button';option.dataset.year=String(y);option.setAttribute('role','option');option.tabIndex=-1;
         setMarkup(option,'<span></span><svg class="year-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7"/></svg>');option.firstElementChild.textContent=String(y);
-        option.addEventListener('click',()=>{year=String(y);syncYear();closeYear();renderHeat();});return option;}));$('year').dataset.years=years.join(',');
+        option.addEventListener('click',()=>{year=String(y);pendingScrollHeat=embedded;syncYear();closeYear();renderHeat();});return option;}));$('year').dataset.years=years.join(',');
     }
     syncYear();
     text('coverage',w(`已记录 ${full(value.requests)} 次请求${value.firstDate?' · 始于 '+value.firstDate:''}`,`${full(value.requests)} requests recorded${value.firstDate?' · since '+value.firstDate:''}`,`已記錄 ${full(value.requests)} 次請求${value.firstDate?' · 起始於 '+value.firstDate:''}`));
@@ -389,8 +445,8 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     $('alert').hidden=!alerts.length;text('alert',alerts.join(' · '));
     if(tab==='overview')renderHeat();else renderChart();
   }
-  function changeTab(next){closeYear(false);tab=next;$('tip').hidden=true;$('page-body').scrollTop=0;render();}
-  $('overview-tab').addEventListener('click',()=>changeTab('overview'));$('details-tab').addEventListener('click',()=>changeTab('details'));
+  function changeTab(next,notify=false){if(!['overview','details'].includes(next))return;closeYear(false);tab=next;pendingScrollHeat=embedded&&next==='overview';pendingScrollChart=embedded&&next==='details';$('tip').hidden=true;$('page-body').scrollTop=0;if(isActive()||!embedded)render();if(notify&&typeof onTabChange==='function')onTabChange(next);}
+  $('overview-tab').addEventListener('click',()=>changeTab('overview',true));$('details-tab').addEventListener('click',()=>changeTab('details',true));
   for(const button of view.querySelectorAll('[data-usage-scope]'))button.addEventListener('click',()=>{
     if(disposed||!onScope)return;
     const next=button.dataset.usageScope,currentScope=pendingScope||(value?.scope==='local'?'local':'account');
@@ -404,20 +460,20 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       scopeLoading=true;page.dataset.scopeLoading='true';render();
     }
     void Promise.resolve(onScope(next)).then(()=>{
-      if(!disposed&&pendingScope===next){pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;if(dialog.open)render();}
+      if(!disposed&&pendingScope===next){pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;if(isActive())render();}
     },()=>{
-      if(!disposed&&pendingScope===next){pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;if(dialog.open)render();}
+      if(!disposed&&pendingScope===next){pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;if(isActive())render();}
     });
   });
-  for(const b of view.querySelectorAll('[data-heat]'))b.addEventListener('click',()=>{heatMode=b.dataset.heat;renderHeat();});
-  for(const b of view.querySelectorAll('[data-period]'))b.addEventListener('click',()=>{period=b.dataset.period;renderChart();});
+  for(const b of view.querySelectorAll('[data-heat]'))b.addEventListener('click',()=>{heatMode=b.dataset.heat;pendingScrollHeat=embedded;renderHeat();});
+  for(const b of view.querySelectorAll('[data-period]'))b.addEventListener('click',()=>{period=b.dataset.period;pendingScrollChart=embedded;renderChart();});
   function syncYear(){
     text('year-label',String(year));$('year').setAttribute('aria-label',w('选择年份','Select year','選取年份')+' · '+year);$('year-menu').setAttribute('aria-label',w('年份','Year','年份'));
     for(const option of $('year-menu').children)option.setAttribute('aria-selected',String(option.dataset.year===String(year)));
   }
   function closeYear(restore=true){if(!$('year-menu').matches(':popover-open'))return;$('year-menu').hidePopover();$('year').setAttribute('aria-expanded','false');if(restore)$('year').focus({preventScroll:true});}
   function positionYear(){
-    if(!$('year-menu').matches(':popover-open'))return;const menu=$('year-menu'),r=$('year').getBoundingClientRect(),bounds=dialog.getBoundingClientRect(),width=menu.offsetWidth,height=menu.offsetHeight;
+    if(!$('year-menu').matches(':popover-open'))return;const menu=$('year-menu'),r=$('year').getBoundingClientRect(),bounds=surface.getBoundingClientRect(),width=menu.offsetWidth,height=menu.offsetHeight;
     menu.style.left=Math.max(bounds.left+12,Math.min(r.right-width,bounds.right-width-12))+'px';const below=r.bottom+7;
     menu.style.top=(below+height<=bounds.bottom-12?below:Math.max(bounds.top+12,r.top-height-7))+'px';
   }
@@ -441,9 +497,9 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     let next=event.key==='Home'?buttons.findIndex(b=>!b.disabled):event.key==='End'?buttons.findLastIndex(b=>!b.disabled):index+(delta[event.key]??NaN);
     if(!Number.isFinite(next)||next<0||next>=buttons.length||buttons[next].disabled)return;event.preventDefault();event.target.tabIndex=-1;buttons[next].tabIndex=0;buttons[next].focus();
   });
-  $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||value.today);period=heatMode;changeTab('details');});
+  $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||value.today);period=heatMode;changeTab('details',true);});
   for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*84):month(anchor,step*12);renderChart();});
-  const languagePicker=language.mountLanguagePicker({button:$('locale'),label:$('locale-label'),parent:dialog,choose:onLanguage});
+  const languagePicker=embedded?null:language.mountLanguagePicker({button:$('locale'),label:$('locale-label'),parent:dialog,choose:onLanguage});
   $('refresh').addEventListener('click',async()=>{
     if(busy||disposed)return;busy=true;const button=$('refresh'),turn=600,started=performance.now();button.disabled=true;button.setAttribute('aria-busy','true');
     refreshMotion=button.querySelector('svg').animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:turn,iterations:Infinity});
@@ -463,17 +519,17 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   // popover keeps the same backdrop without touching every background node.
   // Contain pointer, focus, Tab, Escape and scrolling explicitly instead.
   function present(){
-    if(dialog.matches(':popover-open'))return;
+    if(embedded||dialog.matches(':popover-open'))return;
     dialog.removeAttribute('open');dialog.showPopover();dialog.setAttribute('open','');
     $('locale').focus({preventScroll:true});
   }
   function conceal(){
-    if(dialog.matches(':popover-open'))dialog.hidePopover();dialog.removeAttribute('open');
+    if(!embedded&&dialog.matches(':popover-open'))dialog.hidePopover();
+    dialog?.removeAttribute('open');
   }
-  function close(){languagePicker.close(false);closeYear(false);conceal();$('tip').hidden=true;opener?.focus({preventScroll:true});}
-  $('close').addEventListener('click',close);dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();}});
-  const contentKey=data=>JSON.stringify([{...data,updatedAt:undefined},language.language,themeSignature(),typeof onScope==='function',pendingScope,scopeLoading]);
-  const within=event=>event.composedPath().includes(dialog);
+  function close(){languagePicker?.close(false);closeYear(false);if(!embedded)conceal();$('tip').hidden=true;opener?.focus({preventScroll:true});}
+  const contentKey=data=>JSON.stringify([{...(data||{}),updatedAt:undefined},language.language,themeSignature(),typeof onScope==='function',pendingScope,scopeLoading]);
+  const within=event=>event.composedPath().includes(surface);
   function containFocus(event){if(!disposed&&dialog.open&&!within(event)){$('locale').focus({preventScroll:true});}}
   function containKeys(event){
     if(disposed||!dialog.open)return;
@@ -498,25 +554,30 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     const backdropHit=event.composedPath()[0]===dialog;
     if(!within(event)||backdropHit&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)){event.preventDefault();event.stopImmediatePropagation();if(event.type==='click')close();}
   }
-  document.addEventListener('focusin',containFocus,true);document.addEventListener('keydown',containKeys,true);
-  document.addEventListener('wheel',containScroll,{capture:true,passive:false});document.addEventListener('touchmove',containScroll,{capture:true,passive:false});
-  for(const type of ['pointerdown','mousedown','click'])document.addEventListener(type,containPointer,true);
+  if(!embedded){
+    $('close').addEventListener('click',close);dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();}});
+    document.addEventListener('focusin',containFocus,true);document.addEventListener('keydown',containKeys,true);
+    document.addEventListener('wheel',containScroll,{capture:true,passive:false});document.addEventListener('touchmove',containScroll,{capture:true,passive:false});
+    for(const type of ['pointerdown','mousedown','click'])document.addEventListener(type,containPointer,true);
+  }
   // CSS surfaces update immediately; JS model colors must follow in the same
   // theme change, rather than waiting for the next metrics poll.
   let rawValue=null;
-  const themeObserver=new MutationObserver(()=>{if(!disposed&&rawValue&&dialog.open){const key=contentKey(rawValue);if(key!==lastKey){lastKey=key;render();}}});
-  if(root.host)themeObserver.observe(root.host,{attributes:true,attributeFilter:['data-pulse-theme','style']});
+  const themeObserver=new MutationObserver(()=>{if(!disposed&&isActive()){const key=rawValue?contentKey(rawValue):'';if(key!==lastKey||!rawValue){lastKey=key;render();}}});
+  const observedTheme=themeTarget();
+  if(observedTheme)themeObserver.observe(observedTheme,{attributes:true,attributeFilter:['data-pulse-theme','style']});
   return {
     open(raw,trigger){
-      if(!raw||disposed)return;
+      if(disposed)return;
+      if(!raw){if(embedded&&isActive()){rawValue=value=null;lastKey='';render();}return;}
       const data=normalizeUsageData(raw);
       if(data.scope==='local'||data.scope==='account')scopeCache.set(data.scope,data);
       pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;
-      accountKey=data.accountKey;rawValue=raw;value=data;opener=trigger;year||=data.today.slice(0,4);anchor||=data.today;lastKey=contentKey(raw);render();present();
+      accountKey=data.accountKey;rawValue=raw;value=data;opener=trigger;year||=data.today.slice(0,4);anchor||=data.today;pendingScrollHeat=embedded&&tab==='overview';pendingScrollChart=embedded&&tab==='details';lastKey=contentKey(raw);render();present();
     },
     update(raw){
       if(disposed)return;
-      if(!raw){if(!value)return;rawValue=value=null;lastKey='';if(dialog.open)render();return;}
+      if(!raw){if(!value)return;rawValue=value=null;lastKey='';if(isActive())render();return;}
       const data=normalizeUsageData(raw);
       if(data.scope==='local'||data.scope==='account')scopeCache.set(data.scope,data);
       if(pendingScope){
@@ -524,12 +585,14 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
         const wasLoading=scopeLoading;
         pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;
         if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}
-        accountKey=data.accountKey;rawValue=raw;value=data;if(!dialog.open)return;lastKey=contentKey(raw);render();
+        accountKey=data.accountKey;rawValue=raw;value=data;if(!isActive())return;lastKey=contentKey(raw);render();
         if(wasLoading)animateScopeChange();
         return;
       }
-      if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}accountKey=data.accountKey;rawValue=raw;value=data;if(!dialog.open)return;const key=contentKey(raw);if(key===lastKey)return;lastKey=key;render();
+      if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}accountKey=data.accountKey;rawValue=raw;value=data;if(!isActive())return;const key=contentKey(raw);if(key===lastKey)return;lastKey=key;render();
     },
-    restoreModal(){if(!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);present();}},
-    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker.dispose();themeObserver.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);window.removeEventListener('resize',positionYear);document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();dialog.remove();backdrop.remove();},get isOpen(){return dialog.open;}};
+    setTab(next){changeTab(next,false);},
+    renderIfVisible(){if(!disposed&&isActive()){lastKey=rawValue?contentKey(rawValue):'';render();}},
+    restoreModal(){if(!embedded&&!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);present();}},
+    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker?.dispose();themeObserver.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);window.removeEventListener('resize',positionYear);if(!embedded){document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();}surface.remove();backdrop?.remove();},get isOpen(){return embedded?isActive():Boolean(dialog?.open);}};
 };
