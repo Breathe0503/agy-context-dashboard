@@ -88,6 +88,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     .page.embedded .chart-controls{width:100%;justify-content:space-between;flex-wrap:wrap;gap:6px}
     .page.embedded .heat-wrap{padding:2px 2px 6px}
     .page.embedded .chart{min-width:520px;gap:8px}
+    .page.embedded .chart:has(.chart-empty){min-width:0}
     .page.embedded .table-wrap{overflow-x:auto}
     .page.embedded .selected{flex-wrap:wrap;gap:8px;align-items:center}
     .page.embedded .footer{flex-wrap:wrap;gap:4px 12px;padding-top:10px}
@@ -307,9 +308,18 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     button.addEventListener('pointermove',event=>{const model=event.target.closest?.('.bar-segment')?.dataset.model||null;tooltip(bucket,button,model);});
     button.addEventListener('click',()=>{selected=bucket;anchor=bucket.from;showSelection();});
   };
-  function showSelection(){const bucket=selected||totals(value.today,value.today);text('selection-title',bucket.from===bucket.to?bucket.from:bucket.from+' – '+bucket.to);text('selection-value',full(bucket.total)+' Token · '+w(`${bucket.requests} 次请求`,`${bucket.requests} requests`,`${bucket.requests} 次請求`));}
+  const safeToday=d=>(typeof d?.today==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d.today))?d.today:new Date().toISOString().slice(0,10);
+  const syncDateState=d=>{
+    const todayStr=safeToday(d);
+    if(accountKey&&accountKey!==d?.accountKey){selected=null;disabledModels.clear();year=todayStr.slice(0,4);anchor=todayStr;}
+    else{year||=todayStr.slice(0,4);anchor||=todayStr;}
+    accountKey=d?.accountKey||null;
+    return todayStr;
+  };
+  function showSelection(){const tStr=safeToday(value),bucket=selected||totals(tStr,tStr);text('selection-title',bucket.from===bucket.to?bucket.from:bucket.from+' – '+bucket.to);text('selection-value',full(bucket.total)+' Token · '+w(`${bucket.requests} 次请求`,`${bucket.requests} requests`,`${bucket.requests} 次請求`));}
   function renderHeat(){
     if(!value)return;
+    const todayStr=syncDateState(value);
     const start=week(year+'-01-01'),end=year+'-12-31',weeks=Math.floor((Date.parse(end)-Date.parse(start))/604800000)+1;
     $('heat').replaceChildren();$('months').replaceChildren();$('weekdays').replaceChildren();$('heat').className='heat'+(heatMode==='week'?' week':'');
     $('heat').style.gridTemplateColumns=`repeat(${weeks},minmax(0,1fr))`;
@@ -320,7 +330,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     }
     const max=Math.max(1,...buckets.map(b=>b.total));
     for(const bucket of buckets){
-      const button=node('button','');button.type='button';const future=bucket.from>value.today||bucket.to<year+'-01-01'||bucket.from>year+'-12-31';
+      const button=node('button','');button.type='button';const future=bucket.from>todayStr||bucket.to<year+'-01-01'||bucket.from>year+'-12-31';
       button.dataset.level=bucket.total===0?'0':String(Math.min(4,Math.ceil(bucket.total/max*4)));if(future){button.className='future';button.disabled=true;}
       if(!future)bindBucket(button,bucket);button.tabIndex=-1;$('heat').append(button);
     }
@@ -345,11 +355,12 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   const chartHeading=node('div','detail-heading');$('detail-title').before(chartHeading);chartHeading.append($('detail-title'),chartSummary);
   function renderChart(){
     if(!value)return;syncPalette();$('tip').hidden=true;highlightModel(null);
+    const todayStr=syncDateState(value);
     const buckets=[];
     if(period==='day'){const start=month(anchor,0),end=add(month(anchor,1),-1);for(let date=start;date<=end;date=add(date,1))buckets.push(totals(date,date,true));text('range-label',start.slice(0,7));}
     else if(period==='week'){const start=add(week(anchor),-11*7);for(let i=0;i<12;i++){const from=add(start,i*7);buckets.push(totals(from,add(from,6),true));}text('range-label',start.slice(5)+' – '+add(week(anchor),6).slice(5));}
     else{for(let i=-11;i<=0;i++){const from=month(anchor,i);buckets.push(totals(from,add(month(from,1),-1),true));}text('range-label',buckets[0].from.slice(0,7)+' – '+month(anchor,0).slice(0,7));}
-    $('next').disabled=period==='week'?week(anchor)>=week(value.today):anchor.slice(0,7)>=value.today.slice(0,7);$('legend').replaceChildren();
+    $('next').disabled=period==='week'?week(anchor)>=week(todayStr):anchor.slice(0,7)>=todayStr.slice(0,7);$('legend').replaceChildren();
     for(const model of value.models){const button=node('button',''),dot=node('i','dot');dot.style.setProperty('--model-color',color(model));button.append(dot,document.createTextNode(modelName(model)));button.type='button';button.setAttribute('aria-pressed',String(!disabledModels.has(model)));button.addEventListener('click',()=>{if(disabledModels.has(model))disabledModels.delete(model);else disabledModels.add(model);renderChart();});button.addEventListener('pointerenter',()=>highlightModel(disabledModels.has(model)?null:model));button.addEventListener('pointerleave',()=>highlightModel(null));$('legend').append(button);}
     const max=Math.max(1,...buckets.map(b=>b.total)),ceiling=max>1?Math.ceil(max/(10**Math.floor(Math.log10(max))))*10**Math.floor(Math.log10(max)):1;
     $('axis').replaceChildren();$('plot').replaceChildren();
@@ -430,7 +441,8 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     $('totals').replaceChildren();for(const [label,total]of [[w('今日用量','Today','今日用量'),value.todayTokens],[w('本周用量','This week','本週用量'),value.weekTokens],[w('本月用量','This month','本月用量'),value.monthTokens],[w('累计用量','All time','累積用量'),value.totalTokens]]){
       const metric=node('div','metric'),n=node('div','value',compact(total));n.append(node('span','unit','Token'));metric.append(node('label','',label),n);metric.title=full(total)+' Token';$('totals').append(metric);
     }
-    const years=[];const first=Number(value.firstDate?.slice(0,4)||value.today.slice(0,4)),currentYear=Number(value.today.slice(0,4)),minimum=Math.max(first,currentYear-10);for(let y=currentYear;y>=minimum;y--)years.push(y);
+    const todayStr=syncDateState(value);
+    const years=[];const first=Number(value.firstDate?.slice(0,4)||todayStr.slice(0,4)),currentYear=Number(todayStr.slice(0,4)),minimum=Math.max(first,currentYear-10);for(let y=currentYear;y>=minimum;y--)years.push(y);
     if($('year').dataset.years!==years.join(',')){
       $('year-menu').replaceChildren(...years.map(y=>{const option=node('button','year-option');option.type='button';option.dataset.year=String(y);option.setAttribute('role','option');option.tabIndex=-1;
         setMarkup(option,'<span></span><svg class="year-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7"/></svg>');option.firstElementChild.textContent=String(y);
@@ -454,8 +466,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     pendingScope=next;
     const cached=scopeCache.get(next);
     if(cached){
-      if(accountKey&&accountKey!==cached.accountKey){selected=null;disabledModels.clear();year=cached.today.slice(0,4);anchor=cached.today;}
-      accountKey=cached.accountKey;rawValue=cached;value=cached;scopeLoading=false;delete page.dataset.scopeLoading;lastKey=contentKey(cached);render();animateScopeChange();
+      syncDateState(cached);rawValue=cached;value=cached;scopeLoading=false;delete page.dataset.scopeLoading;lastKey=contentKey(cached);render();animateScopeChange();
     }else{
       scopeLoading=true;page.dataset.scopeLoading='true';render();
     }
@@ -497,7 +508,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     let next=event.key==='Home'?buttons.findIndex(b=>!b.disabled):event.key==='End'?buttons.findLastIndex(b=>!b.disabled):index+(delta[event.key]??NaN);
     if(!Number.isFinite(next)||next<0||next>=buttons.length||buttons[next].disabled)return;event.preventDefault();event.target.tabIndex=-1;buttons[next].tabIndex=0;buttons[next].focus();
   });
-  $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||value.today);period=heatMode;changeTab('details',true);});
+  $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||safeToday(value));period=heatMode;changeTab('details',true);});
   for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*84):month(anchor,step*12);renderChart();});
   const languagePicker=embedded?null:language.mountLanguagePicker({button:$('locale'),label:$('locale-label'),parent:dialog,choose:onLanguage});
   $('refresh').addEventListener('click',async()=>{
@@ -573,7 +584,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       const data=normalizeUsageData(raw);
       if(data.scope==='local'||data.scope==='account')scopeCache.set(data.scope,data);
       pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;
-      accountKey=data.accountKey;rawValue=raw;value=data;opener=trigger;year||=data.today.slice(0,4);anchor||=data.today;pendingScrollHeat=embedded&&tab==='overview';pendingScrollChart=embedded&&tab==='details';lastKey=contentKey(raw);render();present();
+      syncDateState(data);rawValue=raw;value=data;opener=trigger;pendingScrollHeat=embedded&&tab==='overview';pendingScrollChart=embedded&&tab==='details';lastKey=contentKey(raw);render();present();
     },
     update(raw){
       if(disposed)return;
@@ -584,12 +595,11 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
         if(data.scope!==pendingScope)return;
         const wasLoading=scopeLoading;
         pendingScope=null;scopeLoading=false;delete page.dataset.scopeLoading;
-        if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}
-        accountKey=data.accountKey;rawValue=raw;value=data;if(!isActive())return;lastKey=contentKey(raw);render();
+        syncDateState(data);rawValue=raw;value=data;if(!isActive())return;lastKey=contentKey(raw);render();
         if(wasLoading)animateScopeChange();
         return;
       }
-      if(accountKey&&accountKey!==data.accountKey){selected=null;disabledModels.clear();year=data.today.slice(0,4);anchor=data.today;}accountKey=data.accountKey;rawValue=raw;value=data;if(!isActive())return;const key=contentKey(raw);if(key===lastKey)return;lastKey=key;render();
+      syncDateState(data);rawValue=raw;value=data;if(!isActive())return;const key=contentKey(raw);if(key===lastKey)return;lastKey=key;render();
     },
     setTab(next){changeTab(next,false);},
     renderIfVisible(){if(!disposed&&isActive()){lastKey=rawValue?contentKey(rawValue):'';render();}},

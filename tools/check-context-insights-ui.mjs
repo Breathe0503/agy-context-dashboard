@@ -252,6 +252,7 @@ window.agPulseHost={
 </script><script defer src="/inline-bundle.js"></script></body></html>`;
 
 let forceDegradedCidB = false;
+let omitUsage = false;
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -276,7 +277,7 @@ const server = createServer(async (req, res) => {
     const usageOnly = url.searchParams.get('usageOnly') === '1';
     const requestedScope = url.searchParams.get('usageScope') || prefs.usageScope || 'local';
     calls.metrics.push({ cid, contextDetail, usageSync, usageOnly, usageScope: requestedScope });
-    const usagePayload = requestedScope === 'account' ? usagePayloadAccount : usagePayloadLocal;
+    const usagePayload = omitUsage ? null : (requestedScope === 'account' ? usagePayloadAccount : usagePayloadLocal);
     if (usageOnly) {
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
@@ -547,6 +548,20 @@ try {
   assert.ok(inlineHostCheck.titles.length === 8);
   assert.ok(inlineHostCheck.titles.every(t => t && t.endsWith('· exact')), `Expected exact tag on all 8 host categories, got: ${inlineHostCheck.titles.join(', ')}`);
   await inlinePage.close();
+
+  // 8. Cold-start open(null) -> update(usage) initializes year/anchor cleanly with zero errors
+  omitUsage = true;
+  const coldPage = await browser.newPage({ viewport: { width: 410, height: 680 } });
+  coldPage.on('pageerror', err => errors.push(err.message));
+  await coldPage.goto(base + '/');
+  await coldPage.locator('#view-activity-tab').click();
+  await coldPage.waitForFunction(() => document.querySelector('#usage-embed > div')?.shadowRoot?.getElementById('usage-waiting')?.hidden === false);
+  omitUsage = false;
+  await coldPage.locator('#refresh-button').click();
+  await coldPage.waitForFunction(() => document.querySelector('#usage-embed > div')?.shadowRoot?.getElementById('year-label')?.textContent === '2026');
+  await coldPage.locator('#view-models-tab').click();
+  await coldPage.waitForFunction(() => (document.querySelector('#usage-embed > div')?.shadowRoot?.querySelectorAll('#plot .bar-column')?.length || 0) > 0);
+  await coldPage.close();
 
   assert.deepEqual(errors, [], 'Trusted Types CSP must produce zero page errors');
   console.log(JSON.stringify({ ok: true, auditCalls: calls.audit.length, insightsCalls: calls.insights.length, pageErrors: errors }));
