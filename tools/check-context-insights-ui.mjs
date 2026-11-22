@@ -475,8 +475,18 @@ try {
   await page.locator('#language-toggle').click();
   await page.locator('[data-language-menu] [data-language="zh-CN"]').click();
   await page.locator('#view-insights-tab').filter({ hasText: '全局洞察' }).waitFor();
-  assert.equal(await page.locator('#view-activity-tab').textContent(), '每日/每周活动');
-  assert.equal(await page.locator('#view-models-tab').textContent(), '按模型用量');
+  assert.deepEqual(
+    await page.locator('.panel-view-tab').evaluateAll(els => els.map(el => ({ id: el.id, text: el.textContent, left: el.getBoundingClientRect().left }))).then(items => {
+      for (let i = 1; i < items.length; i++) assert.ok(items[i].left >= items[i - 1].left);
+      return items.map(i => [i.id, i.text]);
+    }),
+    [
+      ['view-activity-tab', '每日/每周活动'],
+      ['view-models-tab', '按模型用量'],
+      ['view-session-tab', '当前会话'],
+      ['view-insights-tab', '全局洞察'],
+    ],
+  );
   await page.locator('#view-insights-tab').click();
   assert.match(await page.locator('#insights-kpis').textContent(), /预估费用/);
 
