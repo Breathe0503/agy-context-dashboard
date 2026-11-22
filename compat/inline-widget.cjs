@@ -1031,7 +1031,7 @@ module.exports = function installAgPulseInlineWidget() {
       .context-composition{margin-top:8px}.context-composition[hidden]{display:none}.composition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;font-weight:500;color:var(--pulse-label)}.composition-title-wrap{display:inline-flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}.composition-title-wrap .tag{font-weight:400;font-size:10px;color:var(--pulse-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
       .composition-toggle{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:var(--pulse-control);flex:none}.composition-toggle-btn{border:0;background:none;font:inherit;font-size:10px;padding:2px 6px;margin:0;border-radius:4px;color:var(--pulse-muted);line-height:14px;cursor:pointer;transition:background-color 140ms ease,color 140ms ease}.composition-toggle-btn:hover{color:var(--pulse-hover-text);background:var(--pulse-hover)}.composition-toggle-btn[aria-pressed=true]{color:var(--pulse-foreground);background:var(--pulse-hover);box-shadow:0 1px 2px var(--pulse-shadow)}
       .composition-meter{display:flex;gap:1px;height:6px;border-radius:999px;overflow:hidden;margin-top:6px;background:var(--pulse-track)}.composition-meter i{display:block;height:100%;min-width:0}
-      .composition-seg-customization,.composition-seg-group-rules{background:var(--pulse-emphasis)}.composition-seg-group-skills{background:color-mix(in srgb,var(--pulse-emphasis) 65%,var(--pulse-accent))}.composition-seg-group-subagents{background:color-mix(in srgb,var(--pulse-ring) 80%,var(--pulse-emphasis))}.composition-seg-group-mcp{background:color-mix(in srgb,var(--pulse-accent) 60%,var(--pulse-success))}.composition-seg-user{background:var(--pulse-accent)}.composition-seg-thinking{background:var(--pulse-warning)}.composition-seg-reply{background:var(--pulse-success)}.composition-seg-assistant{background:var(--pulse-ring)}.composition-seg-tool{background:var(--pulse-muted)}.composition-seg-system{background:color-mix(in srgb,var(--pulse-muted) 45%,transparent)}.composition-seg-other{background:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-track))}.composition-seg-remaining{background:var(--pulse-track)}
+      .composition-seg-customization,.composition-seg-group-rules,.composition-seg-rules{background:var(--pulse-emphasis)}.composition-seg-group-skills,.composition-seg-skills{background:color-mix(in srgb,var(--pulse-emphasis) 65%,var(--pulse-accent))}.composition-seg-group-subagents,.composition-seg-subagents{background:color-mix(in srgb,var(--pulse-ring) 80%,var(--pulse-emphasis))}.composition-seg-group-mcp,.composition-seg-mcpTools{background:color-mix(in srgb,var(--pulse-accent) 60%,var(--pulse-success))}.composition-seg-plugins{background:color-mix(in srgb,var(--pulse-emphasis) 55%,var(--pulse-accent))}.composition-seg-user,.composition-seg-chatMessages{background:var(--pulse-accent)}.composition-seg-thinking{background:var(--pulse-warning)}.composition-seg-reply{background:var(--pulse-success)}.composition-seg-assistant{background:var(--pulse-ring)}.composition-seg-tool,.composition-seg-tools{background:var(--pulse-muted)}.composition-seg-system,.composition-seg-systemPrompt{background:color-mix(in srgb,var(--pulse-muted) 45%,transparent)}.composition-seg-other{background:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-track))}.composition-seg-remaining{background:var(--pulse-track)}
       .composition-list{display:flex;flex-direction:column;gap:5px;margin-top:8px}.composition-list[hidden]{display:none}.composition-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;line-height:1.35}.composition-row-label{display:inline-flex;align-items:center;gap:7px;color:var(--pulse-label);min-width:0}.composition-row-dot{width:7px;height:7px;border-radius:50%;flex:none}.composition-row-pct{font-variant-numeric:tabular-nums;color:var(--pulse-foreground);font-weight:500;white-space:nowrap}
       .composition-legend{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:6px;font-size:10px;line-height:1.3;color:var(--pulse-muted);font-variant-numeric:tabular-nums}.composition-legend[hidden]{display:none}.composition-legend-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.composition-legend-dot{width:6px;height:6px;border-radius:2px;flex:none}
       .context-cache-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--pulse-separator);font-size:11px;color:var(--pulse-muted)}.context-cache-row[hidden]{display:none}.context-cache-row strong{font-size:11px;font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums}
@@ -1532,9 +1532,10 @@ module.exports = function installAgPulseInlineWidget() {
     })();
     return request.promise;
   }
-  const COMPOSITION_LABELS={customization:'compositionCustomization',user:'compositionUser',thinking:'compositionThinking',reply:'compositionReply',assistant:'compositionAssistant',tool:'compositionTool',system:'compositionSystem',other:'compositionOther',remaining:'compositionRemaining'};
-  const COMPOSITION_SOURCES={hybrid:'compositionSourceHybrid',transcript:'compositionSourceTranscript',steps:'compositionSourceSteps'};
+  const COMPOSITION_LABELS={customization:'compositionCustomization',user:'compositionUser',thinking:'compositionThinking',reply:'compositionReply',assistant:'compositionAssistant',tool:'compositionTool',system:'compositionSystem',other:'compositionOther',remaining:'compositionRemaining',systemPrompt:'compositionSystemPrompt',mcpTools:'compositionMcpTools',subagents:'compositionSubagents',skills:'compositionSkills',plugins:'compositionPlugins',rules:'compositionRules',tools:'compositionTools',chatMessages:'compositionChatMessages'};
+  const COMPOSITION_SOURCES={hybrid:'compositionSourceHybrid',transcript:'compositionSourceTranscript',steps:'compositionSourceSteps','host-token-groups':'compositionSourceHost'};
   const COMPOSITION_GROUPS={Rules:['compositionGroupRules','group-rules'],Skills:['compositionGroupSkills','group-skills'],Subagents:['compositionGroupSubagents','group-subagents'],'Mcp Tools':['compositionGroupMcpTools','group-mcp']};
+  const HOST_SEGMENTS=new Set(['systemPrompt','mcpTools','subagents','skills','plugins','rules','tools','chatMessages']);
   // The panel side computes every number (issue #34); the widget only maps
   // segment ids to labels, colors and titles. The composition bar matches the
   // host usage percent because dynamic estimates are scaled panel-side.
@@ -1548,16 +1549,17 @@ module.exports = function installAgPulseInlineWidget() {
     const trend=composition?.trend,trendOk=Boolean(trend&&Array.isArray(trend.points)&&trend.points.length>=2);
     if(trendSection)hidden(trendSection,!trendOk);
     if(usable&&section){
+      const isHost=composition.source==='host-token-groups';
       const injection=composition.customization?.available?t('compositionCustomizationValue',{tokens:compact(composition.customization.tokens)}):t('compositionCustomizationValue',{tokens:'—'});
       const sourceKey=COMPOSITION_SOURCES[composition.source];
       const sourceTag=sourceKey?t(sourceKey):'';
-      text('composition-source',[injection,sourceTag].filter(Boolean).join(' · '));
+      text('composition-source',isHost?sourceTag:[injection,sourceTag].filter(Boolean).join(' · '));
       attribute(section,'title',t('compositionBasis',{source:sourceTag||'—'}));
       for(const button of root.querySelectorAll('[data-composition-view]'))attribute(button,'aria-pressed',button.dataset.compositionView===compositionView);
       const meter=$('composition-meter'),listEl=$('composition-list'),legend=$('composition-legend');
       if(listEl)hidden(listEl,compositionView!=='list');
       if(legend)hidden(legend,compositionView!=='bar');
-      const sig=JSON.stringify([composition.segments,composition.customization?.budget??null,composition.customization?.groups??null,compositionView,language.language]);
+      const sig=JSON.stringify([composition.segments,composition.source,composition.customization?.budget??null,composition.customization?.groups??null,compositionView,language.language]);
       if(meter&&meter.dataset.signature!==sig){
         meter.dataset.signature=sig;
         const visible=composition.segments.filter(segment=>segment.fraction>0&&segment.tokens>0);
@@ -1574,7 +1576,7 @@ module.exports = function installAgPulseInlineWidget() {
             }
             continue;
           }
-          expanded.push({cls:segment.id,label:t(COMPOSITION_LABELS[segment.id]||'compositionTitle'),tokens:segment.tokens,fraction:segment.fraction,exact:segment.id==='customization',budget:segment.id==='customization'?composition.customization?.budget:null});
+          expanded.push({cls:segment.id,label:t(COMPOSITION_LABELS[segment.id]||'compositionTitle'),tokens:segment.tokens,fraction:segment.fraction,exact:segment.id==='customization'||HOST_SEGMENTS.has(segment.id),budget:segment.id==='customization'?composition.customization?.budget:null});
         }
         const totalFilled=expanded.reduce((n,item)=>n+item.fraction,0);
         const tipFor=item=>{
