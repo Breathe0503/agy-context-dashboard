@@ -268,8 +268,69 @@ try {
   await workerStrip.waitFor();
   await checkWorkerRow(workerStrip, workerStrip.locator('[data-card=cache]'), '#orchestration-breakdown summary', '#orch-body', '代理角色', '执行子代理');
 
+  // 5. Dual-pill .context-hero-row wraps cleanly without horizontal overflow across en/zh-CN/zh-TW (#82)
+  workerMode = false;
+  const assertHeroWrap = async (cardLoc, label) => {
+    const m = await cardLoc.evaluate(card => {
+      const cardRect = card.getBoundingClientRect();
+      const summary = card.querySelector('#context-summary');
+      const bloat = card.querySelector('#context-bloat-pill');
+      const compactPill = card.querySelector('#context-compaction-pill');
+      const tokens = card.querySelector('#context-tokens');
+      const range = document.createRange();
+      range.selectNodeContents(summary);
+      const summaryLines = [...range.getClientRects()].length;
+      const items = [summary, bloat, compactPill, tokens].map(el => ({
+        id: el?.id,
+        visible: Boolean(el && !el.hidden && el.getBoundingClientRect().width > 0),
+        left: el?.getBoundingClientRect().left ?? 0,
+        right: el?.getBoundingClientRect().right ?? 0,
+      }));
+      return {
+        scrollWidth: card.scrollWidth,
+        clientWidth: card.clientWidth,
+        cardLeft: cardRect.left,
+        cardRight: cardRect.right,
+        summaryLines,
+        summaryText: summary?.textContent?.trim(),
+        items,
+      };
+    });
+    assert.ok(m.scrollWidth <= m.clientWidth, `${label}: #context-card overflow (${m.scrollWidth} > ${m.clientWidth}): ${JSON.stringify(m)}`);
+    assert.equal(m.summaryLines, 1, `${label}: #context-summary wrapped to ${m.summaryLines} lines (${m.summaryText})`);
+    for (const item of m.items) {
+      assert.ok(item.visible, `${label}: missing hero element ${item.id}`);
+      assert.ok(item.left >= m.cardLeft - 1 && item.right <= m.cardRight + 1, `${label}: hero item clipped (${item.id}: ${item.left}..${item.right} vs ${m.cardLeft}..${m.cardRight})`);
+    }
+  };
+
+  for (const lang of ['en', 'zh-CN', 'zh-TW']) {
+    for (const vp of [{ width: 900, height: 800, tag: '312px-inline' }, { width: 294, height: 640, tag: '270px-inline' }]) {
+      const p = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
+      p.on('pageerror', e => errors.push(e.message));
+      await p.goto(`${base}/inline?lang=${lang}${vp.width < 400 ? '&narrow=1' : ''}`);
+      const s = p.locator('#ag-pulse-status-bar');
+      await s.waitFor();
+      await s.locator('[data-card=context]').click();
+      await s.locator('#context-bloat-pill').waitFor({ state: 'visible' });
+      await s.locator('#context-compaction-pill').waitFor({ state: 'visible' });
+      await assertHeroWrap(s.locator('#context-card'), `inline-${vp.tag}-${lang}`);
+      await p.close();
+    }
+
+    prefs = { language: lang, languageGuideDismissed: true, revision: 1 };
+    const panelP = await browser.newPage({ viewport: { width: 320, height: 640 } });
+    panelP.on('pageerror', e => errors.push(e.message));
+    await panelP.goto(base + '/');
+    await panelP.locator('#context-tab').click();
+    await panelP.locator('#context-bloat-pill').waitFor({ state: 'visible' });
+    await panelP.locator('#context-compaction-pill').waitFor({ state: 'visible' });
+    await assertHeroWrap(panelP.locator('#context-card'), `panel-320px-${lang}`);
+    await panelP.close();
+  }
+
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, pageErrors: [] }));
+  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, heroWrapNoOverflow: true, pageErrors: [] }));
 } finally {
   await browser.close();
   server.closeAllConnections?.();
