@@ -191,6 +191,14 @@ function localize(){
     button.setAttribute('aria-pressed',String(speedStyle.style===value));button.dataset.saveFailed=String(failed);
   }
   const hostI18nHint=t('hostUiLocalizationHint');
+  const hostI18nToggle=$('host-i18n-toggle');
+  if(hostI18nToggle){
+    const active=hostUiLocalization.enabled,actionLabel=t(active?'hostUiLocalizationDisableAction':'hostUiLocalizationEnableAction');
+    hostI18nToggle.setAttribute('aria-pressed',String(active));
+    hostI18nToggle.setAttribute('aria-label',actionLabel);
+    hostI18nToggle.title=hostUiLocalization.error?`${actionLabel} · ${t('hostUiLocalizationSaveFailed')}`:`${actionLabel} · ${hostI18nHint}`;
+    hostI18nToggle.dataset.saveFailed=String(hostUiLocalization.error);
+  }
   const hostI18nLabel=$('host-i18n-label');
   if(hostI18nLabel)hostI18nLabel.title=hostI18nHint;
   for(const button of document.querySelectorAll('[data-host-i18n-choice]')){
@@ -1591,6 +1599,7 @@ $('open-panel-activity')?.addEventListener('click',()=>showPanelView('activity')
 $('open-panel-models')?.addEventListener('click',()=>showPanelView('models'));
 languagePicker=language.mountLanguagePicker({button:$('language-toggle'),parent:document.body,choose:value=>preferences.choose(value)});
 for(const button of document.querySelectorAll('[data-speed-style-choice]'))button.addEventListener('click',()=>void speedStyle.choose(button.dataset.speedStyleChoice));
+$('host-i18n-toggle')?.addEventListener('click',()=>void hostUiLocalization.choose(!hostUiLocalization.enabled));
 for(const button of document.querySelectorAll('[data-host-i18n-choice]'))button.addEventListener('click',()=>void hostUiLocalization.choose(button.dataset.hostI18nChoice==='true'));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 window.addEventListener('pagehide',()=>{preferences.dispose();speedStyle.dispose();hostUiLocalization.dispose();usageScope.dispose();usageDashboard?.dispose();languagePicker.close(false);});

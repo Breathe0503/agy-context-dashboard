@@ -509,6 +509,155 @@ test('lossless WeakMap hot toggle restores 100% original English DOM, leaves zer
   assert.equal(afterOff.textContent, 'Plugins');
 });
 
+test('Antigravity 2.34.0 Settings modal, Model selector & Thinking effort popover translate accurately and restore losslessly', () => {
+  const dom = createTestDom();
+  const make = (tag, attrs = {}, text = '') => {
+    const el = dom.doc.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    if (text) el.textContent = text;
+    return el;
+  };
+
+  // Composer trigger must remain untouched so inline widget model detection never breaks
+  const trigger = make('button', { 'data-testid': 'model-selector-trigger', 'aria-label': 'Select model, current: Gemini 4 Hydrogen Extra High' }, 'Gemini 4 Hydrogen Extra High');
+
+  // Standalone UI button "New" vs prose "Low/Medium/High/Notice"
+  const newBtn = make('button', {}, 'New');
+  const proseNotice = make('span', {}, 'Notice');
+  const proseMedium = make('span', {}, 'Medium');
+
+  // Model selector panel + nested Thinking effort menu
+  const modelPanel = make('div', { 'data-testid': 'model-selector-panel' });
+  const modelHeader = make('div', { 'data-testid': 'model-selector-header' }, 'Model');
+  const modelName = make('span', { 'data-testid': 'model-selector-effort-group', 'data-model-base': 'Gemini 4 Hydrogen' }, 'Gemini 4 Hydrogen');
+  const modelEffort = make('span', { class: 'opacity-70' }, 'Extra High');
+  const newBadge = make('div', { class: 'rounded-full bg-secondary' });
+  const newBadgeText = make('span', {}, 'New');
+  newBadge.append(newBadgeText);
+  const orchRow = make('div', { 'data-testid': 'model-selector-orchestrator' });
+  const orchLabel = make('span', {}, 'Orchestrator');
+  const orchModel = make('span', { 'data-testid': 'model-selector-orchestrator-model' }, 'Gemini 4 Neon Extra High');
+  orchRow.append(orchLabel, orchModel);
+  const noticeItem = make('div', { 'data-testid': 'model-selector-item' });
+  const noticeBadge = make('span', {}, 'Notice');
+  const unavailItem = make('div', { 'data-testid': 'model-selector-item' });
+  const unavailBadge = make('span', {}, 'Unavailable');
+  const viewUsage = make('button', { 'data-testid': 'model-selector-item' }, 'View Usage');
+  noticeItem.append(noticeBadge);
+  unavailItem.append(unavailBadge);
+  modelPanel.append(modelHeader, modelName, modelEffort, newBadge, orchRow, noticeItem, unavailItem, viewUsage);
+
+  const effortSubmenu = make('div', { role: 'menu' });
+  const effortTitle = make('div', {}, 'Thinking effort');
+  const optLow = make('span', { 'data-testid': 'model-selector-effort-option', 'data-effort': 'low' }, 'Low');
+  const optMed = make('span', { 'data-testid': 'model-selector-effort-option', 'data-effort': 'medium' }, 'Medium');
+  const optHigh = make('span', { 'data-testid': 'model-selector-effort-option', 'data-effort': 'high' }, 'High');
+  effortSubmenu.append(effortTitle, optLow, optMed, optHigh);
+
+  // Settings modal sidebar + general body + shortcuts + account
+  const settingsSidebar = make('div', { 'data-testid': 'settings-sidebar' });
+  const navGeneral = make('button', { 'data-testid': 'settings-nav-item-General' }, 'General');
+  const navApp = make('button', { 'data-testid': 'settings-nav-item-App' }, 'Application');
+  const navShortcuts = make('button', { 'data-testid': 'settings-nav-item-Shortcuts' }, 'Shortcuts');
+  const navModels = make('button', { 'data-testid': 'settings-nav-item-Models' }, 'Models');
+  const navBrowser = make('button', { 'data-testid': 'settings-nav-item-Browser' }, 'Browser');
+  const navNotInProj = make('h2', {}, 'Not in Project');
+  const navFeedback = make('button', { 'data-testid': 'settings-nav-item-Provide Feedback' }, 'Give Feedback');
+  const userProj = make('button', { 'data-testid': 'settings-nav-item-antigrative-dashboard' }, 'antigrative-dashboard');
+  const collideProj = make('button', { 'data-testid': 'settings-nav-item-Review' }, 'Review');
+  const accBtn = make('button', { 'data-testid': 'settings-nav-item-Account' }, 'Hari Shiva');
+  settingsSidebar.append(navGeneral, navApp, navShortcuts, navModels, navBrowser, navNotInProj, navFeedback, userProj, collideProj, accBtn);
+
+  const settingsBody = make('div', { class: 'settings-body' });
+  const desc = make('p', {}, 'Configure agent execution, queued message delivery, and permissions.');
+  const layoutH = make('h2', {}, 'Interface Layout');
+  const kwTitle = make('div', {}, 'Knowledge Work');
+  const seTitle = make('div', {}, 'Software Engineering');
+  const thisComp = make('div', {}, 'This computer');
+  const queued = make('div', {}, 'Queued messages');
+  const sendImm = make('button', {}, 'Send Immediately');
+  const learnWrap = make('p', {});
+  const learnSpan = make('span', {}, 'Configure what the agent can do in local and remote conversations. ');
+  const learnLink = make('a', {}, 'Learn more');
+  learnWrap.append(learnSpan, learnLink, '.');
+  const longDeleteDesc = make('p', {}, 'Permanently delete your remote conversations, projects, scheduled tasks, connected plugins and settings. Data in the desktop app and your Google account are not affected.');
+  const breakdownPattern = make('button', {}, 'Show 58 breakdowns');
+  const shortcutAria = make('button', { 'aria-label': 'Shortcut ⌘, for Open Settings' }, '');
+  const splitMultiText = make('div', {});
+  splitMultiText.append('Work locally ', 'on main');
+  settingsBody.append(desc, layoutH, kwTitle, seTitle, thisComp, queued, sendImm, learnWrap, longDeleteDesc, breakdownPattern, shortcutAria, splitMultiText);
+
+  dom.doc.body.append(trigger, newBtn, proseNotice, proseMedium, modelPanel, effortSubmenu, settingsSidebar, settingsBody);
+
+  const ctrl = createHostI18n({
+    dictionary: builtinDict,
+    document: dom.doc,
+    window: dom.win,
+    MutationObserver: dom.MutationObserver,
+    NodeFilter: dom.NodeFilter,
+    enabled: true,
+  });
+
+  // Model selector trigger and model names untouched; menu chrome & efforts translated
+  assert.equal(trigger.textContent, 'Gemini 4 Hydrogen Extra High');
+  assert.equal(modelName.textContent, 'Gemini 4 Hydrogen');
+  assert.equal(orchModel.textContent, 'Gemini 4 Neon Extra High');
+  assert.equal(modelHeader.textContent, '模型');
+  assert.equal(modelEffort.textContent, '超高');
+  assert.equal(newBadgeText.textContent, '最新');
+  assert.equal(orchLabel.textContent, '编排器');
+  assert.equal(noticeBadge.textContent, '提示');
+  assert.equal(unavailBadge.textContent, '不可用');
+  assert.equal(viewUsage.textContent, '查看用量');
+  assert.equal(effortTitle.textContent, '推理强度');
+  assert.equal(optLow.textContent, '低');
+  assert.equal(optMed.textContent, '中');
+  assert.equal(optHigh.textContent, '高');
+
+  // Unscoped prose ambiguous words untouched; standalone button "New" stays "新建"
+  assert.equal(newBtn.textContent, '新建');
+  assert.equal(proseNotice.textContent, 'Notice');
+  assert.equal(proseMedium.textContent, 'Medium');
+
+  // Settings sidebar + user project isolation + Settings body + patterns + split text
+  assert.equal(navApp.textContent, '应用设置');
+  assert.equal(navShortcuts.textContent, '快捷键');
+  assert.equal(navModels.textContent, '模型配置');
+  assert.equal(navBrowser.textContent, '浏览器');
+  assert.equal(navNotInProj.textContent, '未归属项目');
+  assert.equal(navFeedback.textContent, '提供反馈');
+  assert.equal(userProj.textContent, 'antigrative-dashboard');
+  assert.equal(collideProj.textContent, 'Review', 'User project matching a dictionary word stays untouched');
+  assert.equal(accBtn.textContent, 'Hari Shiva', 'Account profile info stays untouched');
+  assert.equal(desc.textContent, '配置智能体执行策略、排队消息发送规则及权限。');
+  assert.equal(layoutH.textContent, '界面布局');
+  assert.equal(kwTitle.textContent, '知识工作');
+  assert.equal(seTitle.textContent, '软件工程');
+  assert.equal(thisComp.textContent, '此电脑');
+  assert.equal(queued.textContent, '排队消息');
+  assert.equal(sendImm.textContent, '立即发送');
+  assert.equal(learnLink.textContent, '了解更多');
+  assert.equal(learnWrap.childNodes[2].nodeValue, '。');
+  assert.notEqual(longDeleteDesc.textContent, 'Permanently delete your remote conversations, projects, scheduled tasks, connected plugins and settings. Data in the desktop app and your Google account are not affected.');
+  assert.equal(breakdownPattern.textContent, '显示 58 个明细');
+  assert.equal(shortcutAria.getAttribute('aria-label'), '快捷键 ⌘,：打开设置');
+  assert.equal(splitMultiText.textContent, '在 main 上本地工作');
+
+  // Lossless toggle OFF restores all nodes cleanly
+  ctrl.setEnabled(false);
+  assert.equal(modelHeader.textContent, 'Model');
+  assert.equal(modelEffort.textContent, 'Extra High');
+  assert.equal(newBadgeText.textContent, 'New');
+  assert.equal(newBtn.textContent, 'New');
+  assert.equal(optLow.textContent, 'Low');
+  assert.equal(navApp.textContent, 'Application');
+  assert.equal(learnWrap.childNodes[2].nodeValue, '.');
+  assert.equal(splitMultiText.textContent, 'Work locally on main');
+  assert.equal(shortcutAria.getAttribute('aria-label'), 'Shortcut ⌘, for Open Settings');
+  assert.deepEqual(ctrl.stats(), { enabled: false, translatedTextNodes: 0, translatedAttributes: 0 });
+  ctrl.dispose();
+});
+
 test('hostUiLocalization trilingual copy, validation, persistence, and runtime bridge work end-to-end', async t => {
   // 1. Trilingual copy check across en / zh-CN / zh-TW
   for (const locale of ['en', 'zh-CN', 'zh-TW']) {

@@ -118,7 +118,7 @@ try{
   const size=()=>page.locator('.widget').evaluate(e=>({width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,overflow:e.scrollWidth>e.clientWidth}));const initial=await size();assert.equal(initial.overflow,false);
   const header=await page.locator('.widget-header').evaluate(element=>{
    const rect=element.getBoundingClientRect();
-   const parts=[...element.querySelectorAll('.brand>.icon,#panel-name,#connection-dot,#panel-version,#language-toggle,#quota-group,#refresh-button')]
+   const parts=[...element.querySelectorAll('.brand>.icon,#panel-name,#connection-dot,#panel-version,#host-i18n-toggle,#language-toggle,#quota-group,#refresh-button')]
     .filter(node=>getComputedStyle(node).display!=='none'&&!node.hidden).map(node=>{
      const box=node.getBoundingClientRect();return {name:node.id||'brand-icon',left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width};
     });
@@ -177,6 +177,14 @@ try{
  assert.equal(await page.locator('#auto-relaunch-toggle').isChecked(),true);
  await page.locator('#language-toggle').click();await page.locator('[data-language-menu] [data-language="zh-CN"]').click();
  await page.locator('#relaunch-debug-button').filter({hasText:'一键重启并恢复状态栏'}).waitFor();
+ assert.equal(await page.locator('#host-i18n-toggle').getAttribute('aria-pressed'),'false');
+ await page.locator('#host-i18n-toggle').click();
+ await page.waitForFunction(async()=>{const p=await(await fetch('/api/preferences')).json();return p.hostUiLocalization===true;});
+ assert.equal(await page.locator('#host-i18n-toggle').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.locator('#host-i18n-on').getAttribute('aria-pressed'),'true');
+ await page.locator('#host-i18n-toggle').click();
+ await page.waitForFunction(async()=>{const p=await(await fetch('/api/preferences')).json();return p.hostUiLocalization===false;});
+ assert.equal(await page.locator('#host-i18n-toggle').getAttribute('aria-pressed'),'false');
  await page.locator('#relaunch-debug-button').click();
  await page.waitForFunction(()=>document.getElementById('relaunch-debug-status')?.textContent.includes('重启'));
  assert.equal(relaunchCalls.length,1);

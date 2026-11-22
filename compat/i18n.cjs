@@ -56,7 +56,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       orchestrationOverhead:'Orchestration',workerExecution:'Workers',cacheMissSurge:'{n} cache-miss surge ({tokens})',
       contextBreakdown:'Context & tool breakdown',breakdownUser:'User',breakdownReply:'Reply',breakdownThinking:'Thinking',breakdownTools:'Tool results',breakdownToolCalls:'Tool args',breakdownSystem:'System',
       topTools:'Heavy tool calls',bloatBadge:'{n} bloat',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'Single payload >= 20K (critical >= 50K)',
-      hostUiLocalization:'Host UI Chinese',hostUiLocalizationHint:'Translate Antigravity desktop UI labels into Simplified Chinese (restart-free)',hostUiLocalizationOn:'On',hostUiLocalizationOff:'Off',hostUiLocalizationSaveFailed:'Host localization setting could not be saved. Try again.',
+      hostUiLocalization:'Host UI Chinese',hostUiLocalizationHint:'Translate Antigravity desktop UI labels into Simplified Chinese (restart-free)',hostUiLocalizationOn:'On',hostUiLocalizationOff:'Off',hostUiLocalizationSaveFailed:'Host localization setting could not be saved. Try again.',hostUiLocalizationEnableAction:'Enable Host UI Chinese',hostUiLocalizationDisableAction:'Disable Host UI Chinese',
     },
     'zh-CN':{
       collectionBackgroundFailed:'后台暂时无法完成，稍后会自动重试。',collectionProcessing:'正在补全统计',collectionProcessingReason:'后台处理中，可继续使用。',collectionProgress:'查看进度',collectionProgressCounts:'已处理 {steps} 个步骤 · {requests} 条请求记录',collectionQueued:'等待处理',collectionSteps:'读取步骤',collectionGenerators:'读取请求记录',collectionReducing:'计算统计',collectionPublishing:'保存已校验统计',
@@ -110,7 +110,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       orchestrationOverhead:'协调开销',workerExecution:'子代理执行',cacheMissSurge:'{n} 次缓存未命中峰值（{tokens}）',
       contextBreakdown:'上下文与工具构成',breakdownUser:'用户',breakdownReply:'回复',breakdownThinking:'思考',breakdownTools:'工具返回',breakdownToolCalls:'工具入参',breakdownSystem:'系统',
       topTools:'高占用工具',bloatBadge:'{n} 项膨胀',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'单次负载 ≥ 20K（严重 ≥ 50K）',
-      hostUiLocalization:'宿主界面汉化',hostUiLocalizationHint:'将 Antigravity 宿主界面菜单与按钮汉化为简体中文（热切换无需重启）',hostUiLocalizationOn:'开启',hostUiLocalizationOff:'关闭',hostUiLocalizationSaveFailed:'宿主汉化设置暂时无法保存，请重试。',
+      hostUiLocalization:'宿主界面汉化',hostUiLocalizationHint:'将 Antigravity 宿主界面菜单与按钮汉化为简体中文（热切换无需重启）',hostUiLocalizationOn:'开启',hostUiLocalizationOff:'关闭',hostUiLocalizationSaveFailed:'宿主汉化设置暂时无法保存，请重试。',hostUiLocalizationEnableAction:'开启宿主界面汉化',hostUiLocalizationDisableAction:'关闭宿主界面汉化',
     },
     'zh-TW':{
       collectionBackgroundFailed:'背景暫時無法完成，稍後會自動重試。',collectionProcessing:'正在補全統計',collectionProcessingReason:'背景處理中，可繼續使用。',collectionProgress:'查看進度',collectionProgressCounts:'已處理 {steps} 個步驟 · {requests} 筆請求記錄',collectionQueued:'等待處理',collectionSteps:'讀取步驟',collectionGenerators:'讀取請求記錄',collectionReducing:'計算統計',collectionPublishing:'儲存已驗證統計',
@@ -164,7 +164,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       orchestrationOverhead:'協調開銷',workerExecution:'子代理執行',cacheMissSurge:'{n} 次快取未命中峰值（{tokens}）',
       contextBreakdown:'上下文與工具組成',breakdownUser:'使用者',breakdownReply:'回覆',breakdownThinking:'思考',breakdownTools:'工具回傳',breakdownToolCalls:'工具參數',breakdownSystem:'系統',
       topTools:'高佔用工具',bloatBadge:'{n} 項膨脹',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'單次負載 ≥ 20K（嚴重 ≥ 50K）',
-      hostUiLocalization:'宿主介面漢化',hostUiLocalizationHint:'將 Antigravity 宿主介面選單與按鈕翻譯為簡體中文（熱切換無需重啟）',hostUiLocalizationOn:'開啟',hostUiLocalizationOff:'關閉',hostUiLocalizationSaveFailed:'宿主漢化設定暫時無法儲存，請重試。',
+      hostUiLocalization:'宿主介面漢化',hostUiLocalizationHint:'將 Antigravity 宿主介面選單與按鈕翻譯為簡體中文（熱切換無需重啟）',hostUiLocalizationOn:'開啟',hostUiLocalizationOff:'關閉',hostUiLocalizationSaveFailed:'宿主漢化設定暫時無法儲存，請重試。',hostUiLocalizationEnableAction:'開啟宿主介面漢化',hostUiLocalizationDisableAction:'關閉宿主介面漢化',
     },
   };
   let language=initialLanguage==='zh-CN'||initialLanguage==='zh-TW'?initialLanguage:'en';
