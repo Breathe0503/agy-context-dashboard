@@ -39,6 +39,8 @@ const schema={trajectory:{cascadeId:scalar,trajectoryId:scalar,steps,generatorMe
  generatorMetadata:generators,generatorMetadatas:generators,status:scalar,numTotalSteps:scalar,numTotalGeneratorMetadata:scalar,
  trajectorySummaries:summaries};
 const DROP=Symbol('discard');
+// Copy retained slices out of large HTTP chunks so V8 does not pin whole chunks.
+const detachString=value=>typeof value==='string'&&value.length>=13?(value.isWellFormed()?Buffer.from(value,'utf8').toString('utf8'):Buffer.from(value,'utf16le').toString('utf16le')):value;
 export class TrajectoryJson {
  constructor({maxRetainedBytes=8*1024*1024,projection=schema,onRecord=null,recordKeys=null}={}){this.maxRetainedBytes=maxRetainedBytes;this.projection=projection;this.onRecord=onRecord;this.recordCounts={steps:0,generatorMetadata:0};this.streamedKinds=new Set();this.recordKeys=recordKeys;this.emitted=0;if(recordKeys&&(!Array.isArray(recordKeys)||recordKeys.length>8||recordKeys.some(k=>typeof k!=='string'||!Object.hasOwn(projection,k))))throw Error('Invalid streamed record keys');}
  stack=[];token=null;result=undefined;done=false;retained=0;
@@ -116,14 +118,14 @@ export class TrajectoryJson {
  }
  endString(){
   const t=this.token;this.token=null;
-  if(t.key){const f=this.stack.at(-1);if(t.sizeAcc){t.sizeAcc.ascii+=3;f.expect='colon';return;}f.key=t.overflow?null:f.node===summaries?normalizeConversationId(t.buffer):t.buffer;f.expect='colon';return;}
+  if(t.key){const f=this.stack.at(-1);if(t.sizeAcc){t.sizeAcc.ascii+=3;f.expect='colon';return;}const raw=t.overflow?null:f.node===summaries?normalizeConversationId(t.buffer):t.buffer;const keep=raw&&f.out&&(f.node===summaries||(typeof f.node==='object'&&Object.hasOwn(f.node,raw)));f.key=keep?detachString(raw):raw;f.expect='colon';return;}
   let value=DROP;
   if(t.node===nonempty)value=t.any?'1':'';
-  else if(t.node==='textEstimate')value={tokens:Math.ceil(t.ascii/4+t.other/1.5),prefix:t.buffer};
-  else if(t.node===tokenSize){if(t.sizeAcc)t.sizeAcc.ascii+=2;else value=Math.ceil(t.ascii/4+t.other/1.5);}
+  else if(t.node==='textEstimate')value={tokens:Math.ceil(t.ascii/4+t.other/1.5),prefix:detachString(t.buffer)};
+  else if(t.node==='tokenSize'){if(t.sizeAcc)t.sizeAcc.ascii+=2;else value=Math.ceil(t.ascii/4+t.other/1.5);}
   else if(t.node===presence)value=t.any;
-  else if(t.node===guid){const id=!t.overflow&&normalizeConversationId(t.buffer);if(id){value=id;this.charge(value.length*2);}}
-  else if(stringAllowed(t.node)){value=t.buffer;this.charge(value.length*2);}
+  else if(t.node===guid){const id=!t.overflow&&normalizeConversationId(t.buffer);if(id){value=detachString(id);this.charge(value.length*2);}}
+  else if(stringAllowed(t.node)){value=detachString(t.buffer);this.charge(value.length*2);}
   this.finishValue(value);
  }
  literalEnd(){
