@@ -373,7 +373,7 @@ Antigrative Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 An
 
 ---
 
-> **社区接续维护声明：** 原上游仓库 `YOU-SHOULD-KNOW-ME/antigrative-dashboard` 已不可访问（404），本仓库已更名为 **`wycocoyu/agy-context-dashboard`** 并在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线接续维护与持续更新，完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
+> **Fork 与独立演进说明：** 本仓库 **`wycocoyu/agy-context-dashboard`** Fork 自原作者仓库 [`ATtacK030130/antigrative-dashboard`](https://github.com/ATtacK030130/antigrative-dashboard)，目前已在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线起与原作者分开设计、独立演进，同时完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
 >
 > **配套侧边栏插件推荐：** 如果你还希望在 Antigravity 左侧会话栏按需求聚合会话、使用类似收件箱的待办确认工作流，欢迎一并体验 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)。它采用同样的无侵入 Sidecar + CDP 架构，与本仪表盘完全共存、互不干扰。
 
