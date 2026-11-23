@@ -319,6 +319,8 @@ test('font sync, scope switching and quota window reference render end-to-end in
       stripTotal: sr.getElementById('cache-total').textContent,
       coverage: sr.getElementById('cache-coverage').textContent,
       coverageUnit: sr.getElementById('cache-coverage-unit').textContent,
+      ratePill: sr.getElementById('cache-detail-rate').parentElement.textContent,
+      rateText: sr.getElementById('cache-detail-rate').textContent,
       usageUnits: [...sr.querySelectorAll('.usage-unit')].map(n => n.textContent),
       ideMarkupOk: host.querySelector('#cache-read-cell') !== null,
       cells,
@@ -327,6 +329,8 @@ test('font sync, scope switching and quota window reference render end-to-end in
   assert.equal(cacheCard.stripTotal, '61.8M tok', 'compact bottom strip keeps tok');
   assert.equal(cacheCard.coverage, '61,795,796');
   assert.equal(cacheCard.coverageUnit, 'toks');
+  assert.match(cacheCard.rateText, /^\d+\.\d%$/);
+  assert.equal(cacheCard.ratePill, '缓存命中率：' + cacheCard.rateText);
   assert.deepEqual(cacheCard.usageUnits, ['toks', 'toks']);
   assert.equal(cacheCard.ideMarkupOk, true, 'ide/surface setMarkup should accept updated cache-card markup');
   assert.deepEqual(cacheCard.cells.map(c => [c.val, c.unit, c.title, c.noClip]), [

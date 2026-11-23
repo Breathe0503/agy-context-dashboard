@@ -68,6 +68,8 @@ try{
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['Speed','Cache','Context']);
   assert.ok(await view.locator('#strip-tps').evaluate(e=>parseFloat(getComputedStyle(e).fontSize))>=18);
   assert.equal(await view.locator('#strip-cache').textContent(),'75.0%');assert.equal(await view.locator('#strip-context').textContent(),'20%');
+  assert.equal(await view.locator('#cache-rate').textContent(),'75.0%');
+  assert.equal(await view.locator('#cache-card .rate-pill').textContent(),'Cache hit rate:75.0%');
   assert.equal(await view.locator('#five-balance').textContent(),'80.0%');assert.equal(await view.locator('#week-balance').textContent(),'75.0%');
   const frame=()=>view.locator('.widget').evaluate(e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};});
   const initialFrame=await frame();assert.equal(await view.locator('#speed-card').isVisible(),true,'Default view shows statistics, not an empty hover prompt');
@@ -91,6 +93,7 @@ try{
   assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
   assert.equal(await view.locator('#strip-context').textContent(),'20%');
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速度','缓存','上下文']);
+  assert.equal(await view.locator('#cache-card .rate-pill').textContent(),'缓存命中率：75.0%');
   assert.deepEqual(await frame(),initialFrame,'Language switches must not resize the frame');
   await view.locator('#language-toggle').click();await page.keyboard.press('End');await page.keyboard.press('Enter');
   await view.locator('#language-toggle').filter({hasText:'繁'}).waitFor();
@@ -128,7 +131,7 @@ try{
   for(let i=1;i<header.parts.length;i++)assert.ok(header.parts[i-1].right<=header.parts[i].left+.5,`${width}px header controls must not overlap`);
   assert.equal(await page.locator('#panel-version').isVisible(),width===440,'Badge gives its space back to controls in narrow panels');
   assert.equal(await page.locator('#panel-name').getAttribute('title'),'Antigrative Dashboard v'+releaseVersion,'Hidden badge remains discoverable through the title');
-  for(const name of ['speed','cache','context']){await page.locator(`[data-card=${name}]`).click();assert.deepEqual(await size(),initial);}
+  for(const name of ['speed','cache','context']){await page.locator(`[data-card=${name}]`).click();assert.deepEqual(await size(),initial);assert.equal(await page.locator(`#${name}-card`).evaluate(e=>e.scrollWidth<=e.clientWidth+1),true,`${width}px ${name}-card fits without horizontal overflow`);}
   const badgeColor=()=>page.locator('#panel-version').evaluate(node=>getComputedStyle(node).backgroundColor);
   const beforeTheme=await badgeColor();
   await page.evaluate(()=>{const style=document.documentElement.style;style.setProperty('--background','#f7f0e4');style.setProperty('--foreground','#30241d');style.setProperty('--primary','#985322');});
