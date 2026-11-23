@@ -7,7 +7,7 @@
 DSH-style Antigravity (`agy`) context window, token throughput, cache hit, and quota dashboard in the model selector row. Hover over context for five-hour and weekly quotas too.<br>
 Keep the summary visible. Hover for the details.
 
-[![Version 0.9.7](https://img.shields.io/badge/version-0.9.7-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 0.9.8](https://img.shields.io/badge/version-0.9.8-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
@@ -24,7 +24,7 @@ Keep the summary visible. Hover for the details.
 > - **Dual recovery in `v0.9.5+` (shortcut self-healing + default-on `autoRelaunchDebug`)**: On Windows (`.lnk`) and Linux (`.desktop`), the dashboard syncs debug flags into user-owned desktop shortcuts automatically; on macOS Dock launches and after in-app `quitAndInstall()` restarts without flags, **`autoRelaunchDebug` stays enabled by default (opt-out)** and triggers only during the **first 20s of sidecar startup** (max 1 auto-relaunch per sidecar, guarded by a **60s sliding window allowing up to 2 distinct-PID relaunches at least 5s apart** plus same-PID dedupe).
 > - **Zero-relaunch launcher & opt-out control**: Use the generated debug launcher (`manage.py install --with-launcher`: `~/Applications/Antigravity (Debug).app` on macOS, `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` on Windows, `~/.local/share/applications/antigravity-pulse-debug.desktop` on Linux) to start with zero extra restarts, or uncheck **Auto-relaunch when debug port is missing** in the official Side Panel (**+ → Extensions → Antigrative Dashboard**) to persist `autoRelaunchDebug: false`.
 
-**v0.9.7:** Add **non-intrusive update availability badges** ([`#32`](https://github.com/wycocoyu/agy-context-dashboard/issues/32)): passive release checks (boot + every `6h`) light a green dot on the inline context chip (visible in icons-only mode) with the target version in the tooltip, and a green `v{latest}` badge beside **Check for updates** in the dialog — hidden automatically when already current, so checking no longer interrupts the conversation; release notes render as a bulleted list with a "Full notes ↗" link, and the GitHub repo SVG now renders under IDE Trusted Types. Retains `v0.9.6` `2.34.0+` daemon credential compatibility, `v0.9.5` default-on `autoRelaunchDebug` recovery, `v0.9.2` debug launchers, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS `language_server.native` discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.7) · [Changelog](CHANGELOG.md).
+**v0.9.8:** Introduce the **context composition, session audit & global insights workspace** ([`#16`](https://github.com/wycocoyu/agy-context-dashboard/issues/16), [`#24`](https://github.com/wycocoyu/agy-context-dashboard/issues/24), [`#29`](https://github.com/wycocoyu/agy-context-dashboard/issues/29), [`#34`](https://github.com/wycocoyu/agy-context-dashboard/issues/34), [`#43`](https://github.com/wycocoyu/agy-context-dashboard/issues/43), [`#44`](https://github.com/wycocoyu/agy-context-dashboard/issues/44)): place **Daily/Weekly Activity** and **Usage by Model** first alongside **Session** and **Insights**, add dual-mode host context breakdown, compaction/checkpoint trends, Session Audit (`Files`, `Commands`, `Steps`), public-pricing USD cost estimates, `2.34.0` multi-agent quota rollups + `cacheMissSurges`, opt-in lossless host Simplified Chinese UI, a per-model **Cache hit** column, explicit localized `Cache hit rate:` / `缓存命中率：` hero pills, zero false partial/WAL-retry usage warnings, and 192 MiB ledger heap protection. Retains `v0.9.7` update availability badges, `v0.9.6` `2.34.0+` daemon credential compatibility, `v0.9.5` default-on `autoRelaunchDebug` recovery, `v0.9.2` debug launchers, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS `language_server.native` discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.8) · [Changelog](CHANGELOG.md).
 
 ## Preview
 
@@ -76,7 +76,7 @@ Keep the summary visible. Hover for the details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-0.9.7.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-0.9.8.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
