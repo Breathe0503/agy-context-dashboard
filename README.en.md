@@ -369,7 +369,7 @@ Open **context details → bottom-right Check for updates**. The App-only update
 
 ---
 
-> **Community Continuation Fork:** This repository (**`agy-context-dashboard`**) continues maintaining **Antigrative Dashboard** (`antigravity-pulse`) under the original [MIT License](LICENSE) starting from `v0.8.12`, after the original upstream repository (`YOU-SHOULD-KNOW-ME/antigrative-dashboard`) went offline (404). Existing user settings, `history-v1`, `usage-v1`, and IDE storage identities remain unchanged.
+> **Fork & Independent Design Notice:** This repository (**`wycocoyu/agy-context-dashboard`**) is a fork of the original author's repository [`ATtacK030130/antigrative-dashboard`](https://github.com/ATtacK030130/antigrative-dashboard). Starting from the `v0.8.12` baseline under the original [MIT License](LICENSE), it has diverged in design and is now developed independently from the upstream repository, while preserving original copyright attribution as well as compatibility with existing user settings, `history-v1`, `usage-v1`, and IDE storage paths.
 >
 > **Companion Sidebar Plugin:** If you also want multi-select `Group By` (such as `Status + Requirement`) and a decoupled **Inbox / Follow-up / Snooze / 24h Auto-retire** workflow in Antigravity's left conversation sidebar, check out [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar). It uses the same non-invasive Sidecar + CDP architecture and coexists cleanly alongside this dashboard.
 
