@@ -130,7 +130,7 @@ export function usageRecords(raw,conversationId,{maxRows=Infinity,maxBytes=Infin
     const identity=u.responseId?`response:${u.apiProvider||''}:${u.responseId}`:u.messageId?`message:${u.apiProvider||''}:${u.messageId}`:
       `fallback:${conversationId}:${JSON.stringify(g.stepIndices||[index])}:${at??'undated'}`;
     const row={id:hash(identity),at,model:cleanModel(chat.modelDisplayName||chat.responseModel||u.model||chat.model),
-      uncached,cacheRead:read,cacheWrite:write,output,partial:uncached===null||read===null||write===null||output===null||!cache&&uncached>0,
+      uncached,cacheRead:read,cacheWrite:write,output,partial:uncached===null||read===null||write===null||output===null,
       timeBasis:stamp(chat.chatStartMetadata?.createdAt)!==null?'request-start':at!==null?'planner-created':'unknown'};
     const old=rows.get(row.id);
     if(!old||sum(row)>sum(old)){

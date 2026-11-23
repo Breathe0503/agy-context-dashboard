@@ -376,9 +376,12 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       bindBucket(button,bucket);$('plot').append(button);
     }
     if(!buckets.some(b=>b.total))$('plot').append(node('div','chart-empty',w('所选时段暂无用量记录','No usage recorded in this period','所選時段尚無用量記錄')));
-    $('table-head').replaceChildren(...[w('模型','Model','模型'),w('总 Token','Total tokens','總 Token'),w('未缓存输入','Uncached input','未快取輸入'),w('缓存读取','Cache read','快取讀取'),w('缓存写入','Cache write','快取寫入'),w('输出','Output','輸出')].map(label=>node('th','',label)));
+    $('table-head').replaceChildren(...[w('模型','Model','模型'),w('总 Token','Total tokens','總 Token'),w('未缓存输入','Uncached input','未快取輸入'),w('缓存读取','Cache read','快取讀取'),w('缓存命中率','Cache hit','快取命中率'),w('缓存写入','Cache write','快取寫入'),w('输出','Output','輸出')].map(label=>node('th','',label)));
     $('table-body').replaceChildren();const rangeTotals=totals(buckets[0].from,buckets.at(-1).to,true);
-    chartSummary.replaceChildren(node('strong','',compact(rangeTotals.total)+' Token'),document.createTextNode(' · '+w(`${full(rangeTotals.requests)} 次请求`,`${full(rangeTotals.requests)} requests`,`${full(rangeTotals.requests)} 次請求`)));
+    const rangeInput=Object.values(rangeTotals.models).reduce((n,r)=>n+(r.uncached||0)+(r.cacheRead||0)+(r.cacheWrite||0),0);
+    const rangeRead=Object.values(rangeTotals.models).reduce((n,r)=>n+(r.cacheRead||0),0);
+    const rangeHit=rangeInput>0?` · ${w('缓存命中','Cache hit','快取命中')} ${(rangeRead/rangeInput*100).toFixed(1)}%`:'';
+    chartSummary.replaceChildren(node('strong','',compact(rangeTotals.total)+' Token'),document.createTextNode(' · '+w(`${full(rangeTotals.requests)} 次请求`,`${full(rangeTotals.requests)} requests`,`${full(rangeTotals.requests)} 次請求`)+rangeHit));
     const pools={gemini:{total:0,requests:0},'3p':{total:0,requests:0},local:{total:0,requests:0},other:{total:0,requests:0}};
     for(const [model,r]of Object.entries(rangeTotals.models)){
       const pk=modelPool(model);pools[pk].total+=r.total||0;pools[pk].requests+=r.requests||0;
@@ -395,7 +398,8 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       }));
     }
     for(const [model,r]of Object.entries(rangeTotals.models).sort((a,b)=>b[1].total-a[1].total)){
-      const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead,r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));$('table-body').append(row);
+      const hitInput=(r.uncached||0)+(r.cacheRead||0)+(r.cacheWrite||0),hitCell=hitInput>0?`${((r.cacheRead||0)/hitInput*100).toFixed(1)}%`:'—';
+      const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead].map(n=>node('td','',full(n))),node('td','',hitCell),...[r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));$('table-body').append(row);
     }
     for(const b of view.querySelectorAll('[data-period]'))b.setAttribute('aria-pressed',String(b.dataset.period===period));
     if(pendingScrollChart){pendingScrollChart=false;const wrap=view.querySelector('.chart-wrap');const lastIdx=buckets.findLastIndex(b=>b.total>0);const align=()=>{if(!disposed&&wrap&&wrap.scrollWidth>wrap.clientWidth){wrap.scrollLeft=lastIdx>=Math.floor(buckets.length/2)?Math.max(0,wrap.scrollWidth-wrap.clientWidth):0;}};align();requestAnimationFrame(align);}
@@ -453,7 +457,8 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     text('timezone',value.timeZone+' · '+(value.syncing||value.retryingConversations>0?w('正在同步历史…','Syncing history…','正在同步歷程記錄…'):w('本地统计','Local usage','本機統計')));
     const alerts=[];if(value.unknownRequests)alerts.push(w(`${value.unknownRequests} 次请求日期未知，共 ${compact(value.unknownTokens)} Token`,`${value.unknownRequests} undated requests · ${compact(value.unknownTokens)} tokens`,`${value.unknownRequests} 次請求日期未知，共 ${compact(value.unknownTokens)} Token`));
     const confirmedMissing=value.confirmedMissingConversations??(value.syncing?0:value.missingConversations);
-    if(value.partialRequests||value.unreadableFiles||confirmedMissing>0&&!value.syncing||value.persistenceError)alerts.push(w('部分记录暂不可读取，用量可能不完整','Some records are unavailable; usage may be incomplete','部分記錄暫無法讀取，用量可能不完整'));
+    if(value.unreadableFiles||confirmedMissing>0&&!value.syncing||value.persistenceError)alerts.push(w('部分记录暂不可读取，用量可能不完整','Some records are unavailable; usage may be incomplete','部分記錄暫無法讀取，用量可能不完整'));
+    if(value.partialRequests>0)alerts.push(w(`${full(value.partialRequests)} 次请求缺少部分 Token 字段`,`${full(value.partialRequests)} requests missing a token field`,`${full(value.partialRequests)} 次請求缺少部分 Token 欄位`));
     $('alert').hidden=!alerts.length;text('alert',alerts.join(' · '));
     if(tab==='overview')renderHeat();else renderChart();
   }
