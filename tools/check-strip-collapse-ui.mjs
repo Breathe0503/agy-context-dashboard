@@ -164,6 +164,23 @@ try {
 
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'initial full density');
 
+  // 0. Medium-width main composer (758px, matching real Antigravity with XHigh model)
+  // keeps numbers + cache-hit visible via compact-text instead of premature icons-only.
+  await evalJs(() => { document.querySelector('.composer').style.width = '758px'; });
+  await waitUntil(() => ['full', 'compact-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
+  const medState = await evalJs(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n.shadowRoot;
+    return {
+      density: n.dataset.density,
+      cacheHit: getComputedStyle(sr.getElementById('cache-hit')).display,
+      tps: getComputedStyle(sr.getElementById('tps')).display,
+      span: document.querySelector('[data-testid="model-selector-trigger"] span'),
+    };
+  });
+  assert.notEqual(medState.cacheHit, 'none', 'cache-hit stays visible at 758px');
+  assert.notEqual(medState.tps, 'none', 'tps stays visible at 758px');
+
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
   await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'icons', 'narrow main composer drops to icons');
