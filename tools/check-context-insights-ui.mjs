@@ -466,16 +466,24 @@ try {
   await page.waitForFunction(() => Boolean(document.querySelector('#usage-embed > div')?.shadowRoot?.querySelector('#heat button')));
   const activityCheck = await page.evaluate(() => {
     const sr = document.querySelector('#usage-embed > div').shadowRoot;
+    const wrap = sr.querySelector('.heat-wrap');
+    const firstBtn = sr.querySelector('#heat button');
+    const r = firstBtn?.getBoundingClientRect();
     return {
       overviewHidden: sr.getElementById('overview').hidden,
       detailsHidden: sr.getElementById('details').hidden,
       heatCount: sr.querySelectorAll('#heat button').length,
+      heatOverflow: wrap ? wrap.scrollWidth > wrap.clientWidth : true,
+      cellW: r ? r.width : 0,
+      cellDiff: r ? Math.abs(r.width - r.height) : 99,
       tabsHidden: sr.querySelector('.tabs-bar')?.dataset.hideTabs,
     };
   });
   assert.equal(activityCheck.overviewHidden, false);
   assert.equal(activityCheck.detailsHidden, true);
-  assert.ok(activityCheck.heatCount >= 365);
+  assert.ok(activityCheck.heatCount >= 84 && activityCheck.heatCount <= 140 && activityCheck.heatCount % 7 === 0, `Expected responsive 12-20 week window in embedded sidebar, got ${activityCheck.heatCount}`);
+  assert.equal(activityCheck.heatOverflow, false, 'Embedded Token activity heatmap must not overflow horizontally');
+  assert.ok(activityCheck.cellW >= 12 && activityCheck.cellDiff <= 1.5, `Expected crisp square cells, got ${JSON.stringify(activityCheck)}`);
   assert.equal(activityCheck.tabsHidden, 'true');
 
   // Clicking "View breakdown" inside embedded Activity switches top-level panel tab to By model

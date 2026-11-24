@@ -13,7 +13,7 @@
 [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#语言与缓存)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
-[看看效果](#看看效果) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-状态栏) · [开始安装](#安装) · [启用与停用](#可插拔) · [配套侧边栏](#配套侧边栏) · [宿主汉化与致谢](#宿主界面汉化与开源致谢) · [兼容性](#兼容性) · [常见问题](#常见问题) · [English](README.en.md)
+[看看效果](#看看效果) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-状态栏) · [开始安装](#安装) · [启用与停用](#可插拔) · [宿主汉化与致谢](#宿主界面汉化与开源致谢) · [兼容性](#兼容性) · [常见问题](#常见问题) · [English](README.en.md)
 
 </div>
 
@@ -51,7 +51,7 @@
 </table>
 
 <table>
-<tr><th width="50%">配套侧边栏 · 当前会话（四视图入口）</th><th width="50%">配套侧边栏 · 全局洞察（跨会话总览）</th></tr>
+<tr><th width="50%">右侧边栏 · 当前会话（四视图入口）</th><th width="50%">右侧边栏 · 全局洞察（跨会话总览）</th></tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/assets/panel-session-zh.png?v=0.9.8" width="100%" alt="侧边栏四标签页与当前会话 Token 用量、预估费用及缓存命中率"></td>
 <td width="50%" valign="top"><img src="docs/assets/panel-insights-zh.png?v=0.9.8" width="100%" alt="全局洞察视图：Credits 额度、总消耗、预估费用、近 7 天柱状图与热力图"></td>
@@ -322,28 +322,6 @@ Antigravity 的 `inputTokens` 是未缓存输入。缓存命中率 = 缓存读�
 
 桌面路径：`~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/data/usage-v1/`（宿主可覆盖数据目录）。IDE 路径：其用户目录下的 `User/globalStorage/you-should-know-me.antigrative-dashboard-ide/usage-v1/`。清理前先停用插件；再次启用并打开用量窗口后，仍可读取的对话可以重新导入。`history-v1` 继续单独保存每个对话最新的统计快照。[统计口径、清理和边界](docs/USAGE.md)。
 
-## 配套侧边栏
-
-如果你在 Antigravity 桌面端里同时推进多条会话、多个需求，可以搭配体验同系列的 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)：
-
-<table>
-<tr><th width="58%">收件箱 / 待续 / 延后悬停工作流</th><th width="42%">原生 Display Options 菜单集成</th></tr>
-<tr>
-<td width="58%" valign="top"><img src="docs/assets/companion-inbox-zh.png" width="100%" alt="AGY Project Sidebar 收件箱分区与悬停待续、延后浮层、已完成按钮，以及下方折叠延后区与 Idle"></td>
-<td width="42%" valign="top"><img src="docs/assets/companion-menu-zh.png" width="100%" alt="Antigravity 原生 Display Options 菜单内置 Status + Requirement 分组、收件箱工作流开关与 24h 自动退场时限"></td>
-</tr>
-</table>
-
-- **多维顺序分组（`Group By` 扩展）**：直接在官方 `Display Options -> Group By` 菜单中接入 `Requirement` 维度（如 `Status + Requirement`、`Project + Requirement`），支持多层折叠与原生行渲染，不在侧边栏额外加搜索条或工具栏。
-- **收件箱工作流（`Inbox` / `待续` / `延后` / `24h` 自动退场）**：将「点开消蓝点（已读）」与「办完归档（`Settle`）」拆开，悬停即可一键标记已完成、锁定待续保留或预设延后唤醒，并支持 5 秒内一键撤销。
-- **零冲突平滑共存**：同样以标准用户态 Sidecar + CDP 插件运行（`~/.gemini/config/plugins/agy-project-sidebar/`），不修改任何 Antigravity 安装包文件，重启和软件升级均不丢失，与 `agy-context-dashboard` 互不冲突。
-
-```bash
-git clone https://github.com/wycocoyu/agy-project-sidebar.git
-cd agy-project-sidebar
-python3 manage.py install
-```
-
 ## 宿主界面汉化与开源致谢
 
 侧边栏顶部 `汉` 按钮与内嵌上下文卡底部的「宿主界面汉化」开关支持一键开启/关闭 **Antigravity 桌面宿主界面的简体中文翻译**（无侵入 CDP 实时渲染 + `WeakMap` 原文缓存，无需修改 `app.asar` 或重启客户端，关闭开关即无损还原原始英文文本），并且不包含任何第三方皮肤、主题色覆写或侧栏布局改动；同时保护模型选择器锚点与用户自定义项目名称不被误译。
@@ -413,6 +391,4 @@ Antigrative Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 An
 ---
 
 > **Fork 与独立演进说明：** 本仓库 **`wycocoyu/agy-context-dashboard`** Fork 自原作者仓库 [`ATtacK030130/antigrative-dashboard`](https://github.com/ATtacK030130/antigrative-dashboard)，目前已在原 [MIT 协议](LICENSE) 下从 `v0.8.12` 基线起与原作者分开设计、独立演进，同时完整保留原版权署名及现有用户配置、`history-v1`、`usage-v1` 与 IDE 存储路径兼容性。
->
-> **配套侧边栏插件推荐：** 如果你还希望在 Antigravity 左侧会话栏按需求聚合会话、使用类似收件箱的待办确认工作流，欢迎一并体验 [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar)。它采用同样的无侵入 Sidecar + CDP 架构，与本仪表盘完全共存、互不干扰。
 
