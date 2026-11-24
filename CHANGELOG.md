@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0 — 2026-11-23
+
+- **Custom inline status bar ([#60](https://github.com/wycocoyu/agy-context-dashboard/issues/60))**: Show or hide individual chips (`Speed`, `Total`, `Quota`, `Context`), reorder chips via drag-and-drop or `↑`/`↓` buttons, switch the Context ring between `rounds`, `label`, and `compact`, and access bar customization from both the panel header and footer without lockout.
+- **Context rounds, steps drawer & number formatting ([#53](https://github.com/wycocoyu/agy-context-dashboard/issues/53), [#59](https://github.com/wycocoyu/agy-context-dashboard/pull/59))**: Added neutral `{rounds} 轮 · {steps} 步` pill with expandable 5-bucket step breakdown drawer, inline `· {n}轮` suffix, and ungrouped 4-digit integers under `10,000`.
+- **Orchestrator/Swarm split, Insights & localization ([#57](https://github.com/wycocoyu/agy-context-dashboard/issues/57))**: Split Orchestrator Planner/Executor tracking, added two-line Swarm roster with `Active`/`All` filter, polished the 4 Insights distribution cards, ordered top-level tabs (`Session`, `Insights`, `Daily/Weekly`, `Models`), and refined Chinese `模型用量` / `次请求` copy and README localization callouts.
+- **Usage chart polish ([#61](https://github.com/wycocoyu/agy-context-dashboard/issues/61))**: Improved Day/Week/Month x-axis ticks, active period pill contrast, and legend ordering.
+
 ## 0.9.9 — 2026-11-22
 
 - **macOS In-App Updater Python 3.10+ Discovery (`sidecars/panel/updater.mjs`, `sidecars/panel/tests/updater.test.mjs`, [`#52`](https://github.com/wycocoyu/agy-context-dashboard/issues/52), [`#55`](https://github.com/wycocoyu/agy-context-dashboard/pull/55)):**

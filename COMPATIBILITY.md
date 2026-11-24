@@ -11,6 +11,8 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 2026-10-28 补充：Windows 11 / 桌面 App **2.28.0** 已实机验证修复后的单份控件、历史会话速率／Token／上下文恢复、详情卡、用量窗口、额度和会话往返切换。延迟回调与重复挂载的浏览器回归纳入三系统 CI；这不等同于 Linux/macOS 2.28.0 或新版独立 IDE 的登录后实机验收。安装后需要完整退出并重开宿主一次。
 
+2026-11-23 / **v1.0.0**（[`#60`](https://github.com/wycocoyu/agy-context-dashboard/issues/60)、[`#53`](https://github.com/wycocoyu/agy-context-dashboard/issues/53)、[`#57`](https://github.com/wycocoyu/agy-context-dashboard/issues/57)、[`#61`](https://github.com/wycocoyu/agy-context-dashboard/issues/61)）：上线底栏指标自定义（显隐开关、拖拽与 `↑`/`↓` 排序、Context 圆环三态标签及底部防锁死入口）、上下文轮次与 5 分类步数抽屉、Orchestrator Planner/Executor 拆分与双行 Swarm 名单筛选、用量图表细节与中文展示优化。支持桌面 App `2.34.0+` 与独立 IDE `0.9.x/1.0.x` 保持兼容，不改变宿主权限与凭据机制。
+
 2026-11-22 / **v0.9.9**（[`#46`](https://github.com/wycocoyu/agy-context-dashboard/issues/46)、[`#50`](https://github.com/wycocoyu/agy-context-dashboard/pull/50)、[`#52`](https://github.com/wycocoyu/agy-context-dashboard/issues/52)、[`#55`](https://github.com/wycocoyu/agy-context-dashboard/pull/55)）：修复 macOS 桌面端从 GUI 启动缺少 Homebrew `PATH` 导致应用内「检查更新」误命中 `/usr/bin/python3`（3.9.6）的问题（回退探测 `/opt/homebrew/bin`、`/usr/local/bin` 的 `python3` 与 `python3.14`–`python3.10` 及官方 Framework 路径）；合入 Windows 注册表/OneDrive 重定向桌面快捷方式发现与重拉失败 10 分钟退避保护。不改变宿主兼容矩阵。
 
 2026-11-22 / **v0.9.8**（[`#16`](https://github.com/wycocoyu/agy-context-dashboard/issues/16)、[`#24`](https://github.com/wycocoyu/agy-context-dashboard/issues/24)、[`#28`](https://github.com/wycocoyu/agy-context-dashboard/issues/28)、[`#29`](https://github.com/wycocoyu/agy-context-dashboard/issues/29)、[`#34`](https://github.com/wycocoyu/agy-context-dashboard/issues/34)、[`#43`](https://github.com/wycocoyu/agy-context-dashboard/issues/43)、[`#44`](https://github.com/wycocoyu/agy-context-dashboard/issues/44)）：新增四视图顶层导航（将「每日/每周活动」「按模型用量」置顶），上线宿主上下文构成拆解、压缩趋势、会话审计、USD 费用估算与跨会话全局洞察；新增 `2.34.0` 多代理额度汇总与 `cacheMissSurges` 零缓存断崖计数、按模型缓存命中率列、三语显式「缓存命中率：」胶囊标识、无侵入可切宿主简体中文界面与 192 MiB 内存溢出防护；修复空元数据与 SQLite WAL 重试引发的误报「部分记录暂不可读取」。macOS 桌面 App `2.34.0` 已实机验证内嵌栏挂载与活体上下文/缓存展示；独立 IDE 与 Windows 11 全套自动化套件通过，IDE 登录态 GUI 仍待实机验收。
@@ -44,7 +46,7 @@ Python 3.10+ 仅用于生命周期，无 pip 依赖；后台使用宿主 Node，
 
 ## Antigravity 自带 IDE
 
-专用包为 `antigrative-dashboard-ide-0.9.9.vsix`，安装入口与桌面 App 独立。
+专用包为 `antigrative-dashboard-ide-1.0.0.vsix`，安装入口与桌面 App 独立。
 Windows 11 / IDE 2.5.5（VS Code base 1.107.0）与 IDE 2.6.0（`agy --hub` 及嵌套 Agent Webview）已支持并具备完整自动化覆盖；Linux/macOS 登录后的 IDE GUI 仍待实机验收。
 Linux/macOS 的 IDE 进程筛选、端口归属、安装打包和 Trusted Types 浏览器 fixture 纳入 CI；登录后的 IDE GUI 仍待实机验收。
 当前仅支持默认用户 profile；私有 Preact/DOM 或 RPC 变化可能需要适配，不能保证未来 IDE 版本无需维护。

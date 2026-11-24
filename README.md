@@ -7,7 +7,7 @@
 参考 DSH 设计的 Antigravity (`agy`) 上下文构成、Token 速率、缓存命中率、共享额度与全局洞察仪表盘；悬停胶囊展开精细统计，右侧边栏四视图一站式管理每日/每周活动、按模型用量、当前会话与全局洞察。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
 
-[![Version 0.9.9](https://img.shields.io/badge/version-0.9.9-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#语言与缓存)
@@ -31,6 +31,8 @@
 > - **Windows / Linux 快捷方式直启自愈**：执行 `manage.py install`（非 `--panel-only`）以及后台 Sidecar 运行时会自动为 Windows 用户 `.lnk` 快捷方式和 Linux `.desktop` 入口写入 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`（并在卸载或 `--panel-only` 时干净撤回），日常点原图标即可一次直启、零重开注入。
 > - **`v0.9.5+` 默认开启启动期自动重拉恢复（涵盖 macOS 点原图标打开与三端更新重启后）**：内嵌模式下默认启用 `autoRelaunchDebug`。当插件在 Sidecar 启动后前 `20` 秒内检测到缺少调试端口（如 macOS 直接点原版图标，或三端应用内更新重启丢参后），会自动温和重拉一次带调试参数的宿主并恢复状态栏；同一组 PID 永不重复，不同 PID 在 `60` 秒滑窗内最多允许 `2` 次（间距 `>= 5` 秒，防循环熔断），超过启动 `20` 秒绝不在对话途中杀窗。
 > - **可选零二次重启直启与关闭开关**：macOS 日常使用通过 `python3 manage.py install --with-launcher` 生成的 `~/Applications/Antigravity (Debug).app`（或终端 `python3 manage.py launch`）打开即可零重开秒注入；如需关闭自动重拉，在官方侧边栏（**＋ → Extensions → Antigrative Dashboard**）取消勾选「缺少调试端口时自动重启恢复（如更新后）」即可。
+
+**v1.0.0：** 底栏与面板完整定型版本（[`#60`](https://github.com/wycocoyu/agy-context-dashboard/issues/60)、[`#53`](https://github.com/wycocoyu/agy-context-dashboard/issues/53)、[`#57`](https://github.com/wycocoyu/agy-context-dashboard/issues/57)、[`#61`](https://github.com/wycocoyu/agy-context-dashboard/issues/61)）——支持底栏指标显隐、拖拽/上下排序与 Context 圆环 3 档标签切换（保留面板底部防锁死入口），新增上下文轮次/5 分类步数展开抽屉与 4 位数无逗号格式，拆分 Orchestrator Planner/Executor 与双行 Swarm 名单筛选，并优化日/周/月用量图表配色与坐标轴（见 [Release v1.0.0](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v1.0.0)）。
 
 **v0.9.9：** 维护性修复版本（[`#46`](https://github.com/wycocoyu/agy-context-dashboard/issues/46)、[`#50`](https://github.com/wycocoyu/agy-context-dashboard/pull/50)、[`#52`](https://github.com/wycocoyu/agy-context-dashboard/issues/52)、[`#55`](https://github.com/wycocoyu/agy-context-dashboard/pull/55)）：新增 macOS 应用内「检查更新」自动回退探测 Homebrew（`python3` 及 `3.14`–`3.10`）与官方 Framework Python 3.10+，解决 GUI 启动默认 `PATH` 命中系统 3.9.6 报错问题；并支持 Windows 注册表/OneDrive 重定向桌面 `.lnk` 快捷方式发现及重拉失败 10 分钟退避保护。完整保留 `v0.9.8` 多维上下文与全局洞察工作台、`v0.9.7` 非侵入更新提醒、`v0.9.6` daemon 凭据兼容、`v0.9.5` 默认 `autoRelaunchDebug` 恢复、`v0.9.2` 调试启动器、`IDE 2.6.0`、`Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5` 与 `agy 1.5.x` CLI 全部能力。[发布说明](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.9) · [变更记录](CHANGELOG.md)。
 
@@ -90,7 +92,7 @@
 ## Antigravity IDE
 
 **v0.7.0** 新增反重力自己的独立 IDE 适配。下载发布页的
-`antigrative-dashboard-ide-0.9.9.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
+`antigrative-dashboard-ide-1.0.0.vsix`，在 IDE 扩展页选择「从 VSIX 安装」。
 仅安装 IDE 的用户也可以使用，无需先装桌面 App。
 
 完全退出 IDE 后，使用带
