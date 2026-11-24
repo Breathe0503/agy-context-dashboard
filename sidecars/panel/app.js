@@ -33,6 +33,7 @@ let insightsEpoch=0,queuedInsights=false,queuedInsightsForce=false;
 let auditEpoch=0,scopeRequestEpoch=0,didInitialUsageSync=false,didSyncUsageScope=false,usageGuideDismissed=false;
 let compositionView='bar',trendMode='total',tokenBaseExpanded=false,stepsDrawerOpen=false,swarmRosterFilter='active';
 const expandedDrilldownGroups=new Set(['Rules']);
+const expandedDrilldownMore=new Set();
 const expandedMcpServers=new Set();
 let auditOpen=false,auditTab='files',auditStepFilter='all',auditData=null,auditConvId=null,auditLoading=false,auditError=null,highlightedStepIndex=null;
 let insightsData=null,insightsLoading=false,insightsError=null,heatmapMetric='sessions',insightsSearchTimer=null;
@@ -113,6 +114,7 @@ function activeConversationId(){
 function setInspectedConversation(id){
   inspectedConversationId=id||null;
   swarmRosterFilter='active';
+  expandedDrilldownMore.clear();
   auditOpen=false;auditData=null;auditConvId=null;auditError=null;highlightedStepIndex=null;
   renderAuditSection();
   lastContextDetailAt=0;
@@ -370,6 +372,80 @@ function renderAccountCredits(credits) {
   setAttr(badge, 'title', parts.join(' · ') || null);
 }
 
+const DRILLDOWN_CAP = 6;
+
+function createDrilldownChevron() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'drilldown-chev');
+  svg.setAttribute('viewBox', '0 0 12 12');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', 'M4.5 3 7.5 6l-3 3');
+  svg.append(path);
+  return svg;
+}
+
+function splitDrilldownPath(display) {
+  const idx = Math.max(display.lastIndexOf('/'), display.lastIndexOf('\\'));
+  if (idx < 0) return { base: display, dir: '' };
+  return { base: display.slice(idx + 1) || display, dir: display.slice(0, idx) };
+}
+
+function renderDrilldownBudgetCard(label, used, max) {
+  const ratio = max > 0 ? used / max : 0;
+  const pct = Math.round(ratio * 100);
+  const levelClass = ratio >= 0.9 ? 'is-danger' : '';
+  const card = document.createElement('div');
+  card.className = 'drilldown-budget-card';
+  const top = document.createElement('div');
+  top.className = 'drilldown-budget-top';
+  const pctEl = Object.assign(document.createElement('span'), {
+    className: levelClass ? `drilldown-budget-pct ${levelClass}` : 'drilldown-budget-pct',
+    textContent: `${pct}%`,
+  });
+  top.append(Object.assign(document.createElement('span'), { className: 'drilldown-budget-lbl', textContent: label }), pctEl);
+  const track = document.createElement('div');
+  track.className = 'drilldown-budget-track';
+  const fill = document.createElement('i');
+  if (levelClass) fill.className = levelClass;
+  fill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  track.append(fill);
+  const nums = Object.assign(document.createElement('div'), {
+    className: 'drilldown-budget-nums',
+    textContent: `${count(used)} / ${count(max)} ${tokUnit(max)}`,
+  });
+  card.append(top, track, nums);
+  return card;
+}
+
+function createDrilldownItemRow(display, tokens, groupTokens, maxItemTokens, rawTitle, splitDir = false, isSub = false) {
+  const share = groupTokens > 0 ? Math.round((tokens / groupTokens) * 100) : 0;
+  const fillW = maxItemTokens > 0 && tokens > 0 ? Math.max(4, Math.round((tokens / maxItemTokens) * 100)) : 0;
+  const row = document.createElement('div');
+  row.className = isSub ? 'drilldown-item is-sub' : 'drilldown-item';
+  setAttr(row, 'title', rawTitle);
+  const fill = document.createElement('i');
+  fill.className = 'drilldown-item-fill';
+  fill.style.width = `${Math.min(100, fillW)}%`;
+  const main = document.createElement('div');
+  main.className = 'drilldown-item-main';
+  const { base, dir } = splitDir ? splitDrilldownPath(display) : { base: display, dir: '' };
+  main.append(Object.assign(document.createElement('span'), { className: 'drilldown-item-name', textContent: base }));
+  if (dir) main.append(Object.assign(document.createElement('span'), { className: 'drilldown-item-sub', textContent: dir }));
+  const val = document.createElement('span');
+  val.className = 'drilldown-item-val';
+  val.append(document.createTextNode(count(tokens)));
+  if (groupTokens > 0) {
+    val.append(document.createTextNode(' '), Object.assign(document.createElement('span'), {
+      className: 'drilldown-item-pct',
+      textContent: `${share === 0 && tokens > 0 ? '<1' : share}%`,
+    }));
+  }
+  row.append(fill, main, val);
+  return row;
+}
+
 function renderTokenBaseDrilldown(customization) {
   const wrap = $('panel-token-base-drilldown'), toggle = $('token-base-toggle'), tree = $('token-base-tree');
   if (!wrap || !toggle || !tree) return;
@@ -377,41 +453,39 @@ function renderTokenBaseDrilldown(customization) {
   hidden('panel-token-base-drilldown', !available);
   if (!available) return;
 
-  text('token-base-toggle-label', `${tokenBaseExpanded ? '▾' : '▸'} ${t('tokenBaseDrilldown')}`);
+  text('token-base-toggle-label', t('tokenBaseDrilldown'));
+  const budgetRatio = customization.budget ? customization.tokens / customization.budget : null;
+  const budgetPct = budgetRatio !== null ? Math.round(budgetRatio * 100) : null;
   const summary = customization.budget
-    ? `${compact(customization.tokens)} / ${compact(customization.budget)} (${Math.round((customization.tokens / customization.budget) * 100)}%)`
+    ? `${compact(customization.tokens)} / ${compact(customization.budget)} · ${budgetPct}%`
     : `${compact(customization.tokens)} ${tokUnit(customization.tokens)}`;
   text('token-base-toggle-summary', summary);
+  const summaryEl = $('token-base-toggle-summary');
+  if (summaryEl) {
+    const level = budgetRatio !== null && budgetRatio >= 0.9 ? 'danger' : null;
+    setAttr(summaryEl, 'data-level', level);
+  }
   setAttr(toggle, 'aria-expanded', String(tokenBaseExpanded));
   hidden('token-base-tree', !tokenBaseExpanded);
   if (!tokenBaseExpanded) return;
 
-  const sig = JSON.stringify([customization.tokens, customization.budget, customization.rulesBudget, customization.drilldown, [...expandedDrilldownGroups], [...expandedMcpServers], language.language]);
+  const sig = JSON.stringify([customization.tokens, customization.budget, customization.rulesBudget, customization.drilldown, [...expandedDrilldownGroups], [...expandedDrilldownMore], [...expandedMcpServers], language.language]);
   if (tree.dataset.signature === sig) return;
   tree.dataset.signature = sig;
 
+  const focusKey = document.activeElement?.closest?.('#token-base-tree')
+    ? document.activeElement.dataset.focusKey || null
+    : null;
   const nodes = [];
-  if (customization.budget) {
-    const row = document.createElement('div');
-    row.className = 'drilldown-budget-row';
-    const pct = Math.round((customization.tokens / customization.budget) * 100);
-    row.append(
-      Object.assign(document.createElement('span'), { textContent: t('tokenBaseCustomBudget') }),
-      Object.assign(document.createElement('span'), { textContent: `${count(customization.tokens)} / ${count(customization.budget)} (${pct}%)` }),
-    );
-    nodes.push(row);
-  }
-  if (customization.rulesBudget) {
-    const rulesGrp = customization.drilldown.find(g => g.id === 'rules');
-    const rulesTok = rulesGrp?.tokens ?? 0;
-    const row = document.createElement('div');
-    row.className = 'drilldown-budget-row';
-    const pct = Math.round((rulesTok / customization.rulesBudget) * 100);
-    row.append(
-      Object.assign(document.createElement('span'), { textContent: t('tokenBaseRulesBudget') }),
-      Object.assign(document.createElement('span'), { textContent: `${count(rulesTok)} / ${count(customization.rulesBudget)} (${pct}%)` }),
-    );
-    nodes.push(row);
+  if (customization.budget || customization.rulesBudget) {
+    const budgets = document.createElement('div');
+    budgets.className = 'drilldown-budgets';
+    if (customization.budget) budgets.append(renderDrilldownBudgetCard(t('tokenBaseCustomBudget'), customization.tokens, customization.budget));
+    if (customization.rulesBudget) {
+      const rulesGrp = customization.drilldown.find(g => g.id === 'rules');
+      budgets.append(renderDrilldownBudgetCard(t('tokenBaseRulesBudget'), rulesGrp?.tokens ?? 0, customization.rulesBudget));
+    }
+    nodes.push(budgets);
   }
 
   for (const grp of customization.drilldown) {
@@ -421,13 +495,25 @@ function renderTokenBaseDrilldown(customization) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'drilldown-group-btn';
+    btn.dataset.focusKey = `grp:${grp.name}`;
     btn.setAttribute('aria-expanded', String(isOpen));
     const grpTitle = t(DRILLDOWN_GROUP_KEYS[grp.id] || grp.name);
     const children = Array.isArray(grp.children) ? grp.children : [];
-    btn.append(
-      Object.assign(document.createElement('span'), { textContent: `${isOpen ? '▾' : '▸'} ${grpTitle} (${children.length})` }),
+    const grpShare = customization.tokens > 0 ? Math.round((grp.tokens / customization.tokens) * 100) : 0;
+    const left = document.createElement('span');
+    left.className = 'drilldown-group-left';
+    left.append(
+      createDrilldownChevron(),
+      Object.assign(document.createElement('span'), { className: 'drilldown-group-name', textContent: grpTitle }),
+      Object.assign(document.createElement('span'), { className: 'drilldown-count', textContent: smallCount(children.length) }),
+    );
+    const right = document.createElement('span');
+    right.className = 'drilldown-group-meta';
+    right.append(
+      Object.assign(document.createElement('span'), { className: 'drilldown-group-share', textContent: `${grpShare === 0 && grp.tokens > 0 ? '<1' : grpShare}%` }),
       Object.assign(document.createElement('span'), { textContent: `${count(grp.tokens)} ${tokUnit(grp.tokens)}` }),
     );
+    btn.append(left, right);
     btn.addEventListener('click', () => {
       if (expandedDrilldownGroups.has(grp.name)) expandedDrilldownGroups.delete(grp.name);
       else expandedDrilldownGroups.add(grp.name);
@@ -438,17 +524,27 @@ function renderTokenBaseDrilldown(customization) {
     if (isOpen && children.length) {
       const list = document.createElement('div');
       list.className = 'drilldown-items';
-      for (const child of children) {
+      const showAll = expandedDrilldownMore.has(grp.name);
+      const visible = showAll || children.length <= DRILLDOWN_CAP ? children : children.slice(0, DRILLDOWN_CAP);
+      const maxItemTok = Math.max(1, ...children.map(c => c.tokens || 0));
+      const splitPaths = grp.id === 'rules';
+      for (const child of visible) {
         const hasSub = Array.isArray(child.children) && child.children.length > 0;
         if (hasSub) {
           const srvOpen = expandedMcpServers.has(child.name);
           const srvBtn = document.createElement('button');
           srvBtn.type = 'button';
           srvBtn.className = 'drilldown-group-btn';
-          srvBtn.append(
-            Object.assign(document.createElement('span'), { className: 'drilldown-item-name', textContent: `${srvOpen ? '▾' : '▸'} ${child.name} (${child.children.length})` }),
-            Object.assign(document.createElement('span'), { textContent: `${count(child.tokens)}` }),
+          srvBtn.dataset.focusKey = `mcp:${grp.name}:${child.name}`;
+          srvBtn.setAttribute('aria-expanded', String(srvOpen));
+          const sLeft = document.createElement('span');
+          sLeft.className = 'drilldown-group-left';
+          sLeft.append(
+            createDrilldownChevron(),
+            Object.assign(document.createElement('span'), { className: 'drilldown-group-name', textContent: child.name }),
+            Object.assign(document.createElement('span'), { className: 'drilldown-count', textContent: smallCount(child.children.length) }),
           );
+          srvBtn.append(sLeft, Object.assign(document.createElement('span'), { className: 'drilldown-group-meta', textContent: count(child.tokens) }));
           srvBtn.addEventListener('click', () => {
             if (expandedMcpServers.has(child.name)) expandedMcpServers.delete(child.name);
             else expandedMcpServers.add(child.name);
@@ -456,33 +552,41 @@ function renderTokenBaseDrilldown(customization) {
           });
           list.append(srvBtn);
           if (srvOpen) {
-            const sub = document.createElement('div');
-            sub.className = 'drilldown-subitems';
+            const subMax = Math.max(1, ...child.children.map(tItem => tItem.tokens || 0));
             for (const tool of child.children) {
-              const row = document.createElement('div');
-              row.className = 'drilldown-item';
-              const nEl = Object.assign(document.createElement('span'), { className: 'drilldown-item-name', textContent: tool.name });
-              setAttr(nEl, 'title', tool.name);
-              row.append(nEl, Object.assign(document.createElement('span'), { textContent: `${count(tool.tokens)}` }));
-              sub.append(row);
+              list.append(createDrilldownItemRow(tool.name, tool.tokens, child.tokens, subMax, tool.name, false, true));
             }
-            list.append(sub);
           }
         } else {
-          const row = document.createElement('div');
-          row.className = 'drilldown-item';
-          const display = sanitizeDisplayPath(child.name);
-          const nEl = Object.assign(document.createElement('span'), { className: 'drilldown-item-name', textContent: display });
-          setAttr(nEl, 'title', child.name);
-          row.append(nEl, Object.assign(document.createElement('span'), { textContent: `${count(child.tokens)}` }));
-          list.append(row);
+          list.append(createDrilldownItemRow(sanitizeDisplayPath(child.name), child.tokens, grp.tokens, maxItemTok, child.name, splitPaths, false));
         }
+      }
+      if (children.length > DRILLDOWN_CAP) {
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'drilldown-more-btn';
+        moreBtn.dataset.focusKey = `more:${grp.name}`;
+        moreBtn.textContent = showAll ? t('drilldownShowLess') : t('drilldownShowMore', { n: smallCount(children.length - DRILLDOWN_CAP) });
+        moreBtn.addEventListener('click', () => {
+          if (expandedDrilldownMore.has(grp.name)) expandedDrilldownMore.delete(grp.name);
+          else expandedDrilldownMore.add(grp.name);
+          renderTokenBaseDrilldown(customization);
+        });
+        list.append(moreBtn);
       }
       box.append(list);
     }
     nodes.push(box);
   }
   tree.replaceChildren(...nodes);
+  if (focusKey) {
+    for (const button of tree.querySelectorAll('button[data-focus-key]')) {
+      if (button.dataset.focusKey === focusKey) {
+        button.focus({ preventScroll: true });
+        break;
+      }
+    }
+  }
 }
 
 function renderContextComposition(composition) {
