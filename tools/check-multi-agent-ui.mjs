@@ -74,12 +74,15 @@ const usageFixture = {
 
 let prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
 let workerMode = false;
+let customSpeedOverride = null;
 const snapshot = () => ({
   connection: 'live', serverTime: new Date().toISOString(), quotaUpdatedAt: new Date().toISOString(), preferences: prefs,
   groups: [{ id: 'gemini', name: 'Gemini', windows: { '5h': { available: true, remaining: 0.7 }, weekly: { available: true, remaining: 0.8 } } }],
-  speed: workerMode
-    ? { ...baseMetrics, cacheMissSurges: 1, cacheMissSurgeTokens: 9000, taskUsage: null, sessionMeta: { agentRole: 'worker', isSubagent: true, isSidecar: false }, transcriptStats }
-    : { ...baseMetrics, taskUsage, transcriptStats },
+  speed: customSpeedOverride
+    ? customSpeedOverride
+    : workerMode
+      ? { ...baseMetrics, cacheMissSurges: 1, cacheMissSurgeTokens: 9000, taskUsage: null, sessionMeta: { agentRole: 'worker', isSubagent: true, isSidecar: false }, transcriptStats }
+      : { ...baseMetrics, taskUsage, transcriptStats },
   usage: usageFixture,
 });
 
@@ -388,8 +391,186 @@ try {
   assert.equal(await fourDigitPanel.locator('#context-steps-drawer .steps-chip strong').first().textContent(), '1900');
   await fourDigitPanel.close();
 
+  // 6. Issue #57 Swarm mode on inline widget (label, title, 6->8 roster expand, tags, 270px narrow, idle polling)
+  const swarmAgents = [
+    { label: 'Coordinator', role: 'coordinator', pool: 'gemini', model: 'Orchestrator (Neon)', tokens: 124000, thinkingTokens: 3000, requests: 2, workspaceMode: 'inherit', killed: false },
+    { label: 'ui-inline-very-long-agent-name-check', role: 'worker', pool: '3p', model: 'Claude Sonnet 5.5 (High)', tokens: 68000, thinkingTokens: 1200, requests: 4, workspaceMode: 'share', killed: false },
+    { label: 'ui-panel', role: 'worker', pool: '3p', model: 'Claude Sonnet 5.5 (High)', tokens: 52000, thinkingTokens: 900, requests: 3, workspaceMode: 'share', killed: false },
+    { label: 'backend-orch', role: 'worker', pool: 'gemini', model: 'Gemini 4 Hydrogen (Orchestrator)', tokens: 41000, thinkingTokens: 400, requests: 2, workspaceMode: 'branch', killed: false },
+    { label: 'verifier-1', role: 'worker', pool: 'gemini', model: 'Gemini 3.8 Flash (High)', tokens: 19000, thinkingTokens: 200, requests: 2, workspaceMode: 'inherit', killed: true },
+    { label: 'scout-docs', role: 'worker', pool: 'local', model: 'Gemini (Internal BYOM)', tokens: 12000, thinkingTokens: 0, requests: 1, workspaceMode: 'inherit', killed: true },
+    { label: 'tester-e2e', role: 'worker', pool: '3p', model: 'Claude Sonnet 5.5 (High)', tokens: 9500, thinkingTokens: 100, requests: 1, workspaceMode: 'share', killed: false },
+    { label: 'monitor-watch', role: 'monitor', pool: 'local', model: 'Gemini (Internal BYOM)', tokens: 3200, thinkingTokens: 0, requests: 1, workspaceMode: 'inherit', killed: false },
+  ];
+  const swarmTaskUsage = {
+    ...taskUsage,
+    isSwarm: true,
+    swarmTitle: 'Issue 57 Team',
+    totalAgents: 8,
+    subagents: 7,
+    loadedSubagents: 7,
+    agents: swarmAgents,
+  };
+  customSpeedOverride = { ...baseMetrics, taskUsage: swarmTaskUsage, transcriptStats };
+
+  for (const lang of ['en', 'zh-CN']) {
+    const p = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(`${base}/inline?lang=${lang}`);
+    const s = p.locator('#ag-pulse-status-bar');
+    await s.waitFor();
+    await s.locator('[data-card=cache]').click();
+    await s.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+    assert.equal(
+      await s.locator('#task-subagents-label').textContent(),
+      lang === 'en' ? 'Swarm (7 members)' : 'Swarm（7 成员）',
+    );
+    assert.equal(await s.locator('#orch-summary-label').textContent(), 'Swarm · Issue 57 Team');
+    await s.locator('#orchestration-breakdown summary').click();
+
+    const expandBtn = s.locator('#orch-agents-expand');
+    await expandBtn.waitFor({ state: 'visible' });
+    assert.equal(await expandBtn.textContent(), lang === 'en' ? 'Show all 8' : '展开全部 8 个');
+    const rosterRowsBefore = await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count();
+    assert.equal(rosterRowsBefore, 6);
+    const collapsedText = await s.locator('#orch-body').textContent();
+    assert.ok(!collapsedText.includes('monitor-watch'), 'Collapsed roster must hide 8th member');
+    assert.ok(collapsedText.includes('[share]'), collapsedText);
+    assert.ok(collapsedText.includes('[branch]'), collapsedText);
+    assert.ok(collapsedText.includes(lang === 'en' ? 'ended' : '已结束'), collapsedText);
+
+    await expandBtn.click();
+    assert.equal(await expandBtn.textContent(), lang === 'en' ? 'Collapse' : '收起');
+    const rosterRowsAfter = await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count();
+    assert.equal(rosterRowsAfter, 8);
+    const expandedText = await s.locator('#orch-body').textContent();
+    assert.ok(expandedText.includes('tester-e2e') && expandedText.includes('monitor-watch'), expandedText);
+
+    if (lang === 'en') {
+      const swarmIdleChanges = await p.evaluate(async () => {
+        const root = document.getElementById('ag-pulse-status-bar').shadowRoot;
+        const changes = [];
+        const obs = new MutationObserver(rs => changes.push(...rs.map(r => r.target.id || r.type)));
+        obs.observe(root.getElementById('orchestration-breakdown'), { subtree: true, childList: true, characterData: true, attributes: true });
+        await new Promise(r => setTimeout(r, 2600));
+        obs.disconnect();
+        return changes;
+      });
+      assert.deepEqual(swarmIdleChanges, [], 'Swarm expanded roster must not mutate on idle polling');
+    }
+
+    await expandBtn.click();
+    assert.equal(await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count(), 6);
+    await p.close();
+  }
+
+  const narrowSwarm = await browser.newPage({ viewport: { width: 294, height: 640 } });
+  narrowSwarm.on('pageerror', e => errors.push(e.message));
+  await narrowSwarm.goto(`${base}/inline?lang=en&narrow=1`);
+  const narrowSwarmStrip = narrowSwarm.locator('#ag-pulse-status-bar');
+  await narrowSwarmStrip.waitFor();
+  await narrowSwarmStrip.locator('[data-card=cache]').click();
+  await narrowSwarmStrip.locator('#orchestration-breakdown summary').click();
+  await assertNoClipping(narrowSwarmStrip.locator('#cache-card'), narrowSwarmStrip.locator('#orch-body'));
+  await narrowSwarmStrip.locator('#orch-agents-expand').click();
+  const narrowSwarmMetrics = await assertNoClipping(narrowSwarmStrip.locator('#cache-card'), narrowSwarmStrip.locator('#orch-body'));
+  assert.equal(narrowSwarmMetrics.boxWidth, 270);
+  await narrowSwarm.close();
+
+  // 7. Issue #57 Orchestrator mode on inline widget (switched + coldStart, and read-only unswitched)
+  const switchedOrch = {
+    detected: true,
+    source: 'trajectory',
+    configuredPlanner: 'Orchestrator (Neon)',
+    configuredExecutor: 'Gemini 4 Hydrogen (Orchestrator)',
+    switched: true,
+    phaseSwitchCount: 1,
+    coldStartSwitches: 1,
+    planner: { model: 'Orchestrator (Neon)', pool: 'gemini', requests: 1, inputTokens: 120000, cachedTokens: 0, uncachedTokens: 120000, outputTokens: 4000, totalTokens: 124000, hitRate: 0 },
+    executor: { model: 'Gemini 4 Hydrogen (Orchestrator)', pool: 'gemini', requests: 1, inputTokens: 90000, cachedTokens: 80000, uncachedTokens: 10000, outputTokens: 2000, totalTokens: 92000, hitRate: 80000 / 90000 },
+  };
+  customSpeedOverride = { ...baseMetrics, taskUsage: null, orchestrator: switchedOrch, transcriptStats };
+
+  for (const lang of ['en', 'zh-CN']) {
+    const p = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(`${base}/inline?lang=${lang}`);
+    const s = p.locator('#ag-pulse-status-bar');
+    await s.waitFor();
+    await s.locator('[data-card=cache]').click();
+    await s.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+    await s.locator('#orchestration-breakdown summary').click();
+    const text = await s.locator('#orch-body').textContent();
+    if (lang === 'en') {
+      assert.ok(text.includes('Orchestrator split'), text);
+      assert.ok(text.includes('Planner · Orchestrator (Neon)'), text);
+      assert.ok(text.includes('Executor · Gemini 4 Hydrogen (Orchestrator)'), text);
+      assert.ok(text.includes('1× switch cache cold-start'), text);
+    } else {
+      assert.ok(text.includes('Orchestrator 主/执行分工'), text);
+      assert.ok(text.includes('主调度 · Orchestrator (Neon)'), text);
+      assert.ok(text.includes('干活执行 · Gemini 4 Hydrogen (Orchestrator)'), text);
+      assert.ok(text.includes('切模型冷缓存 1 次'), text);
+    }
+    await p.close();
+  }
+
+  const narrowOrchSwitched = await browser.newPage({ viewport: { width: 294, height: 640 } });
+  narrowOrchSwitched.on('pageerror', e => errors.push(e.message));
+  await narrowOrchSwitched.goto(`${base}/inline?lang=en&narrow=1`);
+  const narrowOrchStrip = narrowOrchSwitched.locator('#ag-pulse-status-bar');
+  await narrowOrchStrip.waitFor();
+  await narrowOrchStrip.locator('[data-card=cache]').click();
+  await narrowOrchStrip.locator('#orchestration-breakdown summary').click();
+  await assertNoClipping(narrowOrchStrip.locator('#cache-card'), narrowOrchStrip.locator('#orch-body'));
+  await narrowOrchSwitched.close();
+
+  const unswitchedOrch = {
+    detected: true,
+    source: 'config',
+    configuredPlanner: 'Orchestrator (Neon)',
+    configuredExecutor: 'Gemini 4 Hydrogen (Orchestrator)',
+    switched: false,
+    phaseSwitchCount: 0,
+    coldStartSwitches: 0,
+    planner: { model: 'Orchestrator (Neon)', pool: 'gemini', requests: 1, inputTokens: 40000, cachedTokens: 0, uncachedTokens: 40000, outputTokens: 1200, totalTokens: 41200, hitRate: 0 },
+    executor: null,
+  };
+  customSpeedOverride = { ...baseMetrics, modelBreakdown: [], taskUsage: null, orchestrator: unswitchedOrch, transcriptStats };
+
+  for (const lang of ['en', 'zh-CN']) {
+    const p = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(`${base}/inline?lang=${lang}`);
+    const s = p.locator('#ag-pulse-status-bar');
+    await s.waitFor();
+    await s.locator('[data-card=cache]').click();
+    await s.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+    await s.locator('#orchestration-breakdown summary').click();
+    const text = await s.locator('#orch-body').textContent();
+    if (lang === 'en') {
+      assert.ok(text.includes('Read-only turn · no switch yet'), text);
+      assert.ok(text.includes('Configured: Orchestrator (Neon) → Gemini 4 Hydrogen (Orchestrator)'), text);
+    } else {
+      assert.ok(text.includes('仅规划/只读 · 尚未切执行模型'), text);
+      assert.ok(text.includes('已配组合：Orchestrator (Neon) → Gemini 4 Hydrogen (Orchestrator)'), text);
+    }
+    await p.close();
+  }
+
+  const narrowOrchReadOnly = await browser.newPage({ viewport: { width: 294, height: 640 } });
+  narrowOrchReadOnly.on('pageerror', e => errors.push(e.message));
+  await narrowOrchReadOnly.goto(`${base}/inline?lang=en&narrow=1`);
+  const narrowRoStrip = narrowOrchReadOnly.locator('#ag-pulse-status-bar');
+  await narrowRoStrip.waitFor();
+  await narrowRoStrip.locator('[data-card=cache]').click();
+  await narrowRoStrip.locator('#orchestration-breakdown summary').click();
+  await assertNoClipping(narrowRoStrip.locator('#cache-card'), narrowRoStrip.locator('#orch-body'));
+  await narrowOrchReadOnly.close();
+  customSpeedOverride = null;
+
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, heroWrapNoOverflow: true, pageErrors: [] }));
+  console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, heroWrapNoOverflow: true, inlineSwarm: true, inlineOrchestrator: true, pageErrors: [] }));
 } finally {
   await browser.close();
   server.closeAllConnections?.();
