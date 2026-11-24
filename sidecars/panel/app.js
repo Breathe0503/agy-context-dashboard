@@ -1193,7 +1193,7 @@ function render() {
     hidden('context-rounds-pill',roundCount===null);
     if(roundCount!==null){
       const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
-      text('context-rounds-pill',canExpandSteps?`${baseText} ${stepsDrawerOpen?'▴':'▾'}`:baseText);
+      text('context-rounds-pill-text',baseText);
       if(roundsPill.disabled!==!canExpandSteps)roundsPill.disabled=!canExpandSteps;
       setAttr(roundsPill,'aria-expanded',String(canExpandSteps&&stepsDrawerOpen));
       setTip(roundsPill,stepCount!==null?`${t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:count(roundCount)}));
