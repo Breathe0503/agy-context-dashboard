@@ -274,13 +274,14 @@ try {
     const m = await cardLoc.evaluate(card => {
       const cardRect = card.getBoundingClientRect();
       const summary = card.querySelector('#context-summary');
+      const roundsPill = card.querySelector('#context-rounds-pill');
       const bloat = card.querySelector('#context-bloat-pill');
       const compactPill = card.querySelector('#context-compaction-pill');
       const tokens = card.querySelector('#context-tokens');
       const range = document.createRange();
       range.selectNodeContents(summary);
       const summaryLines = [...range.getClientRects()].length;
-      const items = [summary, bloat, compactPill, tokens].map(el => ({
+      const items = [summary, roundsPill, bloat, compactPill, tokens].map(el => ({
         id: el?.id,
         visible: Boolean(el && !el.hidden && el.getBoundingClientRect().width > 0),
         left: el?.getBoundingClientRect().left ?? 0,
@@ -312,8 +313,15 @@ try {
       const s = p.locator('#ag-pulse-status-bar');
       await s.waitFor();
       await s.locator('[data-card=context]').click();
+      await s.locator('#context-rounds-pill').waitFor({ state: 'visible' });
       await s.locator('#context-bloat-pill').waitFor({ state: 'visible' });
       await s.locator('#context-compaction-pill').waitFor({ state: 'visible' });
+      const expectedRounds = lang === 'en' ? '1 turns' : lang === 'zh-TW' ? '1 輪' : '1 轮';
+      const expectedChipRounds = lang === 'en' ? '· 1T' : lang === 'zh-TW' ? '· 1輪' : '· 1轮';
+      assert.equal(await s.locator('#context-rounds-pill').textContent(), expectedRounds);
+      assert.equal(await s.locator('[data-card=context]').getAttribute('data-has-rounds'), 'true');
+      assert.equal(await s.locator('#context-rounds').textContent(), expectedChipRounds);
+      assert.ok((await s.locator('[data-card=context]').getAttribute('title') || '').includes(expectedRounds));
       await assertHeroWrap(s.locator('#context-card'), `inline-${vp.tag}-${lang}`);
       await p.close();
     }
@@ -323,8 +331,10 @@ try {
     panelP.on('pageerror', e => errors.push(e.message));
     await panelP.goto(base + '/');
     await panelP.locator('#context-tab').click();
+    await panelP.locator('#context-rounds-pill').waitFor({ state: 'visible' });
     await panelP.locator('#context-bloat-pill').waitFor({ state: 'visible' });
     await panelP.locator('#context-compaction-pill').waitFor({ state: 'visible' });
+    assert.equal(await panelP.locator('#context-rounds-pill').textContent(), lang === 'en' ? '1 turns' : lang === 'zh-TW' ? '1 輪' : '1 轮');
     await assertHeroWrap(panelP.locator('#context-card'), `panel-320px-${lang}`);
     await panelP.close();
   }

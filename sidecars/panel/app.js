@@ -1171,15 +1171,26 @@ function render() {
   cacheAttr('title',currentOnly?t('taskCurrentOnly'):null);
   const context=speed?.context,hasCapacity=typeof context?.usedFraction==='number';
   const transcript=speed?.transcriptStats;
+  const roundCount=Number.isSafeInteger(speed?.rounds)&&speed.rounds>0?speed.rounds:null;
+  const stepCount=Number.isSafeInteger(speed?.steps)&&speed.steps>=0?speed.steps:null;
+  const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:count(roundCount)})}`:'';
   const compactions=transcript&&['ready','partial'].includes(transcript.status)&&typeof transcript.compactionMarkers==='number'?transcript.compactionMarkers:null;
   const compSuffix=compactions!==null&&compactions>0?` · ${t('contextCompactionSummary',{n:compactions})}`:'';
   $('strip-context').textContent=hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—';
   $('strip-context-size').textContent=context?`${compact(context.usedTokens)} / ${context.maxTokens===null?'—':compact(context.maxTokens)}`:'—';
-  $('context-tab').title=(context?t('contextTokens',{used:count(context.usedTokens),max:context.maxTokens===null?'—':count(context.maxTokens)}):t('contextUnknown'))+compSuffix;
+  $('context-tab').title=(context?t('contextTokens',{used:count(context.usedTokens),max:context.maxTokens===null?'—':count(context.maxTokens)}):t('contextUnknown'))+roundSuffix+compSuffix;
   $('context-summary').textContent=hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):(speed?.archivedFallback&&Number.isSafeInteger(context?.usedTokens)?`${compact(context.usedTokens)} ${tokUnit(context.usedTokens)}`:t('contextUnknown'));
   $('context-tokens').textContent=context?t('contextTokens',{used:compact(context.usedTokens),max:context.maxTokens===null?'—':compact(context.maxTokens)}):'—';
   $('context-model').textContent=context?.model||speed?.model||'—';
   hidden('context-audit-toggle',!(activeConversationId()||speed?.conversationId));
+  const roundsPill=$('context-rounds-pill');
+  if(roundsPill){
+    hidden('context-rounds-pill',roundCount===null);
+    if(roundCount!==null){
+      text('context-rounds-pill',t('contextTurnsCount',{n:count(roundCount)}));
+      roundsPill.title=stepCount!==null?t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
+    }else setTip(roundsPill,null);
+  }
   const compactionPill=$('context-compaction-pill');
   if(compactionPill){
     hidden('context-compaction-pill',!(compactions!==null&&compactions>0));
@@ -1206,6 +1217,7 @@ function render() {
       bloatPill.title=bloatWarnings.map(w=>t('bloatWarningLine',{tool:w.tool,step:w.stepIndex,tokens:compact(w.tokens)})).join('\n');
     }else bloatPill.removeAttribute('data-critical');
   }
+  hidden('context-submeta-row',roundCount===null&&!(compactions!==null&&compactions>0)&&!hasBloat);
   const ctxBreakdown=$('context-breakdown');
   if(ctxBreakdown){
     const hasSteps=Boolean(transcript&&['ready','partial'].includes(transcript.status)&&transcript.matchedSteps>0);
