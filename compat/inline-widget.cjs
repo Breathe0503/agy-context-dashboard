@@ -55,6 +55,11 @@ module.exports = function installAgPulseInlineWidget() {
     write:input=>window.agPulseHost.setPreferences(input),
     changed:()=>{void syncHostUiLocalizationState();for(const inst of instances)inst.onHostUiLocalizationChanged();},
   });
+  const readBarPrefsCache=()=>{try{const raw=localGet('ag-pulse-bar-prefs');return raw?JSON.parse(raw):null;}catch{return null;}};
+  const barPrefs=language.connectBarPreferences({
+    initial:readBarPrefsCache(),cache:value=>localSet('ag-pulse-bar-prefs',JSON.stringify(value)),
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onBarPrefsChanged();},
+  });
   async function syncHostUiLocalizationState(){
     if(disposed||!hostI18n)return;
     const epoch=++hostI18nEpoch;
@@ -70,7 +75,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!disposed&&epoch===hostI18nEpoch&&hostUiLocalization.enabled)hostI18n.setEnabled(true);
   }
   if(hostUiLocalization.enabled)void syncHostUiLocalizationState();
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);barPrefs.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
   window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);}};
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
@@ -440,6 +445,7 @@ module.exports = function installAgPulseInlineWidget() {
   let chosen=null,group=null,autoGroupId=null,lastModelSig=null,quotaSigCache=null,quotaObservedAt=0;
   let refreshRequest=null,manualRequest=null,hoverQuotaRequest=null,lastQuotaHoverAt=0,requestEpoch=0,scopeRequestEpoch=0;
   let composer=null,usageDashboard=null,updateMenu=null;
+  let barCustomizeOpen=false,barMigrateNote=null,hostUiRow=null,languageRow=null,barCustomizeDrawer=null,saveNote=null,lastBarLayoutSig='',lastFooterHost='context',lastCustomizeSig='',draggingChipId=null;
   let densityFrame=null,densityMotion=null,densityProbe=null;
   let isPrimary=false,parked=false,parkedKind=null,instDisposed=false;
   let emptyCompact=true,hydrated=false,seenEmptySession=false,suppressNextMotion=false,springNextExpand=false,swarmRosterFilter='active';
@@ -531,7 +537,7 @@ module.exports = function installAgPulseInlineWidget() {
     for(const e of root.querySelectorAll('[data-i18n-aria]:not([data-card=cache]):not([data-card=quota])'))attribute(e,'aria-label',t(e.dataset.i18nAria));
     for(const e of root.querySelectorAll('[data-i18n-aria][title]:not([data-card])'))attribute(e,'title',t(e.dataset.i18nAria));
     for(const button of root.querySelectorAll('[data-language-choice]')){attribute(button,'aria-pressed',button.dataset.languageChoice===language.language);attribute(button,'data-save-failed',preferences.error);attribute(button,'title',preferences.error?t('languageSaveFailed'):(button.getAttribute('aria-label')||button.textContent));}
-    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):'');
+    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):barPrefs.error?t('barSaveFailed'):'');
     for(const button of root.querySelectorAll('[data-speed-style-choice]')){const value=button.dataset.speedStyleChoice,name=t(value==='cat'?'styleCat':'styleMinimal'),failed=speedStyle.error&&speedStyle.style===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('styleSaveFailed')}`:name);attribute(button,'aria-pressed',speedStyle.style===value);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-quota-display-choice]')){const value=button.dataset.quotaDisplayChoice,name=t(value==='both'?'quotaDisplayBoth':value==='auto'?'quotaDisplayAuto':'quotaDisplayCompact'),failed=quotaDisplay.error&&quotaDisplay.value===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('quotaDisplaySaveFailed')}`:name);attribute(button,'aria-pressed',quotaDisplay.value===value);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-composition-view]')){attribute(button,'aria-pressed',button.dataset.compositionView===compositionView);}
@@ -715,7 +721,7 @@ module.exports = function installAgPulseInlineWidget() {
     };
     let safe=false;
     const rowWidth=composer.row.getBoundingClientRect().width;
-    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+lastConversation+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
+    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
     if(emptyCompact){
       if(!node.classList.contains('icons-only')){if(oldReady)previous=densitySnapshot(previous);node.classList.add('icons-only');}
       densityProbe=null;safe=fits();
@@ -818,7 +824,8 @@ module.exports = function installAgPulseInlineWidget() {
   // the pointer departs. Only keyboard-visible focus keeps a card engaged.
   // The explicit first-use action moves focus into language choices. Keep
   // that guided destination available until the user chooses or leaves it.
-  const cardEngaged=()=>Boolean(root?.activeElement?.matches(':focus-visible')||(guideOpened&&!guideDismissed&&cardName==='context'&&root?.activeElement?.matches('[data-language-choice]'))||node?.matches(':hover')||root?.querySelector('.card:not([hidden]):hover'));
+  const footerHostCard=()=>{const hiddenSet=new Set(barPrefs.hidden);if(!hiddenSet.has('context'))return 'context';const vis=barPrefs.order.filter(id=>!hiddenSet.has(id));return vis[vis.length-1]||'context';};
+  const cardEngaged=()=>Boolean(root?.activeElement?.matches(':focus-visible')||(guideOpened&&!guideDismissed&&cardName===footerHostCard()&&root?.activeElement?.matches('[data-language-choice]'))||node?.matches(':hover')||root?.querySelector('.card:not([hidden]):hover'));
   function cardVisibility(element,visible){
     if(visible){hidden(element,false);if(element.hasAttribute('popover')&&!element.matches(':popover-open'))element.showPopover();}
     else {if(element.hasAttribute('popover')&&element.matches(':popover-open'))element.hidePopover();hidden(element,true);}
@@ -899,7 +906,7 @@ module.exports = function installAgPulseInlineWidget() {
     style(card,'top',`${Math.max(12,useAbove?rect.top-card.offsetHeight-9:rect.bottom+9)}px`);
   }
   function positionGuide(){
-    const tip=$('language-guide'),button=root?.querySelector('[data-card="context"]');
+    const tip=$('language-guide'),button=root?.querySelector(`[data-card="${footerHostCard()}"]`);
     if(!tip||tip.hidden||!button)return;
     const rect=button.getBoundingClientRect(),width=Math.min(244,innerWidth-24);
     style(tip,'width',`${width}px`);
@@ -921,8 +928,9 @@ module.exports = function installAgPulseInlineWidget() {
     const visible=!disposed&&!instDisposed&&!parked&&isPrimary&&guideReady&&!guideDismissed&&!guideOpened&&!cardName&&node?.isConnected&&['main','ide'].includes(composer?.kind)&&node.dataset.layout==='ready'&&node.style.visibility!=='hidden';
     const entering=visible&&tip.hidden;
     cardVisibility(tip,visible);
-    const button=root.querySelector('[data-card="context"]');
-    if(visible){if(button.getAttribute('aria-describedby')!=='language-guide')button.setAttribute('aria-describedby','language-guide');}else if(button.hasAttribute('aria-describedby'))button.removeAttribute('aria-describedby');
+    const button=root.querySelector(`[data-card="${footerHostCard()}"]`);
+    for(const el of root.querySelectorAll('[data-card][aria-describedby]'))if(el!==button||!visible)el.removeAttribute('aria-describedby');
+    if(visible&&button&&button.getAttribute('aria-describedby')!=='language-guide')button.setAttribute('aria-describedby','language-guide');
     text('guide-save-note',guideError?(tw?'Could not save. Please retry. / 未能儲存，請重試。':'Could not save. Please retry. / 未能保存，请重试。'):'');
     $('guide-close').disabled=guideSaving;
     positionGuide();
@@ -947,6 +955,7 @@ module.exports = function installAgPulseInlineWidget() {
     clearTimeout(hoverTimer);clearTimeout(openTimer);stopDensityMotion();densityFrame=null;densityProbe=null;composer=null;
     resizeObserver?.disconnect();modelObserver?.disconnect();themeController?.dispose();hide();
     usageDashboard?.dispose();usageDashboard=null;updateMenu?.dispose();updateMenu=null;themeController=null;
+    barMigrateNote=hostUiRow=languageRow=barCustomizeDrawer=saveNote=null;lastBarLayoutSig='';lastFooterHost='context';lastCustomizeSig='';barCustomizeOpen=false;draggingChipId=null;
     node?.remove();node=null;root=null;
   }
   function mountTo(found){
@@ -1002,7 +1011,7 @@ module.exports = function installAgPulseInlineWidget() {
       @keyframes pulse-refresh-spin{to{transform:rotate(360deg)}}
       @media(prefers-reduced-motion:reduce){.refresh[aria-busy=true] svg{animation:none;opacity:.65}}
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
-      [data-card=context][data-has-rounds=true] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
+      [data-card=context][data-ctx-mode=rounds][data-has-rounds=true] .context-label,[data-card=context][data-ctx-mode=compact] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
       :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
       :host(.icons-only) .bar{gap:2px}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       :host([data-layout=blocked]){visibility:hidden!important;pointer-events:none!important}:host(.native-no-room){flex:0 0 0px!important;width:0!important;max-width:0!important;margin:0!important}
@@ -1083,6 +1092,22 @@ module.exports = function installAgPulseInlineWidget() {
       .language-options .language-button:hover{color:var(--pulse-hover-text);background:var(--pulse-hover)}
       .language-options .language-button[aria-pressed=true]{color:var(--pulse-foreground);background:var(--pulse-hover);box-shadow:0 1px 2px var(--pulse-shadow)}
       .language-options .language-button:active{transform:scale(.97)}.language-button[data-save-failed=true]{color:var(--pulse-warning);text-decoration:underline dotted}
+      .bar-customize-btn{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border:1px solid var(--pulse-border);border-radius:5px;background:var(--pulse-background);color:var(--pulse-label);font:inherit;font-size:10.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}
+      .bar-customize-btn:hover{background:var(--pulse-hover);color:var(--pulse-foreground)}.bar-customize-btn[aria-expanded=true]{background:var(--pulse-control);color:var(--pulse-foreground);border-color:var(--pulse-accent)}.bar-customize-btn svg{width:11px;height:11px;stroke-width:1.6}
+      .bar-migrate-note{margin:8px 0 0;padding:5px 7px;border-radius:6px;background:color-mix(in srgb,var(--pulse-warning) 12%,transparent);color:var(--pulse-label);font-size:10.5px;line-height:1.4}.bar-migrate-note[hidden]{display:none}
+      .bar-customize-drawer{margin-top:8px;padding:8px;border:1px solid var(--pulse-separator);border-radius:8px;background:var(--pulse-background);display:grid;gap:8px;font-size:11px}.bar-customize-drawer[hidden]{display:none}
+      .bar-customize-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;color:var(--pulse-foreground)}
+      .bar-customize-reset{border:0;background:none;padding:0;color:var(--pulse-muted);font:inherit;font-size:10.5px;cursor:pointer}.bar-customize-reset:hover{color:var(--pulse-foreground);text-decoration:underline}
+      .bar-customize-section{display:grid;gap:4px}.bar-customize-label{font-size:10px;color:var(--pulse-muted)}
+      .bar-ctx-modes{display:grid;grid-template-columns:repeat(3,1fr)}.bar-ctx-modes .segmented-button{text-align:center;font-size:10.5px;padding:2px 4px}
+      .bar-customize-list{display:grid;gap:4px}
+      .bar-customize-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--pulse-separator);border-radius:6px;background:var(--pulse-card);transition:opacity 120ms ease,border-color 120ms ease,background-color 120ms ease}
+      .bar-customize-row.is-hidden{opacity:.55}.bar-customize-row.is-dragging,.chip.is-dragging{opacity:.4}.bar-customize-row.is-drag-over,.chip.is-drag-over{outline:1.5px solid var(--pulse-accent);outline-offset:-1px}
+      .bar-drag-handle{color:var(--pulse-muted);font-size:11px;line-height:1;letter-spacing:-1px;user-select:none;cursor:grab}
+      .bar-row-name{flex:1;min-width:0;color:var(--pulse-foreground);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .bar-move-btns{display:inline-flex;gap:2px}
+      .bar-move-btn{width:18px;height:18px;padding:0;border:1px solid var(--pulse-separator);border-radius:4px;background:var(--pulse-background);color:var(--pulse-muted);font:inherit;font-size:10px;line-height:1;display:grid;place-items:center;cursor:pointer}.bar-move-btn:hover:not(:disabled){background:var(--pulse-hover);color:var(--pulse-foreground)}.bar-move-btn:disabled{opacity:.3;cursor:default}
+      .bar-switch{position:relative;width:26px;height:15px;padding:0;border:0;border-radius:999px;background:var(--pulse-track);cursor:pointer;flex:none;transition:background-color 140ms ease}.bar-switch[aria-checked=true]{background:var(--pulse-accent)}.bar-switch:disabled{opacity:.45;cursor:not-allowed}.bar-switch::after{content:'';position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#fff;transition:transform 140ms ease}.bar-switch[aria-checked=true]::after{transform:translateX(11px)}
       .language-guide{position:fixed;inset:auto;margin:0;padding:10px 12px;border:1px solid var(--pulse-border);border-radius:10px;background:var(--pulse-card);color:var(--pulse-foreground);box-shadow:0 4px 16px var(--pulse-shadow);font-size:11px;z-index:2147483000;overflow:visible}
       .language-guide[hidden]{display:none}.language-guide::backdrop{background:transparent;pointer-events:none}
       .language-guide::after{content:'';position:absolute;left:calc(var(--guide-anchor) - 4px);width:7px;height:7px;transform:rotate(45deg);background:var(--pulse-card);pointer-events:none}
@@ -1156,18 +1181,25 @@ module.exports = function installAgPulseInlineWidget() {
     const displayRow=document.createElement('div');displayRow.className='quota-display-row';
     setMarkup(displayRow,'<span data-i18n="quotaDisplay"></span><div class="language-options" role="group" data-i18n-aria="quotaDisplay">'+[['both','quotaDisplayBoth'],['auto','quotaDisplayAuto'],['compact','quotaDisplayCompact']].map(([value,key])=>`<button type="button" class="language-button" data-quota-display-choice="${value}" data-i18n="${key}"></button>`).join('')+'</div>');
     $('quota-card').append(displayRow);
-    const hostUiRow=document.createElement('div');hostUiRow.className='card-language';hostUiRow.id='host-i18n-row';
+    barMigrateNote=document.createElement('p');barMigrateNote.className='bar-migrate-note';barMigrateNote.id='bar-migrate-note';barMigrateNote.dataset.i18n='barFooterMigrated';barMigrateNote.hidden=true;
+    $('context-card').append(barMigrateNote);
+    hostUiRow=document.createElement('div');hostUiRow.className='card-language';hostUiRow.id='host-i18n-row';
     setMarkup(hostUiRow,'<span id="host-i18n-label" data-i18n="hostUiLocalization"></span><div class="language-options" role="group" data-i18n-aria="hostUiLocalization"><button type="button" class="language-button" id="card-host-i18n-off" data-host-i18n-choice="false" data-i18n="hostUiLocalizationOff"></button><button type="button" class="language-button" id="card-host-i18n-on" data-host-i18n-choice="true" data-i18n="hostUiLocalizationOn"></button></div>');
     $('context-card').append(hostUiRow);
-    const languageRow=document.createElement('div');languageRow.className='card-language';
+    languageRow=document.createElement('div');languageRow.className='card-language';
     setMarkup(languageRow,'<div class="language-options" role="group" data-i18n-aria="language"><button type="button" class="language-button" id="card-language-en" data-language-choice="en" aria-label="English">EN</button><button type="button" class="language-button" id="card-language-zh" data-language-choice="zh-CN" aria-label="简体中文">简</button><button type="button" class="language-button" id="card-language-zh-tw" data-language-choice="zh-TW" aria-label="繁體中文">繁</button></div><div class="card-footer-actions"></div>');
     const footerActions=languageRow.querySelector('.card-footer-actions');
+    const barCustomizeToggle=document.createElement('button');barCustomizeToggle.type='button';barCustomizeToggle.className='bar-customize-btn';barCustomizeToggle.id='bar-customize-toggle';barCustomizeToggle.setAttribute('aria-expanded','false');barCustomizeToggle.setAttribute('aria-controls','bar-customize-drawer');
+    setMarkup(barCustomizeToggle,'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h8M12 4h2M2 8h3M7 8h7M2 12h6M10 12h4"/><circle cx="11" cy="4" r="1.4"/><circle cx="6" cy="8" r="1.4"/><circle cx="9" cy="12" r="1.4"/></svg><span data-i18n="barCustomize"></span>');
+    footerActions.append(barCustomizeToggle);
     const repoLink=document.createElement('a');repoLink.className='footer-repo-link';repoLink.id='github-repo-link';repoLink.href='https://github.com/wycocoyu/agy-context-dashboard';repoLink.target='_blank';repoLink.rel='noopener noreferrer';repoLink.setAttribute('aria-label','GitHub');repoLink.title='GitHub';
     setMarkup(repoLink,'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>');
     footerActions.append(repoLink);
     $('context-card').append(languageRow);
+    barCustomizeDrawer=document.createElement('div');barCustomizeDrawer.className='bar-customize-drawer';barCustomizeDrawer.id='bar-customize-drawer';barCustomizeDrawer.hidden=true;
+    $('context-card').append(barCustomizeDrawer);
     if(window.__agPulseUpdateFactory&&window.agPulseHost.updatePlugin)updateMenu=window.__agPulseUpdateFactory({root,row:footerActions,language,setMarkup,request:input=>window.agPulseHost.updatePlugin(input),onOpen:hide,onStateChange:()=>{if(!disposed&&!instDisposed)render();}});
-    const saveNote=document.createElement('p');saveNote.className='footnote';saveNote.id='language-save-note';languageRow.after(saveNote);
+    saveNote=document.createElement('p');saveNote.className='footnote';saveNote.id='language-save-note';barCustomizeDrawer.after(saveNote);
     const guide=document.createElement('section');guide.className='language-guide';guide.id='language-guide';guide.hidden=true;guide.setAttribute('role','region');guide.setAttribute('aria-label','Language / 語言 / 语言');
     setMarkup(guide,'<div class="guide-heading"><strong>Language <span>/ 语言</span></strong><button type="button" id="guide-close" aria-label="Dismiss language tip / 关闭语言提示" title="Dismiss / 关闭">×</button></div><button type="button" id="guide-open"><span><span>Switch in context details</span><span lang="zh-CN">在上下文详情中切换语言</span></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button><p class="footnote" id="guide-save-note"></p>');
     root.append(guide);
@@ -1180,7 +1212,14 @@ module.exports = function installAgPulseInlineWidget() {
     report('mounted',{editorFound:true,composerFound:true});
     observeComposer();
     for(const chip of root.querySelectorAll('[data-card]')){
-      chip.addEventListener('pointerenter',()=>hoverChip(chip.dataset.card));chip.addEventListener('pointerleave',leaveChip);chip.addEventListener('focus',()=>{if(chip.matches(':focus-visible'))show(chip.dataset.card);});chip.addEventListener('click',()=>show(chip.dataset.card));
+      const id=chip.dataset.card;
+      chip.draggable=true;
+      chip.addEventListener('pointerenter',()=>hoverChip(id));chip.addEventListener('pointerleave',leaveChip);chip.addEventListener('focus',()=>{if(chip.matches(':focus-visible'))show(id);});chip.addEventListener('click',()=>show(id));
+      chip.addEventListener('dragstart',e=>{draggingChipId=id;chip.classList.add('is-dragging');try{e.dataTransfer?.setData('text/plain',id);}catch{}});
+      chip.addEventListener('dragend',()=>{draggingChipId=null;for(const c of root?.querySelectorAll('.chip,.bar-customize-row')||[])c.classList.remove('is-dragging','is-drag-over');});
+      chip.addEventListener('dragover',e=>{if(!draggingChipId||draggingChipId===id)return;e.preventDefault();chip.classList.add('is-drag-over');});
+      chip.addEventListener('dragleave',()=>chip.classList.remove('is-drag-over'));
+      chip.addEventListener('drop',e=>{e.preventDefault();chip.classList.remove('is-drag-over');if(draggingChipId)reorderChips(draggingChipId,id);});
     }
     for(const card of root.querySelectorAll('.card')){
       card.addEventListener('pointerenter',()=>clearTimeout(hoverTimer));card.addEventListener('pointerleave',scheduleHide);
@@ -1198,6 +1237,7 @@ module.exports = function installAgPulseInlineWidget() {
     for(const button of root.querySelectorAll('[data-host-i18n-choice]'))button.addEventListener('click',()=>void hostUiLocalization.choose(button.dataset.hostI18nChoice==='true'));
     for(const button of root.querySelectorAll('[data-composition-view]'))button.addEventListener('click',()=>setCompositionView(button.dataset.compositionView));
     $('context-rounds-pill')?.addEventListener('click',()=>{if(data?.speed?.stepBreakdown){stepsDrawerOpen=!stepsDrawerOpen;render();position();}});
+    $('bar-customize-toggle')?.addEventListener('click',()=>{ignoreLeaveUntil=Date.now()+250;barCustomizeOpen=!barCustomizeOpen;renderBarCustomize();position();});
     for(const d of root.querySelectorAll('.breakdown-details'))d.addEventListener('toggle',()=>{if(!disposed)position();});
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
@@ -1219,9 +1259,126 @@ module.exports = function installAgPulseInlineWidget() {
     }
     lastConversation=conversationId();
     if(!lastConversation){hydrated=true;seenEmptySession=true;}
+    applyBarLayout();
     localize();
+    renderBarCustomize();
     fit();position();
     refresh();
+  }
+  function reorderChips(fromId,toId){
+    if(!fromId||!toId||fromId===toId)return;
+    const next=barPrefs.order,a=next.indexOf(fromId),b=next.indexOf(toId);
+    if(a<0||b<0)return;
+    next.splice(a,1);next.splice(b,0,fromId);
+    ignoreLeaveUntil=Date.now()+250;
+    void barPrefs.update({barOrder:next});
+  }
+  function moveChip(id,delta){
+    const next=barPrefs.order,idx=next.indexOf(id),to=idx+delta;
+    if(idx<0||to<0||to>=next.length)return;
+    [next[idx],next[to]]=[next[to],next[idx]];
+    ignoreLeaveUntil=Date.now()+250;
+    void barPrefs.update({barOrder:next});
+  }
+  function toggleChipVisible(id){
+    const set=new Set(barPrefs.hidden);
+    if(set.has(id))set.delete(id);
+    else{
+      if(barPrefs.order.length-set.size<=1)return;
+      set.add(id);
+    }
+    ignoreLeaveUntil=Date.now()+250;
+    void barPrefs.update({barHidden:barPrefs.order.filter(k=>set.has(k))});
+  }
+  function applyBarLayout(){
+    if(!root)return;
+    const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden);
+    const sig=JSON.stringify([order,barPrefs.hidden]);
+    if(sig===lastBarLayoutSig)return;
+    lastBarLayoutSig=sig;
+    const bar=root.querySelector('.bar');
+    if(bar){
+      const current=Array.from(bar.querySelectorAll(':scope > [data-card]')).map(e=>e.dataset.card);
+      if(current.length!==order.length||current.some((id,i)=>id!==order[i])){
+        for(const id of order){const chip=bar.querySelector(`[data-card="${id}"]`);if(chip)bar.append(chip);}
+      }
+      for(const id of order){
+        const chip=bar.querySelector(`[data-card="${id}"]`);
+        if(chip&&id!=='quota')hidden(chip,hiddenSet.has(id));
+      }
+    }
+    const host=footerHostCard();
+    if(host!==lastFooterHost){
+      const prevHost=lastFooterHost;
+      lastFooterHost=host;
+      const target=$(cardIdFor(host));
+      if(target&&barMigrateNote&&hostUiRow&&languageRow&&barCustomizeDrawer&&saveNote){
+        target.append(barMigrateNote,hostUiRow,languageRow,barCustomizeDrawer,saveNote);
+      }
+      if(barCustomizeOpen&&cardName===prevHost&&!hiddenSet.has(host))show(host);
+    }
+    if(barMigrateNote)hidden(barMigrateNote,host==='context');
+    if(cardName&&hiddenSet.has(cardName))show(host);
+    densityProbe=null;
+    scheduleLayout();
+  }
+  function renderBarCustomize(){
+    if(!root||!barCustomizeDrawer)return;
+    attribute($('bar-customize-toggle'),'aria-expanded',String(barCustomizeOpen));
+    hidden(barCustomizeDrawer,!barCustomizeOpen);
+    if(!barCustomizeOpen)return;
+    const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden),ctxMode=barPrefs.contextChipMode;
+    const drawerSig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error]);
+    if(lastCustomizeSig===drawerSig)return;
+    lastCustomizeSig=drawerSig;
+    const mk=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
+    const head=mk('div','bar-customize-head');
+    const resetBtn=mk('button','bar-customize-reset',t('barReset'));resetBtn.type='button';resetBtn.id='bar-customize-reset';
+    resetBtn.addEventListener('click',()=>{ignoreLeaveUntil=Date.now()+250;void barPrefs.reset();});
+    head.append(mk('span','',t('barCustomizeTitle')),resetBtn);
+
+    const modeSec=mk('div','bar-customize-section');
+    modeSec.append(mk('div','bar-customize-label',t('barContextChipMode')));
+    const modeGroup=mk('div','segmented-options bar-ctx-modes');modeGroup.setAttribute('role','group');modeGroup.setAttribute('aria-label',t('barContextChipMode'));
+    for(const [val,key]of [['rounds','barContextModeRounds'],['label','barContextModeLabel'],['compact','barContextModeCompact']]){
+      const btn=mk('button','segmented-button',t(key));btn.type='button';btn.dataset.ctxChipMode=val;
+      btn.setAttribute('aria-pressed',String(ctxMode===val));
+      btn.addEventListener('click',()=>{ignoreLeaveUntil=Date.now()+250;void barPrefs.update({contextChipMode:val});});
+      modeGroup.append(btn);
+    }
+    modeSec.append(modeGroup);
+
+    const listSec=mk('div','bar-customize-section');
+    listSec.append(mk('div','bar-customize-label',t('barOrderLabel')));
+    const list=mk('div','bar-customize-list');
+    const visibleCount=order.filter(id=>!hiddenSet.has(id)).length;
+    const names={speed:'barChipSpeed',cache:'barChipCache',quota:'barChipQuota',context:'barChipContext'};
+    order.forEach((id,idx)=>{
+      const isVis=!hiddenSet.has(id),lastOne=isVis&&visibleCount<=1;
+      const row=mk('div',isVis?'bar-customize-row':'bar-customize-row is-hidden');
+      row.dataset.barRow=id;row.draggable=true;
+      const handle=mk('span','bar-drag-handle','⋮⋮');handle.setAttribute('aria-hidden','true');
+      const labelEl=mk('span','bar-row-name',t(names[id]));
+      const moves=mk('span','bar-move-btns');
+      const up=mk('button','bar-move-btn','↑');up.type='button';up.dataset.barMove='-1';up.disabled=idx===0;up.setAttribute('aria-label',t('barMoveUp'));
+      up.addEventListener('click',()=>moveChip(id,-1));
+      const down=mk('button','bar-move-btn','↓');down.type='button';down.dataset.barMove='1';down.disabled=idx===order.length-1;down.setAttribute('aria-label',t('barMoveDown'));
+      down.addEventListener('click',()=>moveChip(id,1));
+      moves.append(up,down);
+      const sw=mk('button','bar-switch');sw.type='button';sw.setAttribute('role','switch');sw.setAttribute('aria-checked',String(isVis));
+      sw.setAttribute('aria-label',t(names[id]));
+      if(lastOne){sw.disabled=true;sw.title=t('barKeepOneHint');}
+      sw.addEventListener('click',()=>toggleChipVisible(id));
+      row.append(handle,labelEl,moves,sw);
+      row.addEventListener('dragstart',e=>{draggingChipId=id;row.classList.add('is-dragging');try{e.dataTransfer?.setData('text/plain',id);}catch{}});
+      row.addEventListener('dragend',()=>{draggingChipId=null;for(const el of root?.querySelectorAll('.chip,.bar-customize-row')||[])el.classList.remove('is-dragging','is-drag-over');});
+      row.addEventListener('dragover',e=>{if(!draggingChipId||draggingChipId===id)return;e.preventDefault();row.classList.add('is-drag-over');});
+      row.addEventListener('dragleave',()=>row.classList.remove('is-drag-over'));
+      row.addEventListener('drop',e=>{e.preventDefault();row.classList.remove('is-drag-over');if(draggingChipId)reorderChips(draggingChipId,id);});
+      list.append(row);
+    });
+    listSec.append(list);
+    barCustomizeDrawer.replaceChildren(head,modeSec,listSec);
   }
   function render(){
     if(!root||!data)return;
@@ -1276,11 +1433,13 @@ module.exports = function installAgPulseInlineWidget() {
       const size=notice.querySelector('.collection-budget-size');hidden(size,!valid(limit)||!valid(observed));
       if(valid(limit)&&valid(observed))set('.collection-budget-size',t('collectionObserved',{observed:format(observed),limit:format(limit)}));
     }
-    hidden(root.querySelector('[data-card="speed"]'),false);
-    hidden(root.querySelector('[data-card="cache"]'),false);
+    applyBarLayout();
+    renderBarCustomize();
+    hidden(root.querySelector('[data-card="speed"]'),barPrefs.hidden.includes('speed'));
+    hidden(root.querySelector('[data-card="cache"]'),barPrefs.hidden.includes('cache'));
     const context=speed?.context,hasCapacity=typeof context?.usedFraction==='number';
     const ringColor=!hasCapacity?'var(--pulse-ring)':context.usedFraction>=0.9?'var(--pulse-danger)':context.usedFraction>=0.75?'var(--pulse-warning)':'var(--pulse-ring)';
-    hidden(root.querySelector('[data-card="context"]'),false);
+    hidden(root.querySelector('[data-card="context"]'),barPrefs.hidden.includes('context'));
     const empty=(surface&&!surface.useSharedComposer?surface.conversationState?.(composer).status==='new':composer?.kind==='main'&&(!lastConversation||(!speed?.requests&&!speed?.steps&&!hasCapacity)))&&data.connection==='live'&&!data.sessionError&&!collectionActive;
     text('context-percent',hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—');
     style($('context-ring'),'--used-angle',`${hasCapacity?Math.min(1,context.usedFraction)*360:0}deg`);
@@ -1422,7 +1581,9 @@ module.exports = function installAgPulseInlineWidget() {
     updateMenu?.syncHint?.({available:hasUpdate,latestVersion:updateVer});
     const ctxChip=root.querySelector('[data-card="context"]');
     if(ctxChip){
-      const showChipRounds=hasCapacity&&roundCount!==null;
+      const ctxMode=barPrefs.contextChipMode;
+      attribute(ctxChip,'data-ctx-mode',ctxMode);
+      const showChipRounds=hasCapacity&&roundCount!==null&&ctxMode==='rounds';
       const chipRoundsEl=$('context-rounds');
       if(chipRoundsEl){
         hidden(chipRoundsEl,!showChipRounds);
@@ -1837,7 +1998,7 @@ module.exports = function installAgPulseInlineWidget() {
     // em-dash on a dashed ring, never 0%.
     const quotaChip=root.querySelector('[data-card="quota"]'),quotaArcEl=$('quota-ring-arc'),quotaTextEl=$('quota-text');
     if(quotaChip&&quotaArcEl){
-      hidden(quotaChip,!group&&!quotaError);
+      hidden(quotaChip,(!group&&!quotaError)||barPrefs.hidden.includes('quota'));
       if(group){
         const view=language.quotaRingView(group,quotaDisplay.value),RING=2*Math.PI*8;
         const ringPct=v=>`${Math.round(v*100)}%`;
@@ -2073,10 +2234,11 @@ module.exports = function installAgPulseInlineWidget() {
       if(node&&node.id!==id)node.id=id;
       if(changed)updateGuide();
     },
-    onLocaleChanged(){if(root){localize();render();tick();position();}},
+    onLocaleChanged(){if(root){localize();renderBarCustomize();render();tick();position();}},
     onSpeedStyleChanged(){if(root){attribute(node,'data-speed-style',speedStyle.style);localize();paintSpeed([],'idle',0.36,false);render();tick();position();}},
     onQuotaDisplayChanged(){if(root){localize();render();position();}},
     onHostUiLocalizationChanged(){if(root){localize();position();}},
+    onBarPrefsChanged(){if(root){applyBarLayout();renderBarCustomize();localize();render();fit();tick();position();}},
     onCompositionViewChanged(){if(root){clearTimeout(hoverTimer);hoverTimer=null;ignoreLeaveUntil=Date.now()+250;localize();render();position();}},
     onUsageScopeChanged(){if(root){render();}},
     syncUsageGuide(){usageDashboard?.syncGuideDismissed();},
@@ -2156,7 +2318,7 @@ module.exports = function installAgPulseInlineWidget() {
   const timerId=setInterval(()=>{mount();if(!instances.length)pollHostPrefs();for(const inst of instances)inst.poll();},1000);
   window.__agPulseDispose=()=>{
     disposed=true;hostI18nEpoch++;
-    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();hostI18n?.dispose();delete window.__agPulseOnPreferences;
+    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();barPrefs.dispose();hostI18n?.dispose();delete window.__agPulseOnPreferences;
     for(const inst of instances.splice(0))inst.dispose();
     document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);document.removeEventListener('focusin',onFocus);
     document.removeEventListener('scroll',scheduleLayout,true);window.removeEventListener('resize',scheduleLayout);

@@ -62,6 +62,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       taskSwarm:'Swarm ({n} members)',swarmDetails:'Swarm & models',swarmRoster:'Swarm roster',swarmShowAll:'Show all {n}',swarmShowLess:'Collapse',swarmStatusKilled:'Ended',swarmStatusActive:'Active',swarmStatusAll:'All',
       orchSplitTitle:'Orchestrator split',orchCardTitle:'Orchestrator · Single-session split',orchScopeHint:'Same session · Planner switches to Executor',orchSwitchCount:'{n}× switch',orchReadOnlyTag:'Plan only',swarmScopeHint:'Multi-session team · Independent worker chats',orchRolePlanner:'Planner',orchRoleExecutor:'Executor',orchConfiguredPair:'Configured: {planner} → {executor}',orchNoSwitchYet:'Read-only turn · no switch yet',orchColdStartNote:'{n}× switch cache cold-start',orchColdStartLabel:'Switch cold-starts',orchColdStartTip:'First request after switching to Executor had 0 cached tokens (different models do not share KV cache)',cacheMissSurgeLabel:'Large cache-miss surge',cacheMissSurgeTip:'Requests with 0 cached tokens and >= 100K uncached input (e.g. after compaction, model switch, or cache expiry)',reqCountShort:'{n} req',countTimes:'{n}×',
       insightsProjectsSubtotal:'{n} projects · {tokens} toks',insightsSkillsSubtotal:'{n} skills · {runs} runs',insightsToolsSubtotal:'{n} tools · {calls} calls',insightsCommandsSubtotal:'{n} cmds · {runs} runs',insightsUnitSessions:'{n} sess',insightsUnitRuns:'{n} runs',insightsUnitCalls:'{n} calls',
+      barCustomize:'Customize',barCustomizeTitle:'Customize status bar',barReset:'Reset',barContextChipMode:'Context ring label',barContextModeRounds:'Turns',barContextModeLabel:'Label',barContextModeCompact:'Compact',barOrderLabel:'Visible chips & order',barKeepOneHint:'Keep at least 1 chip visible',barSaveFailed:'Status bar setting could not be saved. Try again.',barMoveUp:'Move up',barMoveDown:'Move down',barChipSpeed:'Speed',barChipCache:'Cache',barChipQuota:'Quota',barChipContext:'Context',barFooterMigrated:'Context chip is hidden — settings moved here so you can restore it anytime.',
     },
     'zh-CN':{
       collectionBackgroundFailed:'后台暂时无法完成，稍后会自动重试。',collectionProcessing:'正在补全统计',collectionProcessingReason:'后台处理中，可继续使用。',collectionProgress:'查看进度',collectionProgressCounts:'已处理 {steps} 个步骤 · {requests} 条请求记录',collectionQueued:'等待处理',collectionSteps:'读取步骤',collectionGenerators:'读取请求记录',collectionReducing:'计算统计',collectionPublishing:'保存已校验统计',
@@ -121,6 +122,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       taskSwarm:'Swarm（{n} 成员）',swarmDetails:'Swarm 协同与模型',swarmRoster:'Swarm 成员',swarmShowAll:'展开全部 {n} 个',swarmShowLess:'收起',swarmStatusKilled:'已结束',swarmStatusActive:'活跃',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/执行分工',orchCardTitle:'Orchestrator · 单会话双模型',orchScopeHint:'同一会话内 · 规划与执行切模型',orchSwitchCount:'切换 {n} 次',orchReadOnlyTag:'仅规划',swarmScopeHint:'多会话并行团队 · 主协调与各成员独立对话',orchRolePlanner:'主调度',orchRoleExecutor:'干活执行',orchConfiguredPair:'已配组合：{planner} → {executor}',orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',orchColdStartNote:'切模型冷缓存 {n} 次',orchColdStartLabel:'切模型冷缓存',orchColdStartTip:'切到执行模型后首步缓存读为 0（不同模型不共享 KV 缓存，需重新计算上下文）',cacheMissSurgeLabel:'大额冷缓存',cacheMissSurgeTip:'单次请求缓存读为 0 且未缓存输入 ≥ 100K 的次数与累计量（常见于压缩、切模型或缓存过期后重算）',reqCountShort:'{n} 次请求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 命令 · {runs} 次',insightsUnitSessions:'{n} 会话',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
+      barCustomize:'自定义',barCustomizeTitle:'状态栏自定义',barReset:'恢复默认',barContextChipMode:'上下文圆环副文案',barContextModeRounds:'轮数',barContextModeLabel:'标签',barContextModeCompact:'极简',barOrderLabel:'显示项与顺序',barKeepOneHint:'至少保留 1 个状态栏入口',barSaveFailed:'状态栏设置暂时无法保存，请重试。',barMoveUp:'上移',barMoveDown:'下移',barChipSpeed:'速度',barChipCache:'缓存',barChipQuota:'额度',barChipContext:'上下文',barFooterMigrated:'已隐藏上下文芯片，设置入口已自动迁移至此浮卡底部。',
     },
     'zh-TW':{
       collectionBackgroundFailed:'背景暫時無法完成，稍後會自動重試。',collectionProcessing:'正在補全統計',collectionProcessingReason:'背景處理中，可繼續使用。',collectionProgress:'查看進度',collectionProgressCounts:'已處理 {steps} 個步驟 · {requests} 筆請求記錄',collectionQueued:'等待處理',collectionSteps:'讀取步驟',collectionGenerators:'讀取請求記錄',collectionReducing:'計算統計',collectionPublishing:'儲存已驗證統計',
@@ -180,6 +182,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       taskSwarm:'Swarm（{n} 成員）',swarmDetails:'Swarm 協同與模型',swarmRoster:'Swarm 成員',swarmShowAll:'展開全部 {n} 個',swarmShowLess:'收合',swarmStatusKilled:'已結束',swarmStatusActive:'活躍',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/執行分工',orchCardTitle:'Orchestrator · 單工作階段雙模型',orchScopeHint:'同一工作階段內 · 規劃與執行切模型',orchSwitchCount:'切換 {n} 次',orchReadOnlyTag:'僅規劃',swarmScopeHint:'多工作階段並行團隊 · 主協調與各成員獨立對話',orchRolePlanner:'主調度',orchRoleExecutor:'執行模型',orchConfiguredPair:'已配組合：{planner} → {executor}',orchNoSwitchYet:'僅規劃/只讀 · 尚未切執行模型',orchColdStartNote:'切模型冷快取 {n} 次',orchColdStartLabel:'切模型冷快取',orchColdStartTip:'切至執行模型後首步快取讀為 0（不同模型不共用 KV 快取，需重新計算上下文）',cacheMissSurgeLabel:'大額冷快取',cacheMissSurgeTip:'單次請求快取讀為 0 且未快取輸入 ≥ 100K 的次數與累計量（常見於壓縮、切模型或快取過期後重算）',reqCountShort:'{n} 次請求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 專案 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 指令 · {runs} 次',insightsUnitSessions:'{n} 工作階段',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
+      barCustomize:'自訂',barCustomizeTitle:'狀態列自訂',barReset:'重設預設',barContextChipMode:'上下文圓環副文案',barContextModeRounds:'輪數',barContextModeLabel:'標籤',barContextModeCompact:'極簡',barOrderLabel:'顯示項與順序',barKeepOneHint:'至少保留 1 個狀態列入口',barSaveFailed:'狀態列設定暫時無法儲存，請重試。',barMoveUp:'上移',barMoveDown:'下移',barChipSpeed:'速率',barChipCache:'快取',barChipQuota:'額度',barChipContext:'上下文',barFooterMigrated:'已隱藏上下文晶片，設定入口已自動遷移至此浮卡底部。',
     },
   };
   let language=initialLanguage==='zh-CN'||initialLanguage==='zh-TW'?initialLanguage:'en';
@@ -353,6 +356,53 @@ module.exports = function createDashboardI18n(initialLanguage) {
   function connectHostUiLocalization(options){
     const ctrl=connectChoicePreference({key:'hostUiLocalization',allowed:HOST_UI_LOCALIZATIONS,fallback:false,...options});
     return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value===true;},get error(){return ctrl.error;},dispose:ctrl.dispose};
+  }
+  const BAR_CARDS=['speed','cache','quota','context'];
+  const CONTEXT_CHIP_MODES=['rounds','label','compact'];
+  const normalizeBarOrder=value=>Array.isArray(value)&&value.length===BAR_CARDS.length&&new Set(value).size===BAR_CARDS.length&&value.every(k=>BAR_CARDS.includes(k))?[...value]:[...BAR_CARDS];
+  const normalizeBarHidden=value=>Array.isArray(value)&&value.length<BAR_CARDS.length&&new Set(value).size===value.length&&value.every(k=>BAR_CARDS.includes(k))?[...value]:[];
+  const normalizeContextChipMode=value=>CONTEXT_CHIP_MODES.includes(value)?value:'rounds';
+  function connectBarPreferences({write,initial=null,cache=()=>{},changed=()=>{}}){
+    let order=normalizeBarOrder(initial?.order),hidden=normalizeBarHidden(initial?.hidden),contextChipMode=normalizeContextChipMode(initial?.contextChipMode);
+    let epoch=0,writes=0,revision=-1,error=false,disposed=false,queue=Promise.resolve();
+    const sameList=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
+    const notify=()=>{if(!disposed)changed();};
+    const remember=()=>{try{cache({order,hidden,contextChipMode});}catch{}};
+    function sync(value){
+      if(disposed||writes||!value||typeof value!=='object'||value.error)return;
+      const nextRev=Number.isSafeInteger(value.revision)?value.revision:0;
+      if(nextRev<revision)return;
+      const nextOrder=normalizeBarOrder(value.barOrder);
+      const nextHidden=normalizeBarHidden(value.barHidden);
+      const nextMode=normalizeContextChipMode(value.contextChipMode);
+      const differs=!sameList(nextOrder,order)||!sameList(nextHidden,hidden)||nextMode!==contextChipMode;
+      if(error&&epoch>0&&differs)return;
+      revision=nextRev;
+      const dirty=differs||error;error=false;
+      if(differs){order=nextOrder;hidden=nextHidden;contextChipMode=nextMode;remember();}
+      if(dirty)notify();
+    }
+    function update(patch){
+      if(disposed||!patch||typeof patch!=='object')return Promise.resolve();
+      const nextOrder=Object.hasOwn(patch,'barOrder')?normalizeBarOrder(patch.barOrder):order;
+      const nextHidden=Object.hasOwn(patch,'barHidden')?normalizeBarHidden(patch.barHidden):hidden;
+      const nextMode=Object.hasOwn(patch,'contextChipMode')?normalizeContextChipMode(patch.contextChipMode):contextChipMode;
+      if(Object.hasOwn(patch,'barHidden')&&Array.isArray(patch.barHidden)&&patch.barHidden.length>=BAR_CARDS.length)return Promise.resolve();
+      const choice=++epoch;order=nextOrder;hidden=nextHidden;contextChipMode=nextMode;writes++;error=false;remember();notify();
+      const payload={barOrder:nextOrder,barHidden:nextHidden,contextChipMode:nextMode};
+      const pending=queue.then(async()=>{
+        try{
+          const saved=await write(payload);
+          if(!saved||saved.error||!sameList(normalizeBarOrder(saved.barOrder),nextOrder)||!sameList(normalizeBarHidden(saved.barHidden),nextHidden)||normalizeContextChipMode(saved.contextChipMode)!==nextMode)throw new Error('Preference acknowledgement differs');
+          revision=Math.max(revision,Number.isSafeInteger(saved.revision)?saved.revision:0);
+          if(choice===epoch)error=false;
+        }catch{if(choice===epoch)error=true;}
+        finally{writes--;notify();}
+      });
+      queue=pending;return pending;
+    }
+    const reset=()=>update({barOrder:[...BAR_CARDS],barHidden:[],contextChipMode:'rounds'});
+    return {sync,update,reset,get order(){return [...order];},get hidden(){return [...hidden];},get contextChipMode(){return contextChipMode;},get error(){return error;},dispose(){disposed=true;}};
   }
   // Straight-segment sparkline with an end point for the minimal style. Pure
   // geometry so every renderer draws the same shape.
@@ -569,5 +619,5 @@ module.exports = function createDashboardI18n(initialLanguage) {
     if(mode==='compact'&&show){const other=show==='5h'?wv:fv;if(other!==null&&other<=0.25)dot=other<=0.10?'danger':'warn';}
     return {five,week,min,show,arcValue,level,dot};
   }
-  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
+  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
 };
