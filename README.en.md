@@ -230,6 +230,9 @@ The stable internal plugin ID remains `antigravity-pulse` for compatibility with
 
 | Metric | Definition |
 | --- | --- |
+| Conversation turns | Count of `USER_INPUT` steps across the full trajectory |
+| Trajectory steps | Total step records across the paginated trajectory (user inputs, model replies, tools, commands, compactions/checkpoints) |
+| Model requests | Deduplicated generator calls (a single turn with tool follow-ups triggers multiple requests and steps) |
 | Context window | Latest request-start `estimatedTokensUsed` / `maxContextTokens`; unknown capacity stays unavailable |
 | Cache hit | Cached-read tokens divided by uncached input + cache reads + cache writes; token-weighted across requests |
 | Token total | Normalized total input plus output tokens, including thinking output |

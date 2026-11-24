@@ -1187,7 +1187,7 @@ function render() {
   if(roundsPill){
     hidden('context-rounds-pill',roundCount===null);
     if(roundCount!==null){
-      text('context-rounds-pill',t('contextTurnsCount',{n:count(roundCount)}));
+      text('context-rounds-pill',stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)}));
       roundsPill.title=stepCount!==null?t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
     }else setTip(roundsPill,null);
   }

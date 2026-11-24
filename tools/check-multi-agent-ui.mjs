@@ -317,8 +317,9 @@ try {
       await s.locator('#context-bloat-pill').waitFor({ state: 'visible' });
       await s.locator('#context-compaction-pill').waitFor({ state: 'visible' });
       const expectedRounds = lang === 'en' ? '1 turns' : lang === 'zh-TW' ? '1 輪' : '1 轮';
+      const expectedPill = lang === 'en' ? '1 turns · 2 steps' : lang === 'zh-TW' ? '1 輪 · 2 步' : '1 轮 · 2 步';
       const expectedChipRounds = lang === 'en' ? '· 1T' : lang === 'zh-TW' ? '· 1輪' : '· 1轮';
-      assert.equal(await s.locator('#context-rounds-pill').textContent(), expectedRounds);
+      assert.equal(await s.locator('#context-rounds-pill').textContent(), expectedPill);
       assert.equal(await s.locator('[data-card=context]').getAttribute('data-has-rounds'), 'true');
       assert.equal(await s.locator('#context-rounds').textContent(), expectedChipRounds);
       assert.ok((await s.locator('[data-card=context]').getAttribute('title') || '').includes(expectedRounds));
@@ -334,7 +335,7 @@ try {
     await panelP.locator('#context-rounds-pill').waitFor({ state: 'visible' });
     await panelP.locator('#context-bloat-pill').waitFor({ state: 'visible' });
     await panelP.locator('#context-compaction-pill').waitFor({ state: 'visible' });
-    assert.equal(await panelP.locator('#context-rounds-pill').textContent(), lang === 'en' ? '1 turns' : lang === 'zh-TW' ? '1 輪' : '1 轮');
+    assert.equal(await panelP.locator('#context-rounds-pill').textContent(), lang === 'en' ? '1 turns · 2 steps' : lang === 'zh-TW' ? '1 輪 · 2 步' : '1 轮 · 2 步');
     await assertHeroWrap(panelP.locator('#context-card'), `panel-320px-${lang}`);
     await panelP.close();
   }
