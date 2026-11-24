@@ -68,7 +68,8 @@ test('Traditional Chinese (zh-TW) provides accurate localized terminology and to
   assert.equal(language.t('cacheRate'),'快取命中率');
   assert.equal(language.t('cacheMiss'),'未快取輸入');
   assert.equal(language.t('panelSpeed'),'速率');
-  assert.equal(language.t('panelCache'),'快取');
+  assert.equal(language.t('panelCache'),'Token · 快取');
+  assert.equal(language.t('panelQuota'),'配額');
   assert.equal(language.t('panelSharedQuota'),'配額');
   assert.equal(language.t('argonWeek'),'Argon 每週配額');
   assert.equal(language.t('sample',{rounds:2,steps:6,requests:3}),'2 輪 6 步 · 3 次取樣');

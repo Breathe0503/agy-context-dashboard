@@ -658,16 +658,16 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await waitUntil(`() => document.getElementById('strip-tps')?.textContent && document.getElementById('strip-tps').textContent !== '—'`, 'panel hydrated');
   await evalJs(`() => {
     document.querySelector('.widget').style.height = '580px';
-    document.getElementById('context-tab').click();
+    document.getElementById('quota-tab').click();
   }`);
   const panelCheck = await evalJs(`() => {
-    const card = document.getElementById('context-card');
+    const quotaCard = document.getElementById('quota-card');
     const fiveUsage = document.getElementById('five-usage');
     const weekUsage = document.getElementById('week-usage');
     const fiveForecast = document.getElementById('five-forecast-text');
     const uRect = fiveUsage.getBoundingClientRect();
     const fRect = fiveForecast.getBoundingClientRect();
-    const contextRes = {
+    const quotaRes = {
       rootFont: getComputedStyle(document.documentElement).fontFamily,
       fiveHidden: fiveUsage.hidden,
       fiveVal: fiveUsage.textContent,
@@ -675,11 +675,20 @@ test('font sync, scope switching and quota window reference render end-to-end in
       weekVal: weekUsage.textContent,
       weekTitle: weekUsage.getAttribute('title'),
       sameRow: Math.abs(uRect.top - fRect.top) < 6 && uRect.left >= fRect.right - 1,
-      contextFillBg: getComputedStyle(document.getElementById('context-fill')).backgroundColor,
       fiveFillBg: getComputedStyle(document.getElementById('five-fill')).backgroundColor,
+      quotaFits: quotaCard.scrollHeight <= quotaCard.clientHeight + 1,
+      quotaScrollH: quotaCard.scrollHeight,
+      quotaClientH: quotaCard.clientHeight,
+    };
+    document.getElementById('context-tab').click();
+    const card = document.getElementById('context-card');
+    const contextRes = {
+      ...quotaRes,
+      contextFillBg: getComputedStyle(document.getElementById('context-fill')).backgroundColor,
       roundsPill: document.getElementById('context-rounds-pill')?.textContent,
       roundsPillTitle: document.getElementById('context-rounds-pill')?.getAttribute('title'),
       contextTabTitle: document.getElementById('context-tab')?.getAttribute('title'),
+      contextHasQuota: Boolean(card.querySelector('.quota-details,#panel-active-group,#panel-quota-siblings,#host-i18n-row')),
       fits: card.scrollHeight <= card.clientHeight + 1,
       scrollH: card.scrollHeight,
       clientH: card.clientHeight,
@@ -707,6 +716,8 @@ test('font sync, scope switching and quota window reference render end-to-end in
   assert.equal(panelCheck.roundsPill, '1 轮 · 1 步');
   assert.match(panelCheck.roundsPillTitle || '', /1 轮用户输入 · 1 个轨迹步骤/);
   assert.ok((panelCheck.contextTabTitle || '').includes('1 轮'));
+  assert.equal(panelCheck.contextHasQuota, false, 'context-card must not embed quota or duplicate host-i18n');
+  assert.equal(panelCheck.quotaFits, true, `quota-card should fit cleanly inside 580px frame: ${panelCheck.quotaScrollH} vs ${panelCheck.quotaClientH}`);
   assert.equal(panelCheck.fits, true, `context-card should fit cleanly inside 580px frame: ${panelCheck.scrollH} vs ${panelCheck.clientH}`);
   assert.equal(panelCheck.stripCacheTotal, '61.8M tok', 'panel top strip retains tok');
   assert.equal(panelCheck.cacheCoverage, '61,795,796');

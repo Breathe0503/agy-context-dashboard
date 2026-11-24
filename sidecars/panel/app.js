@@ -160,11 +160,12 @@ for(const tab of viewTabs){
 }
 
 function showCard(name,animate=false) {
-  if(!['speed','cache','context'].includes(name))return;
+  const cards=['speed','cache','quota','context'];
+  if(!cards.includes(name))return;
   const changed=selectedCard!==name;selectedCard=name;
   cardMotion?.cancel();cardMotion=null;
   for (const chip of chips){const selected=chip.dataset.card===name;chip.setAttribute('aria-selected',String(selected));chip.tabIndex=selected?0:-1;}
-  for (const nameKey of ['speed','cache','context']) $(`${nameKey}-card`).hidden = name !== nameKey;
+  for (const nameKey of cards) $(`${nameKey}-card`).hidden = name !== nameKey;
   if(changed&&animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches)cardMotion=$(`${name}-card`).animate([{opacity:.6,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:160,easing:'cubic-bezier(.23,1,.32,1)'});
   if(name==='context'&&changed){
     lastContextDetailAt=0;
@@ -200,16 +201,6 @@ function localize(){
     hostI18nToggle.title=hostUiLocalization.error?`${actionLabel} · ${t('hostUiLocalizationSaveFailed')}`:`${actionLabel} · ${hostI18nHint}`;
     hostI18nToggle.dataset.saveFailed=String(hostUiLocalization.error);
   }
-  const hostI18nLabel=$('host-i18n-label');
-  if(hostI18nLabel)hostI18nLabel.title=hostI18nHint;
-  for(const button of document.querySelectorAll('[data-host-i18n-choice]')){
-    const value=button.dataset.hostI18nChoice==='true',active=hostUiLocalization.enabled===value,failed=hostUiLocalization.error&&active,labelText=t(value?'hostUiLocalizationOn':'hostUiLocalizationOff');
-    button.setAttribute('aria-label',`${t('hostUiLocalization')}: ${labelText}`);
-    button.title=failed?`${hostI18nHint} · ${t('hostUiLocalizationSaveFailed')}`:hostI18nHint;
-    button.setAttribute('aria-pressed',String(active));button.dataset.saveFailed=String(failed);
-  }
-  const hostI18nNote=$('host-i18n-save-note');
-  if(hostI18nNote){hostI18nNote.hidden=!hostUiLocalization.error;hostI18nNote.textContent=hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):'';}
   usageDashboard?.renderIfVisible?.();
 }
 
@@ -218,6 +209,44 @@ function chooseGroup(groups, speed, composerModel) {
 }
 function groupLabel(value) {
   return language.quotaGroupLabel(value);
+}
+
+function compactResetCountdown(resetAt, now) {
+  if (!resetAt) return '';
+  const raw = language.countdown(resetAt, now);
+  if (!raw || raw === '—') return '';
+  return /^\d/.test(raw) ? raw.replace(/\s+/g, '') : raw;
+}
+
+function renderQuotaStrip(now = Date.now() + serverOffset) {
+  const tab = $('quota-tab');
+  if (!tab) return;
+  const visible = language.quotaWindows(group), isArgon = language.quotaGroupKind(group) === 'gemini-argon';
+  const hasFive = visible.includes('5h'), hasWeek = visible.includes('weekly');
+  const win5h = hasFive ? group?.windows?.['5h'] : null, winWk = hasWeek ? group?.windows?.['weekly'] : null;
+  const rem5h = language.quotaRemaining(win5h), remWk = language.quotaRemaining(winWk);
+  const cd5h = win5h && !win5h.disabled ? compactResetCountdown(win5h.resetAt, now) : '';
+  const cdWk = winWk && !winWk.disabled ? compactResetCountdown(winWk.resetAt, now) : '';
+  if (hasFive) {
+    text('strip-quota-unit', '5h');
+    hidden('strip-quota-unit', false);
+    text('strip-quota', win5h?.disabled ? '—' : percent(rem5h));
+    const wkPart = hasWeek && typeof remWk === 'number' && !winWk?.disabled ? `${t('weekShort')} ${Math.round(remWk * 100)}%` : '';
+    text('strip-quota-sub', [wkPart, cd5h].filter(Boolean).join(' · ') || '—');
+  } else if (hasWeek) {
+    text('strip-quota-unit', t('weekShort'));
+    hidden('strip-quota-unit', false);
+    text('strip-quota', winWk?.disabled ? '—' : percent(remWk));
+    text('strip-quota-sub', cdWk || (group ? groupLabel(group) : '—'));
+  } else {
+    hidden('strip-quota-unit', true);
+    text('strip-quota', '—');
+    text('strip-quota-sub', '—');
+  }
+  const tipParts = [group ? groupLabel(group) : t('unavailableQuota')];
+  if (hasFive) tipParts.push(`5h ${win5h?.disabled ? t('unavailableQuota') : percent(rem5h)}${cd5h ? ` (${cd5h})` : ''}`);
+  if (hasWeek) tipParts.push(`${t(isArgon ? 'argonWeek' : 'weekShort')} ${winWk?.disabled ? t('unavailableQuota') : percent(remWk)}${cdWk ? ` (${cdWk})` : ''}`);
+  setTip(tab, tipParts.join(' · '));
 }
 
 function renderQuota(window, prefix, now = Date.now() + serverOffset) {
@@ -1105,6 +1134,7 @@ function render() {
   text('week-quota-title',t(isArgon?'argonWeek':'week'));
   $('week-details').setAttribute('aria-label',t(isArgon?'argonWeek':'week'));
   renderQuota('5h','five',now); renderQuota('weekly','week',now);
+  renderQuotaStrip(now);
   const sibWrap = $('panel-quota-siblings');
   if (sibWrap) {
     const siblings = group ? groups.filter(g => g.id !== group.id) : groups;
@@ -1354,7 +1384,7 @@ function render() {
   text('strip-cache',percent(cache?.hitRate));text('cache-rate',percent(cache?.hitRate));
   const tokens=usage?.tokens || cache;
   const hasTotal=tokens?.measuredRequests&&Number.isSafeInteger(tokens.totalTokens)&&tokens.totalTokens>=0;
-  text('strip-cache-total',hasTotal?`${compact(tokens.totalTokens)} tok`:'— tok');
+  text('strip-cache-total-num',hasTotal?compact(tokens.totalTokens):'—');
   text('cache-coverage',hasTotal?(tokens.totalTokens>=1e9?compactDetail(tokens.totalTokens):count(tokens.totalTokens)):'—');
   text('cache-coverage-unit',hasTotal?tokUnit(tokens.totalTokens):'toks');
   setTip($('cache-coverage')?.parentElement,hasTotal&&tokens.totalTokens>=1e9?`${count(tokens.totalTokens)} ${tokUnit(tokens.totalTokens)}`:null);
@@ -1443,6 +1473,25 @@ function render() {
     }else if(orchPhaseEl.dataset.signature){
       delete orchPhaseEl.dataset.signature;$('orch-phase-body').replaceChildren();
     }
+  }
+  const routePill=$('strip-route-pill');
+  if(routePill){
+    const routeMeta=speed?.sessionMeta||null;
+    let routeLabel='',routeTip='';
+    if(orch){
+      routeLabel=orch.switched?t('routeOrchSwitched',{n:smallCount(orch.phaseSwitchCount||1)}):t('routeOrchActive');
+      routeTip=`${t('orchCardTitle')}${orch.switched?` · ${t('orchSwitchCount',{n:count(orch.phaseSwitchCount||1)})}`:` · ${t('orchReadOnlyTag')}`}`;
+    }else if(taskUsage?.isSwarm){
+      routeLabel=t('routeSwarm',{n:count(taskUsage.subagents)});
+      routeTip=taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:t('taskSwarm',{n:count(taskUsage.subagents)});
+    }else if(routeMeta?.isSubagent||routeMeta?.isSidecar){
+      const roleKey=routeMeta.isSidecar?'roleSidecar':routeMeta.agentRole==='monitor'?'roleMonitor':routeMeta.agentRole==='coordinator'?'roleCoordinator':'roleWorker';
+      routeLabel=t(roleKey);
+      routeTip=`${t('sessionRoleLabel')}: ${routeLabel}`;
+    }
+    hidden('strip-route-pill',!routeLabel);
+    if(routeLabel){text('strip-route-pill',routeLabel);setTip(routePill,routeTip);}
+    else setTip(routePill,null);
   }
   const orchEl=$('orchestration-breakdown');
   if(orchEl){
@@ -1678,6 +1727,7 @@ function updateCountdowns() {
       lastExpiredRefresh = now; setTimeout(() => refresh(true),0);
     }
   }
+  renderQuotaStrip(now);
 }
 
 function refreshBusy(busy){
@@ -1771,6 +1821,13 @@ for(const btn of document.querySelectorAll('[data-audit-tab]')){
 for(const btn of document.querySelectorAll('[data-step-filter]')){
   btn.addEventListener('click',()=>{auditStepFilter=btn.dataset.stepFilter;renderAuditSection();});
 }
+$('strip-route-pill')?.addEventListener('click',event=>{
+  showPanelView('session');
+  showCard('cache',event.detail>0);
+  const orchPhase=$('orchestrator-breakdown'),orch=$('orchestration-breakdown');
+  if(orchPhase&&!orchPhase.hidden)orchPhase.open=true;
+  if(orch&&!orch.hidden)orch.open=true;
+});
 $('strip-session-reset')?.addEventListener('click',()=>{
   setInspectedConversation(null);
   void refresh(false);
@@ -1793,7 +1850,6 @@ $('open-panel-models')?.addEventListener('click',()=>showPanelView('models'));
 languagePicker=language.mountLanguagePicker({button:$('language-toggle'),parent:document.body,choose:value=>preferences.choose(value)});
 for(const button of document.querySelectorAll('[data-speed-style-choice]'))button.addEventListener('click',()=>void speedStyle.choose(button.dataset.speedStyleChoice));
 $('host-i18n-toggle')?.addEventListener('click',()=>void hostUiLocalization.choose(!hostUiLocalization.enabled));
-for(const button of document.querySelectorAll('[data-host-i18n-choice]'))button.addEventListener('click',()=>void hostUiLocalization.choose(button.dataset.hostI18nChoice==='true'));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 window.addEventListener('pagehide',()=>{preferences.dispose();speedStyle.dispose();hostUiLocalization.dispose();usageScope.dispose();usageDashboard?.dispose();languagePicker.close(false);});
 window.addEventListener('pageshow',event=>{if(event.persisted)preferences=connectPreferences();});
