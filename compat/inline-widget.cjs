@@ -1536,6 +1536,10 @@ module.exports = function installAgPulseInlineWidget() {
     for(const button of root.querySelectorAll('[data-composition-view]'))button.addEventListener('click',()=>setCompositionView(button.dataset.compositionView));
     $('context-rounds-pill')?.addEventListener('click',()=>{if(data?.speed?.stepBreakdown){stepsDrawerOpen=!stepsDrawerOpen;render();position();}});
     for(const d of root.querySelectorAll('.breakdown-details'))d.addEventListener('toggle',()=>{if(!disposed)position();});
+    const cacheHitRow=document.createElement('div');cacheHitRow.className='quota-display-row';cacheHitRow.id='cache-inline-hit-row';
+    setMarkup(cacheHitRow,'<span data-i18n="inlineCacheHit"></span><div class="language-options" role="group" data-i18n-aria="inlineCacheHit"><button type="button" class="language-button" id="cache-card-hit-off" data-inline-cache-hit-choice="false" data-i18n="inlineCacheHitOff"></button><button type="button" class="language-button" id="cache-card-hit-on" data-inline-cache-hit-choice="true" data-i18n="inlineCacheHitOn"></button></div>');
+    $('cache-card').append(cacheHitRow);
+    cacheHitRow.querySelectorAll('[data-inline-cache-hit-choice]').forEach(btn=>btn.addEventListener('click',()=>void inlineCacheHit.choose(btn.dataset.inlineCacheHitChoice==='true')));
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
       setMarkup(section,'<div class="usage-summary"><div><div class="usage-label" id="usage-today-label"></div><div class="usage-val"><strong id="usage-today"></strong><span class="usage-unit" id="usage-today-unit">toks</span></div></div><div><div class="usage-label" id="usage-month-label"></div><div class="usage-val"><strong id="usage-month"></strong><span class="usage-unit" id="usage-month-unit">toks</span></div></div></div><button type="button" id="open-usage"><span id="usage-open-label"></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button>');$('cache-card').append(section);

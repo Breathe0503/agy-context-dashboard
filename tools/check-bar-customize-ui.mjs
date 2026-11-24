@@ -188,8 +188,24 @@ try {
   assert.equal(await s.locator('#quota-card #quota-settings-toggle').count(), 0);
   assert.equal(await s.locator('#quota-card #pulse-settings-toggle').count(), 0);
 
+  // Verify #cache-card inline hit-rate quick toggle stays visible and syncs bidirectionally with Settings
+  await s.locator('[data-card=cache]').click();
+  await s.locator('#cache-inline-hit-row').waitFor({ state: 'visible' });
+  assert.equal(await s.locator('#cache-hit').isVisible(), true);
+  await s.locator('#cache-card-hit-off').click();
+  await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar')?.getAttribute('data-inline-cache-hit') === 'false');
+  assert.equal(await s.locator('#cache-hit').isVisible(), false);
+  await s.locator('[data-card=context]').click();
+  await s.locator('#pulse-settings-toggle').click();
+  await s.locator('#pulse-settings-dialog').waitFor({ state: 'visible' });
+  assert.equal(await s.locator('#pulse-settings-dialog [data-inline-cache-hit-choice=false]').getAttribute('aria-pressed'), 'true');
+  await s.locator('#pulse-settings-dialog [data-inline-cache-hit-choice=true]').click();
+  await page.waitForFunction(() => document.getElementById('ag-pulse-status-bar')?.getAttribute('data-inline-cache-hit') === 'true');
+  assert.equal(await s.locator('#cache-hit').isVisible(), true);
+  assert.equal(await s.locator('#cache-card-hit-on').getAttribute('aria-pressed'), 'true');
+
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ barCustomizeUi: true, reorder: true, labelModes: true, keepOneGuard: true, footerMigration: true, reset: true, pageErrors: [] }));
+  console.log(JSON.stringify({ barCustomizeUi: true, reorder: true, labelModes: true, keepOneGuard: true, footerMigration: true, reset: true, cacheHitQuickSync: true, pageErrors: [] }));
 } finally {
   await browser.close();
   server.closeAllConnections?.();
