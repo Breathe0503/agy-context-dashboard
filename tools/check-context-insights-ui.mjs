@@ -510,7 +510,7 @@ try {
       ['view-session-tab', '当前会话'],
       ['view-insights-tab', '全局洞察'],
       ['view-activity-tab', '每日/每周活动'],
-      ['view-models-tab', '按模型用量'],
+      ['view-models-tab', '模型用量'],
     ],
   );
   await page.locator('#view-insights-tab').click();
