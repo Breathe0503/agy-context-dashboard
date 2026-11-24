@@ -492,6 +492,11 @@ export function buildInsightsOverview(summaries, {
 
     const title = cleanText(live?.summary || '', 120) || (item.project ? `${item.project} · ${id.slice(0, 8)}` : `Session ${id.slice(0, 8)}`);
     const modifiedAt = live?.lastModifiedTime || item.lastAt || item.firstAt || null;
+    const modifiedMs = modifiedAt ? Date.parse(modifiedAt) || 0 : 0;
+    const activeDates = [...new Set([
+      ...Object.keys(item.days || {}),
+      ...(modifiedMs > 0 ? [dateKey(modifiedMs, timeZone)] : []),
+    ])].sort();
     const rowStatus = isArchived ? 'ARCHIVED' : cleanText(String(live?.status || '').replace(/^CASCADE_RUN_STATUS_/, ''), 32) || 'IDLE';
 
     if (status === 'active' && isArchived) continue;
@@ -506,7 +511,8 @@ export function buildInsightsOverview(summaries, {
       status: rowStatus,
       archived: isArchived,
       modifiedAt,
-      modifiedMs: modifiedAt ? Date.parse(modifiedAt) || 0 : 0,
+      modifiedMs,
+      activeDates,
       rounds: item.rounds || 0,
       steps: Math.max(item.steps || 0, countOrZero(live?.stepCount)),
       totalTokens: sessTotal,

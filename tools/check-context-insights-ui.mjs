@@ -151,11 +151,14 @@ const insightsPayload = {
     totalTokens: (i + 1) * 50000,
     estimatedCostUsd: (i + 1) * 0.15,
   })),
-  heatmap: Array.from({ length: 112 }, (_, i) => ({
-    date: `2026-08-${String((i % 28) + 1).padStart(2, '0')}`,
-    sessions: i % 5 === 0 ? 3 : 1,
-    tokens: (i % 7) * 40000,
-  })),
+  heatmap: Array.from({ length: 112 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 7, 3 + i));
+    return {
+      date: d.toISOString().slice(0, 10),
+      sessions: i >= 109 ? (i === 111 ? 3 : 2) : (i % 17 === 0 ? 1 : 0),
+      tokens: i >= 109 ? (i - 108) * 60000 : (i % 17 === 0 ? 25000 : 0),
+    };
+  }),
   composition: { uncached: 108000, cacheRead: 432000, cacheWrite: 0, output: 8400 },
   distributions: {
     projects: [{ name: 'agy-context-dashboard', sessions: 2, tokens: 540000 }],
@@ -166,8 +169,8 @@ const insightsPayload = {
   },
   totalMatchingSessions: 2,
   sessions: [
-    { id: cidA, title: 'Session Alpha', project: 'agy-context-dashboard', model: 'Gemini 4 Neon (High)', status: 'IDLE', archived: false, rounds: 5, steps: 20, totalTokens: 320000, currentContextTokens: 120000, cacheHitRate: 0.8, estimatedCostUsd: 0.42 },
-    { id: cidB, title: 'Session Beta', project: 'agy-context-dashboard', model: 'Claude Sonnet 4.6', status: 'ARCHIVED', archived: true, rounds: 4, steps: 15, totalTokens: 220000, currentContextTokens: 90000, cacheHitRate: 0.8, estimatedCostUsd: 0.86 },
+    { id: cidA, title: 'Session Alpha', project: 'agy-context-dashboard', model: 'Gemini 4 Neon (High)', status: 'IDLE', archived: false, rounds: 5, steps: 20, totalTokens: 320000, currentContextTokens: 120000, cacheHitRate: 0.8, estimatedCostUsd: 0.42, activeDates: ['2026-11-22'] },
+    { id: cidB, title: 'Session Beta', project: 'agy-context-dashboard', model: 'Claude Sonnet 4.6', status: 'ARCHIVED', archived: true, rounds: 4, steps: 15, totalTokens: 220000, currentContextTokens: 90000, cacheHitRate: 0.8, estimatedCostUsd: 0.86, activeDates: ['2026-11-20'] },
   ],
   cacheInfo: { totalScanned: 2, parsedNow: 0, cacheHits: 2, scanMs: 12, shardCount: 64 },
 };
@@ -532,6 +535,41 @@ try {
 
   await page.locator('#heatmap-metric-tokens').click();
   assert.equal(await page.locator('#heatmap-metric-tokens').getAttribute('aria-pressed'), 'true');
+  const hmGeometry = await page.evaluate(() => {
+    const cells = [...document.querySelectorAll('#insights-heatmap-grid button.heatmap-cell')];
+    const rects = cells.map(c => c.getBoundingClientRect());
+    const maxDiff = Math.max(...rects.map(r => Math.abs(r.width - r.height)));
+    const minW = Math.min(...rects.map(r => r.width));
+    return {
+      count: cells.length,
+      maxDiff,
+      minW,
+      meta: document.getElementById('insights-heatmap-meta')?.textContent || '',
+      months: [...document.querySelectorAll('#insights-heatmap-months span')].map(s => s.textContent),
+      weekdays: [...document.querySelectorAll('#insights-heatmap-weekdays span')].map(s => s.textContent).filter(Boolean),
+    };
+  });
+  assert.equal(hmGeometry.count, 112);
+  assert.ok(hmGeometry.maxDiff <= 1.2, `Heatmap cells must be square, maxDiff=${hmGeometry.maxDiff}`);
+  assert.ok(hmGeometry.minW >= 10, `Heatmap cells must fit crisply, minW=${hmGeometry.minW}`);
+  assert.match(hmGeometry.meta, /Streak 3d/);
+  assert.match(hmGeometry.meta, /180K tok/);
+  assert.ok(hmGeometry.months.length >= 2);
+  assert.deepEqual(hmGeometry.weekdays, ['M', 'W', 'F']);
+
+  const targetCell = page.locator('#insights-heatmap-grid button.heatmap-cell[data-date="2026-11-22"]');
+  await targetCell.hover();
+  await page.locator('#insights-heatmap-tip').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#insights-heatmap-tip').textContent(), /2026-11-22.*180K tok/);
+  await page.mouse.move(10, 10);
+  await targetCell.click();
+  assert.equal(await targetCell.getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('#insights-date-filter').isVisible(), true);
+  assert.equal(await page.locator('#insights-sessions-list .session-row').count(), 1);
+  assert.match(await page.locator('#insights-sessions-list .session-row').first().textContent(), /Session Alpha/);
+  await page.locator('#insights-date-filter').click();
+  assert.equal(await page.locator('#insights-date-filter').isVisible(), false);
+  assert.equal(await page.locator('#insights-sessions-list .session-row').count(), 2);
 
   await page.locator('#insights-status-filter').selectOption('archived');
   await page.locator('#insights-sessions-list .session-row').filter({ hasText: 'Session Beta' }).waitFor();

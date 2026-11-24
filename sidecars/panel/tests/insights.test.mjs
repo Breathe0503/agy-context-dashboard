@@ -91,6 +91,8 @@ test('InsightsScanner uses 64-shard incremental cache and builds filtered/sorted
   assert.equal(ov1.kpis.totalSessionsForPricing, 2);
   assert.equal(ov1.last7Days.length, 7);
   assert.equal(ov1.heatmap.length, 112);
+  assert.deepEqual(ov1.sessions[0].activeDates, ['2026-11-21']);
+  assert.deepEqual(ov1.sessions[1].activeDates, ['2026-11-20']);
 
   const scanner2 = new InsightsScanner({ brainRoot, cacheDir, useWorker: false });
   const ov2 = await scanner2.overview({
