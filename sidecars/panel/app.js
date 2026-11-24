@@ -1416,12 +1416,12 @@ function render() {
         sec.append(mkEl('div','breakdown-head',t('orchScopeHint')));
         if(orch.planner){
           const p=orch.planner,pName=`${t('orchRolePlanner')} · ${p.model||orch.configuredPlanner||'—'}`;
-          const pRow=mkRow(pName,`${compact(p.totalTokens)} · ${p.requests}× · ${percent(p.hitRate)}`);
+          const pRow=mkRow(pName,`${compact(p.totalTokens)} · ${t('reqCountShort',{n:smallCount(p.requests)})} · ${percent(p.hitRate)}`);
           setTip(pRow,pName);sec.append(pRow);
         }
         if(orch.executor){
           const e=orch.executor,eName=`${t('orchRoleExecutor')} · ${e.model||orch.configuredExecutor||'—'}`;
-          const eRow=mkRow(eName,`${compact(e.totalTokens)} · ${e.requests}× · ${percent(e.hitRate)}`);
+          const eRow=mkRow(eName,`${compact(e.totalTokens)} · ${t('reqCountShort',{n:smallCount(e.requests)})} · ${percent(e.hitRate)}`);
           setTip(eRow,eName);sec.append(eRow);
         }
         if(!orch.switched){
@@ -1433,7 +1433,9 @@ function render() {
           }
         }
         if(orch.coldStartSwitches>0){
-          sec.append(mkRow('⚠',t('orchColdStartNote',{n:count(orch.coldStartSwitches)}),true,false));
+          const csRow=mkRow(t('orchColdStartLabel'),t('reqCountShort',{n:smallCount(orch.coldStartSwitches)}),false,false);
+          setTip(csRow,t('orchColdStartTip'));
+          sec.append(csRow);
         }
         phaseNodes.push(sec);
         $('orch-phase-body').replaceChildren(...phaseNodes);
@@ -1499,12 +1501,16 @@ function render() {
           const sec=mkEl('div','breakdown-section');
           for(const m of models.slice(0,6)){
             const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
-            const val=`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`;
-            const mRow=mkRow(m.model,val,m.cacheMissSurges>0,false);
+            const val=`${compact(m.totalTokens)} · ${t('reqCountShort',{n:smallCount(m.requests)})}${thinkNote}`;
+            const mRow=mkRow(m.model,val,false,false);
             setTip(mRow,`${m.model} · ${poolNames[m.pool]||m.pool}`);
             sec.append(mRow);
           }
-          if(surges>0)sec.append(mkRow('⚠',t('cacheMissSurge',{n:surges,tokens:compact(speed?.cacheMissSurgeTokens||0)}),true,false));
+          if(surges>0){
+            const sRow=mkRow(t('cacheMissSurgeLabel'),`${t('reqCountShort',{n:smallCount(surges)})} · ${compact(speed?.cacheMissSurgeTokens||0)}`,false,false);
+            setTip(sRow,t('cacheMissSurgeTip'));
+            sec.append(sRow);
+          }
           nodes.push(sec);
         }
         const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
@@ -1516,7 +1522,7 @@ function render() {
             const wsTag=a.workspaceMode&&a.workspaceMode!=='inherit'?` [${a.workspaceMode}]`:'';
             const killedTag=a.killed?` · ${t('swarmStatusKilled')}`:'';
             const rowLabel=`${a.label}${wsTag}${killedTag} · ${a.model}`;
-            const row=mkRow(rowLabel,`${compact(a.tokens)} (${a.requests}×)`);
+            const row=mkRow(rowLabel,`${compact(a.tokens)} · ${t('reqCountShort',{n:smallCount(a.requests)})}`);
             setTip(row,rowLabel);
             if(a.killed)row.classList.add('is-killed');
             sec.append(row);

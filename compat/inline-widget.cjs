@@ -1549,14 +1549,14 @@ module.exports = function installAgPulseInlineWidget() {
           sec.append(mkEl('div','breakdown-head',t('orchScopeHint')));
           if(orch.planner){
             const pName=`${t('orchRolePlanner')} · ${orch.planner.model||orch.configuredPlanner||'—'}`;
-            const pVal=`${compact(orch.planner.totalTokens)} · ${orch.planner.requests}× · ${pct(orch.planner.hitRate)}`;
+            const pVal=`${compact(orch.planner.totalTokens)} · ${t('reqCountShort',{n:smallCount(orch.planner.requests)})} · ${pct(orch.planner.hitRate)}`;
             const r=mkRow(pName,pVal);
             attribute(r,'title',`${pName} — ${pVal}`);
             sec.append(r);
           }
           if(orch.executor){
             const eName=`${t('orchRoleExecutor')} · ${orch.executor.model||orch.configuredExecutor||'—'}`;
-            const eVal=`${compact(orch.executor.totalTokens)} · ${orch.executor.requests}× · ${pct(orch.executor.hitRate)}`;
+            const eVal=`${compact(orch.executor.totalTokens)} · ${t('reqCountShort',{n:smallCount(orch.executor.requests)})} · ${pct(orch.executor.hitRate)}`;
             const r=mkRow(eName,eVal);
             attribute(r,'title',`${eName} — ${eVal}`);
             sec.append(r);
@@ -1574,9 +1574,8 @@ module.exports = function installAgPulseInlineWidget() {
             }
           }
           if(orch.coldStartSwitches>0){
-            const note=t('orchColdStartNote',{n:orch.coldStartSwitches});
-            const r=mkRow('⚠',note,true,false);
-            attribute(r,'title',note);
+            const r=mkRow(t('orchColdStartLabel'),t('reqCountShort',{n:smallCount(orch.coldStartSwitches)}),false,false);
+            attribute(r,'title',t('orchColdStartTip'));
             sec.append(r);
           }
           phaseNodes.push(sec);
@@ -1641,11 +1640,15 @@ module.exports = function installAgPulseInlineWidget() {
             const sec=mkEl('div','breakdown-section');
             for(const m of models.slice(0,6)){
               const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
-              const mRow=mkRow(m.model,`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`,m.cacheMissSurges>0,false);
+              const mRow=mkRow(m.model,`${compact(m.totalTokens)} · ${t('reqCountShort',{n:smallCount(m.requests)})}${thinkNote}`,false,false);
               attribute(mRow,'title',`${m.model} · ${poolNames[m.pool]||m.pool}`);
               sec.append(mRow);
             }
-            if(surges>0)sec.append(mkRow('⚠',t('cacheMissSurge',{n:surges,tokens:compact(speed?.cacheMissSurgeTokens||0)}),true,false));
+            if(surges>0){
+              const sRow=mkRow(t('cacheMissSurgeLabel'),`${t('reqCountShort',{n:smallCount(surges)})} · ${compact(speed?.cacheMissSurgeTokens||0)}`,false,false);
+              attribute(sRow,'title',t('cacheMissSurgeTip'));
+              sec.append(sRow);
+            }
             nodes.push(sec);
           }
           const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
@@ -1657,7 +1660,7 @@ module.exports = function installAgPulseInlineWidget() {
               const wsTag=a.workspaceMode&&a.workspaceMode!=='inherit'?` [${a.workspaceMode}]`:'';
               const statusTag=a.killed?` · ${t('swarmStatusKilled')}`:'';
               const nameText=`${a.label}${wsTag}${statusTag} · ${a.model}`;
-              const valText=`${compact(a.tokens)} (${a.requests}×)`;
+              const valText=`${compact(a.tokens)} · ${t('reqCountShort',{n:smallCount(a.requests)})}`;
               const r=mkRow(nameText,valText);
               attribute(r,'title',`${nameText} — ${valText}`);
               sec.append(r);
