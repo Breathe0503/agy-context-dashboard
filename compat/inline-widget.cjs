@@ -1641,7 +1641,9 @@ module.exports = function installAgPulseInlineWidget() {
             const sec=mkEl('div','breakdown-section');
             for(const m of models.slice(0,6)){
               const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
-              sec.append(mkRow(`${m.model} [${poolNames[m.pool]||m.pool}]`,`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`,m.cacheMissSurges>0,false));
+              const mRow=mkRow(m.model,`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`,m.cacheMissSurges>0,false);
+              attribute(mRow,'title',`${m.model} · ${poolNames[m.pool]||m.pool}`);
+              sec.append(mRow);
             }
             if(surges>0)sec.append(mkRow('⚠',t('cacheMissSurge',{n:surges,tokens:compact(speed?.cacheMissSurgeTokens||0)}),true,false));
             nodes.push(sec);

@@ -1500,7 +1500,9 @@ function render() {
           for(const m of models.slice(0,6)){
             const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
             const val=`${compact(m.totalTokens)} · ${m.requests}×${thinkNote}`;
-            sec.append(mkRow(`${m.model} [${poolNames[m.pool]||m.pool}]`,val,m.cacheMissSurges>0,false));
+            const mRow=mkRow(m.model,val,m.cacheMissSurges>0,false);
+            setTip(mRow,`${m.model} · ${poolNames[m.pool]||m.pool}`);
+            sec.append(mRow);
           }
           if(surges>0)sec.append(mkRow('⚠',t('cacheMissSurge',{n:surges,tokens:compact(speed?.cacheMissSurgeTokens||0)}),true,false));
           nodes.push(sec);
