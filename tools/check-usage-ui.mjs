@@ -189,7 +189,12 @@ try{
  for(const w of [460,280]){
   await embedPage.evaluate(width=>{window.__embedHost.style.width=width+'px';window.__embedUd.renderIfVisible();},w);
   for(const [per,expectedCols] of [['week',8],['month',6],['day',31]]){
-   await embedPage.evaluate(p=>window.__embedHost.querySelector('#usage-embed > div').shadowRoot.querySelector(`[data-period="${p}"]`).click(),per);
+   const immediateBg=await embedPage.evaluate(p=>{
+    const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+    sr.querySelector(`[data-period="${p}"]`).click();
+    return getComputedStyle(sr.querySelector('#period-controls button[aria-pressed="true"]')).backgroundColor;
+   },per);
+   assert.notEqual(immediateBg,'rgba(0, 0, 0, 0)',`embed ${w}px ${per} immediate active pill`);
    await embedPage.waitForTimeout(200);
    const r=await embedPage.evaluate(()=>{
     const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
