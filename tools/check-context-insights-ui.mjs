@@ -262,6 +262,7 @@ window.agPulseHost={
 
 let forceDegradedCidB = false;
 let omitUsage = false;
+let forceTightBudget = false;
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -315,7 +316,8 @@ const server = createServer(async (req, res) => {
     }
     let speed = sessions[cid] || sessions[cidA];
     if (contextDetail) {
-      speed = { ...speed, contextComposition: attachHostContextUsage(attachTokenBase(speed.contextComposition, tokenBase), hostUsage) };
+      const tb = forceTightBudget ? { ...tokenBase, totalTokens: 18600 } : tokenBase;
+      speed = { ...speed, contextComposition: attachHostContextUsage(attachTokenBase(speed.contextComposition, tb), hostUsage) };
     }
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
@@ -383,7 +385,10 @@ try {
   await page.locator('#token-base-toggle').click();
   await page.locator('#token-base-tree').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#token-base-toggle-label').textContent(), 'Rules & skills config');
-  assert.equal(await page.locator('#token-base-toggle-summary').getAttribute('data-level'), 'warn');
+  assert.equal(await page.locator('#token-base-toggle-summary').getAttribute('data-level'), null);
+  assert.equal(await page.locator('#token-base-tree .is-warn').count(), 0);
+  assert.equal(await page.locator('#token-base-tree .is-heavy').count(), 0);
+  assert.equal(await page.locator('#token-base-tree .is-danger').count(), 0);
   assert.equal(await page.locator('#token-base-tree .drilldown-budget-card').count(), 2);
   const firstRule = await page.locator('#token-base-tree .drilldown-item').first().evaluate(el => ({
     name: el.querySelector('.drilldown-item-name')?.textContent,
@@ -676,6 +681,21 @@ try {
   await coldPage.locator('#view-models-tab').click();
   await coldPage.waitForFunction(() => (document.querySelector('#usage-embed > div')?.shadowRoot?.querySelectorAll('#plot .bar-column')?.length || 0) > 0);
   await coldPage.close();
+
+  // 9. Tight config budget (>= 90%) turns summary pill and budget bar danger red
+  forceTightBudget = true;
+  const tightPage = await browser.newPage({ viewport: { width: 410, height: 680 } });
+  tightPage.on('pageerror', err => errors.push(err.message));
+  await tightPage.goto(base + '/');
+  await tightPage.locator('#context-tab').click();
+  await tightPage.locator('#token-base-toggle').waitFor({ state: 'visible' });
+  await tightPage.locator('#token-base-toggle').click();
+  await tightPage.locator('#token-base-tree').waitFor({ state: 'visible' });
+  assert.equal(await tightPage.locator('#token-base-toggle-summary').getAttribute('data-level'), 'danger');
+  assert.equal(await tightPage.locator('#token-base-tree .drilldown-budget-pct.is-danger').count(), 1);
+  assert.equal(await tightPage.locator('#token-base-tree .drilldown-budget-track i.is-danger').count(), 1);
+  forceTightBudget = false;
+  await tightPage.close();
 
   assert.deepEqual(errors, [], 'Trusted Types CSP must produce zero page errors');
   console.log(JSON.stringify({ ok: true, auditCalls: calls.audit.length, insightsCalls: calls.insights.length, pageErrors: errors }));

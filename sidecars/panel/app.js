@@ -394,7 +394,7 @@ function splitDrilldownPath(display) {
 
 function renderDrilldownBudgetCard(label, used, max) {
   const pct = max > 0 ? Math.round((used / max) * 100) : 0;
-  const levelClass = pct >= 90 ? 'is-danger' : pct >= 75 ? 'is-warn' : '';
+  const levelClass = pct >= 90 ? 'is-danger' : '';
   const card = document.createElement('div');
   card.className = 'drilldown-budget-card';
   const top = document.createElement('div');
@@ -422,7 +422,7 @@ function createDrilldownItemRow(display, tokens, groupTokens, maxItemTokens, raw
   const share = groupTokens > 0 ? Math.round((tokens / groupTokens) * 100) : 0;
   const fillW = maxItemTokens > 0 && tokens > 0 ? Math.max(4, Math.round((tokens / maxItemTokens) * 100)) : 0;
   const row = document.createElement('div');
-  row.className = `drilldown-item${share >= 30 ? ' is-heavy' : ''}${isSub ? ' is-sub' : ''}`;
+  row.className = isSub ? 'drilldown-item is-sub' : 'drilldown-item';
   setAttr(row, 'title', rawTitle);
   const fill = document.createElement('i');
   fill.className = 'drilldown-item-fill';
@@ -460,7 +460,7 @@ function renderTokenBaseDrilldown(customization) {
   text('token-base-toggle-summary', summary);
   const summaryEl = $('token-base-toggle-summary');
   if (summaryEl) {
-    const level = budgetPct === null ? null : budgetPct >= 90 ? 'danger' : budgetPct >= 75 ? 'warn' : null;
+    const level = budgetPct !== null && budgetPct >= 90 ? 'danger' : null;
     setAttr(summaryEl, 'data-level', level);
   }
   setAttr(toggle, 'aria-expanded', String(tokenBaseExpanded));
