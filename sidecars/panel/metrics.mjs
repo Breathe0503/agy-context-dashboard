@@ -109,26 +109,41 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   const samples = storage?.samples || [], ids = storage?.ids || new Map();
   const steps = trajectory.steps || [];
   const stepPhases = new Uint8Array(steps.length);
-  let curPhase = 0, phaseSwitchCount = 0, hasExitPlanMode = false, stepIdx = 0;
+  const stepTurns = new Int32Array(steps.length);
+  const orchTurns = new Set();
+  let curPhase = 0, curTurn = 0, phaseSwitchCount = 0, hasExitPlanMode = false, stepIdx = 0;
   for (const s of steps) {
     const typeText = String(s?.type || '');
     const isUser = /USER_INPUT/.test(typeText);
     const isPlanReview = hasPlanReviewMarker(s);
     const isExitPlan = isExitPlanModeStep(s);
     if (isExitPlan) {
-      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+      if (stepIdx < stepPhases.length) {
+        stepPhases[stepIdx] = curPhase;
+        stepTurns[stepIdx] = curTurn;
+      }
+      orchTurns.add(curTurn);
       if (curPhase !== 1) phaseSwitchCount++;
       curPhase = 1;
       hasExitPlanMode = true;
     } else if (isPlanReview) {
       if (curPhase === 1) phaseSwitchCount++;
       curPhase = 0;
-      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+      orchTurns.add(curTurn);
+      if (stepIdx < stepPhases.length) {
+        stepPhases[stepIdx] = curPhase;
+        stepTurns[stepIdx] = curTurn;
+      }
     } else if (isUser) {
+      curTurn++;
       curPhase = 0;
-      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+      if (stepIdx < stepPhases.length) {
+        stepPhases[stepIdx] = curPhase;
+        stepTurns[stepIdx] = curTurn;
+      }
     } else if (stepIdx < stepPhases.length) {
       stepPhases[stepIdx] = curPhase;
+      stepTurns[stepIdx] = curTurn;
     }
     stepIdx++;
   }
@@ -253,11 +268,12 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     if (builtInPlanner) hasBuiltInPlanner = true;
     if (builtInExecutor) hasBuiltInExecutor = true;
     const gStepIndices = Array.isArray(generator.stepIndices) ? generator.stepIndices : [];
-    let inExecutorPhase = false, inPlannerPhase = false;
+    let inExecutorPhase = false, inPlannerPhase = false, inOrchTurn = false;
     for (const si of gStepIndices) {
       if (Number.isInteger(si) && si >= 0 && si < stepPhases.length) {
         if (stepPhases[si] === 1) inExecutorPhase = true;
         else inPlannerPhase = true;
+        if (orchTurns.has(stepTurns[si])) inOrchTurn = true;
       }
     }
     if (inExecutorPhase) inPlannerPhase = false;
@@ -265,11 +281,11 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     if (builtInPlanner) orchRole = 'planner';
     else if (builtInExecutor) orchRole = 'executor';
     else if (inExecutorPhase) orchRole = 'executor';
-    else if (inPlannerPhase && hasExitPlanMode) orchRole = 'planner';
-    else if (hasConfiguredPair && configuredPlanner !== configuredExecutor) {
+    else if (inPlannerPhase && inOrchTurn) orchRole = 'planner';
+    else if (!hasExitPlanMode && hasConfiguredPair && configuredPlanner !== configuredExecutor) {
       if (formattedModel === configuredPlanner) orchRole = 'planner';
       else if (formattedModel === configuredExecutor) orchRole = 'executor';
-    } else if (hasConfiguredPair && formattedModel === configuredPlanner) {
+    } else if (!hasExitPlanMode && hasConfiguredPair && formattedModel === configuredPlanner) {
       orchRole = 'planner';
     }
     if (orchRole === 'planner') {

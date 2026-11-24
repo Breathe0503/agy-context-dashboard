@@ -334,6 +334,35 @@ test('trajectoryMetrics detects built-in Orchestrator split, cold starts, plan r
     },
   }, null, { orchestratorSettings: customSettings });
   assert.equal(ordinary.orchestrator, null);
+
+  // (e) Mixed session: earlier ordinary turns (Turns 1-2) must NOT bleed into later Turn 3 Orchestrator planner count
+  const mixed = trajectoryMetrics({
+    trajectory: {
+      cascadeId: coord,
+      steps: [
+        { type: 'CORTEX_STEP_TYPE_USER_INPUT' },
+        { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', plannerResponse: { response: 'ordinary 1' } },
+        { type: 'CORTEX_STEP_TYPE_USER_INPUT' },
+        { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', plannerResponse: { response: 'ordinary 2' } },
+        { type: 'CORTEX_STEP_TYPE_USER_INPUT' },
+        { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', plannerResponse: { toolCalls: [{ name: 'exit_plan_mode' }] } },
+        { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', plannerResponse: { response: 'orch exec' } },
+      ],
+      generatorMetadata: [
+        { stepIndices: [1], chatModel: { model: 'MODEL_PLACEHOLDER_M528', streamingDuration: '1s', usage: { responseId: 'mx1', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: 10000, outputTokens: 200 } } },
+        { stepIndices: [3], chatModel: { model: 'MODEL_PLACEHOLDER_M532', streamingDuration: '1s', usage: { responseId: 'mx2', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: 10000, outputTokens: 200 } } },
+        { stepIndices: [5], chatModel: { model: 'MODEL_PLACEHOLDER_M532', streamingDuration: '2s', usage: { responseId: 'mx3', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: 5000, cacheReadTokens: 1000, outputTokens: 400 } } },
+        { stepIndices: [6], chatModel: { model: 'MODEL_PLACEHOLDER_M525', streamingDuration: '1s', usage: { responseId: 'mx4', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: 9000, cacheReadTokens: 0, outputTokens: 300 } } },
+      ],
+    },
+  }, null, { orchestratorSettings: customSettings });
+  assert.equal(mixed.orchestrator.detected, true);
+  assert.equal(mixed.orchestrator.planner.requests, 1);
+  assert.equal(mixed.orchestrator.planner.model, 'Gemini 4 Neon (High)');
+  assert.equal(mixed.orchestrator.planner.totalTokens, 6400);
+  assert.equal(mixed.orchestrator.executor.requests, 1);
+  assert.equal(mixed.orchestrator.executor.model, 'Gemini 4 Hydrogen (High)');
+  assert.equal(mixed.orchestrator.executor.totalTokens, 9300);
 });
 
 test('safeMetrics and SessionHistory roundtrip orchestrator and reject tampered records', async t => {

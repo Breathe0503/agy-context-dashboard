@@ -60,7 +60,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'Heavy tool calls',bloatBadge:'{n} bloat',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'Single payload >= 20K (critical >= 50K)',
       hostUiLocalization:'Host UI Chinese',hostUiLocalizationHint:'Translate Antigravity desktop UI labels into Simplified Chinese (restart-free)',hostUiLocalizationOn:'On',hostUiLocalizationOff:'Off',hostUiLocalizationSaveFailed:'Host localization setting could not be saved. Try again.',hostUiLocalizationEnableAction:'Enable Host UI Chinese',hostUiLocalizationDisableAction:'Disable Host UI Chinese',
       taskSwarm:'Swarm ({n} members)',swarmDetails:'Swarm & models',swarmRoster:'Swarm roster',swarmShowAll:'Show all {n}',swarmShowLess:'Collapse',swarmStatusKilled:'ended',swarmStatusActive:'active',
-      orchSplitTitle:'Orchestrator split',orchRolePlanner:'Planner',orchRoleExecutor:'Executor',orchConfiguredPair:'Configured: {planner} → {executor}',orchNoSwitchYet:'Read-only turn · no switch yet',orchColdStartNote:'{n}× switch cache cold-start',
+      orchSplitTitle:'Orchestrator split',orchCardTitle:'Orchestrator · Single-session split',orchScopeHint:'Same session · Planner switches to Executor',orchSwitchCount:'{n}× switch',orchReadOnlyTag:'Plan only',swarmScopeHint:'Multi-session team · Independent worker chats',orchRolePlanner:'Planner',orchRoleExecutor:'Executor',orchConfiguredPair:'Configured: {planner} → {executor}',orchNoSwitchYet:'Read-only turn · no switch yet',orchColdStartNote:'{n}× switch cache cold-start',
       insightsProjectsSubtotal:'{n} projects · {tokens} toks',insightsSkillsSubtotal:'{n} skills · {runs} runs',insightsToolsSubtotal:'{n} tools · {calls} calls',insightsCommandsSubtotal:'{n} cmds · {runs} runs',insightsUnitSessions:'{n} sess',insightsUnitRuns:'{n} runs',insightsUnitCalls:'{n} calls',
     },
     'zh-CN':{
@@ -119,7 +119,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'高占用工具',bloatBadge:'{n} 项膨胀',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'单次负载 ≥ 20K（严重 ≥ 50K）',
       hostUiLocalization:'宿主界面汉化',hostUiLocalizationHint:'将 Antigravity 宿主界面菜单与按钮汉化为简体中文（热切换无需重启）',hostUiLocalizationOn:'开启',hostUiLocalizationOff:'关闭',hostUiLocalizationSaveFailed:'宿主汉化设置暂时无法保存，请重试。',hostUiLocalizationEnableAction:'开启宿主界面汉化',hostUiLocalizationDisableAction:'关闭宿主界面汉化',
       taskSwarm:'Swarm（{n} 成员）',swarmDetails:'Swarm 协同与模型',swarmRoster:'Swarm 成员',swarmShowAll:'展开全部 {n} 个',swarmShowLess:'收起',swarmStatusKilled:'已结束',swarmStatusActive:'活跃',
-      orchSplitTitle:'Orchestrator 主/执行分工',orchRolePlanner:'主调度',orchRoleExecutor:'干活执行',orchConfiguredPair:'已配组合：{planner} → {executor}',orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',orchColdStartNote:'切模型冷缓存 {n} 次',
+      orchSplitTitle:'Orchestrator 主/执行分工',orchCardTitle:'Orchestrator · 单会话双模型',orchScopeHint:'同一会话内 · 规划与执行切模型',orchSwitchCount:'切换 {n} 次',orchReadOnlyTag:'仅规划',swarmScopeHint:'多会话并行团队 · 主协调与各成员独立对话',orchRolePlanner:'主调度',orchRoleExecutor:'干活执行',orchConfiguredPair:'已配组合：{planner} → {executor}',orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',orchColdStartNote:'切模型冷缓存 {n} 次',
       insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 命令 · {runs} 次',insightsUnitSessions:'{n} 会话',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
     },
     'zh-TW':{
@@ -178,7 +178,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'高佔用工具',bloatBadge:'{n} 項膨脹',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'單次負載 ≥ 20K（嚴重 ≥ 50K）',
       hostUiLocalization:'宿主介面漢化',hostUiLocalizationHint:'將 Antigravity 宿主介面選單與按鈕翻譯為簡體中文（熱切換無需重啟）',hostUiLocalizationOn:'開啟',hostUiLocalizationOff:'關閉',hostUiLocalizationSaveFailed:'宿主漢化設定暫時無法儲存，請重試。',hostUiLocalizationEnableAction:'開啟宿主介面漢化',hostUiLocalizationDisableAction:'關閉宿主介面漢化',
       taskSwarm:'Swarm（{n} 成員）',swarmDetails:'Swarm 協同與模型',swarmRoster:'Swarm 成員',swarmShowAll:'展開全部 {n} 個',swarmShowLess:'收合',swarmStatusKilled:'已結束',swarmStatusActive:'活躍',
-      orchSplitTitle:'Orchestrator 主/執行分工',orchRolePlanner:'主調度',orchRoleExecutor:'執行模型',orchConfiguredPair:'已配組合：{planner} → {executor}',orchNoSwitchYet:'僅規劃/只讀 · 尚未切執行模型',orchColdStartNote:'切模型冷快取 {n} 次',
+      orchSplitTitle:'Orchestrator 主/執行分工',orchCardTitle:'Orchestrator · 單工作階段雙模型',orchScopeHint:'同一工作階段內 · 規劃與執行切模型',orchSwitchCount:'切換 {n} 次',orchReadOnlyTag:'僅規劃',swarmScopeHint:'多工作階段並行團隊 · 主協調與各成員獨立對話',orchRolePlanner:'主調度',orchRoleExecutor:'執行模型',orchConfiguredPair:'已配組合：{planner} → {executor}',orchNoSwitchYet:'僅規劃/只讀 · 尚未切執行模型',orchColdStartNote:'切模型冷快取 {n} 次',
       insightsProjectsSubtotal:'{n} 專案 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 指令 · {runs} 次',insightsUnitSessions:'{n} 工作階段',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
     },
   };

@@ -477,7 +477,7 @@ try {
   assert.equal(narrowSwarmMetrics.boxWidth, 270);
   await narrowSwarm.close();
 
-  // 7. Issue #57 Orchestrator mode on inline widget (switched + coldStart, and read-only unswitched)
+  // 7. Issue #57 separated Orchestrator card (#orchestrator-breakdown) vs Swarm card (#orchestration-breakdown)
   const switchedOrch = {
     detected: true,
     source: 'trajectory',
@@ -489,7 +489,7 @@ try {
     planner: { model: 'Orchestrator (Neon)', pool: 'gemini', requests: 1, inputTokens: 120000, cachedTokens: 0, uncachedTokens: 120000, outputTokens: 4000, totalTokens: 124000, hitRate: 0 },
     executor: { model: 'Gemini 4 Hydrogen (Orchestrator)', pool: 'gemini', requests: 1, inputTokens: 90000, cachedTokens: 80000, uncachedTokens: 10000, outputTokens: 2000, totalTokens: 92000, hitRate: 80000 / 90000 },
   };
-  customSpeedOverride = { ...baseMetrics, taskUsage: null, orchestrator: switchedOrch, transcriptStats };
+  customSpeedOverride = { ...baseMetrics, taskUsage: swarmTaskUsage, orchestrator: switchedOrch, transcriptStats };
 
   for (const lang of ['en', 'zh-CN']) {
     const p = await browser.newPage({ viewport: { width: 1200, height: 800 } });
@@ -498,19 +498,41 @@ try {
     const s = p.locator('#ag-pulse-status-bar');
     await s.waitFor();
     await s.locator('[data-card=cache]').click();
+    await s.locator('#orchestrator-breakdown').waitFor({ state: 'visible' });
     await s.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+    await s.locator('#orchestrator-breakdown summary').click();
     await s.locator('#orchestration-breakdown summary').click();
-    const text = await s.locator('#orch-body').textContent();
+    const phaseSummary = await s.locator('#orchestrator-breakdown summary').textContent();
+    const phaseText = await s.locator('#orch-phase-body').textContent();
+    const teamText = await s.locator('#orch-body').textContent();
     if (lang === 'en') {
-      assert.ok(text.includes('Orchestrator split'), text);
-      assert.ok(text.includes('Planner · Orchestrator (Neon)'), text);
-      assert.ok(text.includes('Executor · Gemini 4 Hydrogen (Orchestrator)'), text);
-      assert.ok(text.includes('1× switch cache cold-start'), text);
+      assert.ok(phaseSummary.includes('Orchestrator · Single-session split'), phaseSummary);
+      assert.ok(phaseText.includes('Same session · Planner switches to Executor'), phaseText);
+      assert.ok(phaseText.includes('Planner · Orchestrator (Neon)'), phaseText);
+      assert.ok(phaseText.includes('Executor · Gemini 4 Hydrogen (Orchestrator)'), phaseText);
+      assert.ok(phaseText.includes('1× switch cache cold-start'), phaseText);
+      assert.ok(teamText.includes('Multi-session team · Independent worker chats'), teamText);
+      assert.ok(!teamText.includes('Planner ·') && !teamText.includes('Orchestrator split'), teamText);
     } else {
-      assert.ok(text.includes('Orchestrator 主/执行分工'), text);
-      assert.ok(text.includes('主调度 · Orchestrator (Neon)'), text);
-      assert.ok(text.includes('干活执行 · Gemini 4 Hydrogen (Orchestrator)'), text);
-      assert.ok(text.includes('切模型冷缓存 1 次'), text);
+      assert.ok(phaseSummary.includes('Orchestrator · 单会话双模型'), phaseSummary);
+      assert.ok(phaseText.includes('同一会话内 · 规划与执行切模型'), phaseText);
+      assert.ok(phaseText.includes('主调度 · Orchestrator (Neon)'), phaseText);
+      assert.ok(phaseText.includes('干活执行 · Gemini 4 Hydrogen (Orchestrator)'), phaseText);
+      assert.ok(phaseText.includes('切模型冷缓存 1 次'), phaseText);
+      assert.ok(teamText.includes('多会话并行团队 · 主协调与各成员独立对话'), teamText);
+      assert.ok(!teamText.includes('主调度 ·'), teamText);
+    }
+    if (lang === 'en') {
+      const phaseIdleChanges = await p.evaluate(async () => {
+        const root = document.getElementById('ag-pulse-status-bar').shadowRoot;
+        const changes = [];
+        const obs = new MutationObserver(rs => changes.push(...rs.map(r => r.target.id || r.type)));
+        obs.observe(root.getElementById('orchestrator-breakdown'), { subtree: true, childList: true, characterData: true, attributes: true });
+        await new Promise(r => setTimeout(r, 2600));
+        obs.disconnect();
+        return changes;
+      });
+      assert.deepEqual(phaseIdleChanges, [], 'Orchestrator card must not mutate on idle polling');
     }
     await p.close();
   }
@@ -521,8 +543,8 @@ try {
   const narrowOrchStrip = narrowOrchSwitched.locator('#ag-pulse-status-bar');
   await narrowOrchStrip.waitFor();
   await narrowOrchStrip.locator('[data-card=cache]').click();
-  await narrowOrchStrip.locator('#orchestration-breakdown summary').click();
-  await assertNoClipping(narrowOrchStrip.locator('#cache-card'), narrowOrchStrip.locator('#orch-body'));
+  await narrowOrchStrip.locator('#orchestrator-breakdown summary').click();
+  await assertNoClipping(narrowOrchStrip.locator('#cache-card'), narrowOrchStrip.locator('#orch-phase-body'));
   await narrowOrchSwitched.close();
 
   const unswitchedOrch = {
@@ -536,7 +558,7 @@ try {
     planner: { model: 'Orchestrator (Neon)', pool: 'gemini', requests: 1, inputTokens: 40000, cachedTokens: 0, uncachedTokens: 40000, outputTokens: 1200, totalTokens: 41200, hitRate: 0 },
     executor: null,
   };
-  customSpeedOverride = { ...baseMetrics, modelBreakdown: [], taskUsage: null, orchestrator: unswitchedOrch, transcriptStats };
+  customSpeedOverride = { ...baseMetrics, modelBreakdown: [], cacheMissSurges: 0, cacheMissSurgeTokens: 0, taskUsage: null, orchestrator: unswitchedOrch, transcriptStats };
 
   for (const lang of ['en', 'zh-CN']) {
     const p = await browser.newPage({ viewport: { width: 1200, height: 800 } });
@@ -545,9 +567,10 @@ try {
     const s = p.locator('#ag-pulse-status-bar');
     await s.waitFor();
     await s.locator('[data-card=cache]').click();
-    await s.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
-    await s.locator('#orchestration-breakdown summary').click();
-    const text = await s.locator('#orch-body').textContent();
+    await s.locator('#orchestrator-breakdown').waitFor({ state: 'visible' });
+    assert.equal(await s.locator('#orchestration-breakdown').isVisible(), false, 'Single-model read-only Orchestrator must keep Swarm/multi-agent card hidden');
+    await s.locator('#orchestrator-breakdown summary').click();
+    const text = await s.locator('#orch-phase-body').textContent();
     if (lang === 'en') {
       assert.ok(text.includes('Read-only turn · no switch yet'), text);
       assert.ok(text.includes('Configured: Orchestrator (Neon) → Gemini 4 Hydrogen (Orchestrator)'), text);
@@ -558,14 +581,33 @@ try {
     await p.close();
   }
 
+  // Also check Side Panel separated cards (Orchestrator + Swarm)
+  customSpeedOverride = { ...baseMetrics, taskUsage: swarmTaskUsage, orchestrator: switchedOrch, transcriptStats };
+  prefs = { language: 'zh-CN', languageGuideDismissed: true, revision: 1 };
+  const panelSep = await browser.newPage({ viewport: { width: 420, height: 700 } });
+  panelSep.on('pageerror', e => errors.push(e.message));
+  await panelSep.goto(`${base}/`);
+  await panelSep.locator('#cache-tab').click();
+  await panelSep.locator('#orchestrator-breakdown').waitFor({ state: 'visible' });
+  await panelSep.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
+  await panelSep.locator('#orchestrator-breakdown summary').click();
+  await panelSep.locator('#orchestration-breakdown summary').click();
+  const pOrchText = await panelSep.locator('#orch-phase-body').textContent();
+  const pSwarmText = await panelSep.locator('#orch-body').textContent();
+  assert.ok(pOrchText.includes('同一会话内 · 规划与执行切模型') && pOrchText.includes('主调度 · Orchestrator (Neon)'), pOrchText);
+  assert.ok(pSwarmText.includes('多会话并行团队 · 主协调与各成员独立对话') && !pSwarmText.includes('主调度 ·'), pSwarmText);
+  await panelSep.close();
+
+  customSpeedOverride = { ...baseMetrics, modelBreakdown: [], cacheMissSurges: 0, cacheMissSurgeTokens: 0, taskUsage: null, orchestrator: unswitchedOrch, transcriptStats };
+  prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
   const narrowOrchReadOnly = await browser.newPage({ viewport: { width: 294, height: 640 } });
   narrowOrchReadOnly.on('pageerror', e => errors.push(e.message));
   await narrowOrchReadOnly.goto(`${base}/inline?lang=en&narrow=1`);
   const narrowRoStrip = narrowOrchReadOnly.locator('#ag-pulse-status-bar');
   await narrowRoStrip.waitFor();
   await narrowRoStrip.locator('[data-card=cache]').click();
-  await narrowRoStrip.locator('#orchestration-breakdown summary').click();
-  await assertNoClipping(narrowRoStrip.locator('#cache-card'), narrowRoStrip.locator('#orch-body'));
+  await narrowRoStrip.locator('#orchestrator-breakdown summary').click();
+  await assertNoClipping(narrowRoStrip.locator('#cache-card'), narrowRoStrip.locator('#orch-phase-body'));
   await narrowOrchReadOnly.close();
   customSpeedOverride = null;
 

@@ -12,33 +12,6 @@ const localGet=key=>{try{return localStorage.getItem(key);}catch{return null;}};
 const localSet=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 const language=createI18n(localGet('ag-pulse-language'));
 const t=language.t;
-const TL_FALLBACK_ZH={
-  insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',
-  insightsSkillsSubtotal:'{n} 技能 · {runs} 次',
-  insightsToolsSubtotal:'{n} 工具 · {calls} 次',
-  insightsCommandsSubtotal:'{n} 命令 · {runs} 次',
-  insightsUnitSessions:'{n} 会话',
-  insightsUnitRuns:'{n} 次',
-  insightsUnitCalls:'{n} 次',
-  taskSwarm:'Swarm（{n} 成员）',
-  swarmDetails:'Swarm 协同与模型',
-  swarmRoster:'Swarm 成员',
-  swarmShowAll:'展开全部 {n} 个',
-  swarmShowLess:'收起',
-  swarmStatusKilled:'已结束',
-  orchSplitTitle:'Orchestrator 主/执行分工',
-  orchRolePlanner:'主调度',
-  orchRoleExecutor:'干活执行',
-  orchConfiguredPair:'已配组合：{planner} → {executor}',
-  orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',
-  orchColdStartNote:'切模型冷缓存 {n} 次',
-};
-const tl=(key,vars={},fallback=key)=>{
-  const res=t(key,vars);
-  if(res!==key)return res;
-  const tpl=language.language!=='en'&&TL_FALLBACK_ZH[key]?TL_FALLBACK_ZH[key]:fallback;
-  return String(tpl).replace(/\{(\w+)\}/g,(_,k)=>String(vars?.[k]??''));
-};
 
 const $ = id => document.getElementById(id);
 const text=(id,value)=>{const element=$(id);if(element&&element.textContent!==String(value))element.textContent=String(value);};
@@ -1009,29 +982,29 @@ function renderInsightsView() {
   const toolCallsSum = tools.reduce((n, item) => n + (item.count || 0), 0);
   const toolCalls = Number.isFinite(k.totalToolCalls) && k.totalToolCalls >= toolCallsSum ? k.totalToolCalls : toolCallsSum;
   const cmdRuns = commands.reduce((n, item) => n + (item.count || 0), 0);
-  text('insights-dist-projects-sub', tl('insightsProjectsSubtotal', { n: count(projects.length), tokens: compact(projTokens) }, `${count(projects.length)} projects · ${compact(projTokens)} toks`));
-  text('insights-dist-skills-sub', tl('insightsSkillsSubtotal', { n: count(skills.length), runs: count(skillRuns) }, `${count(skills.length)} skills · ${count(skillRuns)} runs`));
-  text('insights-dist-tools-sub', tl('insightsToolsSubtotal', { n: count(tools.length), calls: count(toolCalls) }, `${count(tools.length)} tools · ${count(toolCalls)} calls`));
-  text('insights-dist-commands-sub', tl('insightsCommandsSubtotal', { n: count(commands.length), runs: count(cmdRuns) }, `${count(commands.length)} cmds · ${count(cmdRuns)} runs`));
+  text('insights-dist-projects-sub', t('insightsProjectsSubtotal', { n: count(projects.length), tokens: compact(projTokens) }));
+  text('insights-dist-skills-sub', t('insightsSkillsSubtotal', { n: count(skills.length), runs: count(skillRuns) }));
+  text('insights-dist-tools-sub', t('insightsToolsSubtotal', { n: count(tools.length), calls: count(toolCalls) }));
+  text('insights-dist-commands-sub', t('insightsCommandsSubtotal', { n: count(commands.length), runs: count(cmdRuns) }));
   renderDistList('insights-dist-projects', projects, {
     tone: 'projects',
     metric: p => p.tokens || p.sessions || 0,
-    formatVal: p => `${tl('insightsUnitSessions', { n: smallCount(p.sessions) }, `${p.sessions} sess`)} · ${compact(p.tokens)} toks`,
+    formatVal: p => `${t('insightsUnitSessions', { n: smallCount(p.sessions) })} · ${compact(p.tokens)} toks`,
   });
   renderDistList('insights-dist-skills', skills, {
     tone: 'skills',
     metric: s => s.count || 0,
-    formatVal: s => `${tl('insightsUnitRuns', { n: smallCount(s.count) }, `${s.count} runs`)} · ${tl('insightsUnitSessions', { n: smallCount(s.sessions) }, `${s.sessions} sess`)}`,
+    formatVal: s => `${t('insightsUnitRuns', { n: smallCount(s.count) })} · ${t('insightsUnitSessions', { n: smallCount(s.sessions) })}`,
   });
   renderDistList('insights-dist-tools', tools, {
     tone: 'tools',
     metric: item => item.count || 0,
-    formatVal: item => tl('insightsUnitCalls', { n: count(item.count) }, `${count(item.count)} calls`),
+    formatVal: item => t('insightsUnitCalls', { n: count(item.count) }),
   });
   renderDistList('insights-dist-commands', commands, {
     tone: 'commands',
     metric: item => item.count || 0,
-    formatVal: item => tl('insightsUnitRuns', { n: count(item.count) }, `${count(item.count)} runs`),
+    formatVal: item => t('insightsUnitRuns', { n: count(item.count) }),
   });
 
   // Sessions list
@@ -1419,7 +1392,7 @@ function render() {
     setTip($('session-cost-row'),t('estimatedCostTitle'));
   }
   hidden('task-own-row',!taskUsage);hidden('task-subagents-row',!taskUsage);
-  text('task-subagents-label',taskUsage?(taskUsage.isSwarm?tl('taskSwarm',{n:count(taskUsage.subagents)},`Swarm (${count(taskUsage.subagents)} members)`):t('taskSubagents',{n:count(taskUsage.subagents)})):'');
+  text('task-subagents-label',taskUsage?(taskUsage.isSwarm?t('taskSwarm',{n:count(taskUsage.subagents)}):t('taskSubagents',{n:count(taskUsage.subagents)})):'');
   for(const [field,id,rowId]of[['ownTokens','task-own','task-own-row'],['subagentTokens','task-subagents','task-subagents-row']]){
     const value=taskUsage?.[field],known=field!=='subagentTokens'||taskUsage?.loadedSubagents>0;
     const ok=known&&Number.isSafeInteger(value)&&value>=0;
@@ -1428,6 +1401,47 @@ function render() {
   }
   const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t(taskUsage.loadedSubagents===0?'taskCurrentOnly':'taskPartial'):'';
   text('cache-note',taskNote);hidden('cache-note',!taskNote);
+  const orchPhaseEl=$('orchestrator-breakdown');
+  const orch=speed?.orchestrator?.detected?speed.orchestrator:null;
+  if(orchPhaseEl){
+    hidden('orchestrator-breakdown',!orch);
+    if(orch){
+      const phaseSig=JSON.stringify([language.language,orch]);
+      if(orchPhaseEl.dataset.signature!==phaseSig){
+        orchPhaseEl.dataset.signature=phaseSig;
+        text('orch-phase-label',t('orchCardTitle'));
+        text('orch-phase-meta',orch.switched?t('orchSwitchCount',{n:count(orch.phaseSwitchCount||1)}):t('orchReadOnlyTag'));
+        const phaseNodes=[];
+        const sec=mkEl('div','breakdown-section');
+        sec.append(mkEl('div','breakdown-head',t('orchScopeHint')));
+        if(orch.planner){
+          const p=orch.planner,pName=`${t('orchRolePlanner')} · ${p.model||orch.configuredPlanner||'—'}`;
+          const pRow=mkRow(pName,`${compact(p.totalTokens)} · ${p.requests}× · ${percent(p.hitRate)}`);
+          setTip(pRow,pName);sec.append(pRow);
+        }
+        if(orch.executor){
+          const e=orch.executor,eName=`${t('orchRoleExecutor')} · ${e.model||orch.configuredExecutor||'—'}`;
+          const eRow=mkRow(eName,`${compact(e.totalTokens)} · ${e.requests}× · ${percent(e.hitRate)}`);
+          setTip(eRow,eName);sec.append(eRow);
+        }
+        if(!orch.switched){
+          sec.append(mkRow(t('orchNoSwitchYet'),''));
+          if(orch.configuredPlanner&&orch.configuredExecutor){
+            const pairText=t('orchConfiguredPair',{planner:orch.configuredPlanner,executor:orch.configuredExecutor});
+            const pairRow=mkRow(pairText,'');
+            setTip(pairRow,pairText);sec.append(pairRow);
+          }
+        }
+        if(orch.coldStartSwitches>0){
+          sec.append(mkRow('⚠',t('orchColdStartNote',{n:count(orch.coldStartSwitches)}),true,false));
+        }
+        phaseNodes.push(sec);
+        $('orch-phase-body').replaceChildren(...phaseNodes);
+      }
+    }else if(orchPhaseEl.dataset.signature){
+      delete orchPhaseEl.dataset.signature;$('orch-phase-body').replaceChildren();
+    }
+  }
   const orchEl=$('orchestration-breakdown');
   if(orchEl){
     const sessionModels=Array.isArray(speed?.modelBreakdown)?speed.modelBreakdown:[];
@@ -1435,14 +1449,13 @@ function render() {
     const models=taskUsage&&taskModels.length?taskModels:sessionModels;
     const surges=speed?.cacheMissSurges||0;
     const roleMeta=speed?.sessionMeta||null;
-    const orch=speed?.orchestrator?.detected?speed.orchestrator:null;
-    const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar||orch);
+    const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar);
     hidden('orchestration-breakdown',!showOrch);
     if(showOrch){
-      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,taskUsage?.isSwarm||false,taskUsage?.swarmTitle||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta,orch,swarmRosterExpanded]);
+      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,taskUsage?.isSwarm||false,taskUsage?.swarmTitle||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta,swarmRosterExpanded]);
       if(orchEl.dataset.signature!==orchSig){
         orchEl.dataset.signature=orchSig;
-        const summaryLabel=taskUsage?.isSwarm?(taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:tl('swarmDetails',{},'Swarm & models')):t('multiAgentDetails');
+        const summaryLabel=taskUsage?.isSwarm?(taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:t('swarmDetails')):t('multiAgentDetails');
         text('orch-summary-label',summaryLabel);
         const poolMap=taskUsage?.poolBreakdown||(()=>{
           const out={gemini:{totalTokens:0,requests:0},'3p':{totalTokens:0,requests:0},local:{totalTokens:0,requests:0},other:{totalTokens:0,requests:0}};
@@ -1454,31 +1467,9 @@ function render() {
         const poolTotal=activePools.reduce((n,[,v])=>n+(v.totalTokens||0),0);
         text('orch-summary-meta',activePools.length?activePools.map(([p,v])=>`${poolNames[p]||p} ${compact(v.totalTokens)}`).slice(0,2).join(' · '):`${models.length}`);
         const nodes=[];
-        if(orch){
-          const sec=mkEl('div','breakdown-section');
-          sec.append(mkEl('div','breakdown-head',tl('orchSplitTitle',{},'Orchestrator split')));
-          if(orch.planner){
-            const p=orch.planner,pName=`${tl('orchRolePlanner',{},'Planner')} · ${p.model||orch.configuredPlanner||'—'}`;
-            const pRow=mkRow(pName,`${compact(p.totalTokens)} · ${p.requests}× · ${percent(p.hitRate)}`);
-            setTip(pRow,pName);sec.append(pRow);
-          }
-          if(orch.executor){
-            const e=orch.executor,eName=`${tl('orchRoleExecutor',{},'Executor')} · ${e.model||orch.configuredExecutor||'—'}`;
-            const eRow=mkRow(eName,`${compact(e.totalTokens)} · ${e.requests}× · ${percent(e.hitRate)}`);
-            setTip(eRow,eName);sec.append(eRow);
-          }
-          if(!orch.switched){
-            sec.append(mkRow(tl('orchNoSwitchYet',{},'Read-only turn · no switch yet'),''));
-            if(orch.configuredPlanner&&orch.configuredExecutor){
-              const pairText=tl('orchConfiguredPair',{planner:orch.configuredPlanner,executor:orch.configuredExecutor},`Configured: ${orch.configuredPlanner} → ${orch.configuredExecutor}`);
-              const pairRow=mkRow(pairText,'');
-              setTip(pairRow,pairText);sec.append(pairRow);
-            }
-          }
-          if(orch.coldStartSwitches>0){
-            sec.append(mkRow('⚠',tl('orchColdStartNote',{n:count(orch.coldStartSwitches)},`${count(orch.coldStartSwitches)}× switch cache cold-start`),true,false));
-          }
-          nodes.push(sec);
+        if(taskUsage?.isSwarm){
+          const scopeHead=mkEl('div','breakdown-head',t('swarmScopeHint'));
+          nodes.push(scopeHead);
         }
         if(activePools.length){
           const sec=mkEl('div','breakdown-section');
@@ -1515,13 +1506,13 @@ function render() {
           nodes.push(sec);
         }
         const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
-        if(agList.length>1){
+        if(agList.length>1||(taskUsage?.isSwarm&&agList.length>0)){
           const sec=mkEl('div','breakdown-section');
-          if(taskUsage?.isSwarm)sec.append(mkEl('div','breakdown-head',tl('swarmRoster',{},'Swarm roster')));
+          if(taskUsage?.isSwarm)sec.append(mkEl('div','breakdown-head',t('swarmRoster')));
           const visibleAgents=swarmRosterExpanded?agList:agList.slice(0,6);
           for(const a of visibleAgents){
             const wsTag=a.workspaceMode&&a.workspaceMode!=='inherit'?` [${a.workspaceMode}]`:'';
-            const killedTag=a.killed?` · ${tl('swarmStatusKilled',{},'ended')}`:'';
+            const killedTag=a.killed?` · ${t('swarmStatusKilled')}`:'';
             const rowLabel=`${a.label}${wsTag}${killedTag} · ${a.model}`;
             const row=mkRow(rowLabel,`${compact(a.tokens)} (${a.requests}×)`);
             setTip(row,rowLabel);
@@ -1529,7 +1520,7 @@ function render() {
             sec.append(row);
           }
           if(agList.length>6){
-            const btn=mkEl('button','mini-pill-btn orch-expand-btn',swarmRosterExpanded?tl('swarmShowLess',{},'Collapse'):tl('swarmShowAll',{n:count(agList.length)},`Show all ${count(agList.length)}`));
+            const btn=mkEl('button','mini-pill-btn orch-expand-btn',swarmRosterExpanded?t('swarmShowLess'):t('swarmShowAll',{n:count(agList.length)}));
             btn.type='button';btn.id='orch-agents-expand';btn.setAttribute('aria-expanded',String(swarmRosterExpanded));
             btn.addEventListener('click',()=>{swarmRosterExpanded=!swarmRosterExpanded;render();});
             sec.append(btn);

@@ -1124,6 +1124,7 @@ module.exports = function installAgPulseInlineWidget() {
     </section><section class="card" id="cache-card" role="region" data-i18n-aria="cacheTitle" aria-label="Token cache" hidden>
       <div class="heading cache-hero"><div class="cache-hero-main"><div class="hero-label">${svg('cache')}<span data-i18n="cacheTitle">Token cache</span></div><div class="cache-hero-value"><span class="cache-hero-total" id="cache-hero-total"><strong id="cache-coverage">—</strong><span class="speed-unit" id="cache-coverage-unit">toks</span></span><span class="rate-pill"><span class="rate-pill-label" data-i18n="cacheHitRateColon">${t('cacheHitRateColon')}</span><span id="cache-detail-rate">—</span></span></div></div><div class="cache-meter" aria-hidden="true"><i id="cache-seg-read"></i><i id="cache-seg-miss"></i><i id="cache-seg-out"></i></div></div>
       <dl class="stats-grid cache-stats">${[['cacheRead','cache-read'],['cacheMiss','cache-miss'],['cacheOutput','cache-output']].map(([key,id])=>`<div id="${id}-cell"><dt data-i18n="${key}">${t(key)}</dt><dd><strong id="${id}">—</strong><span class="speed-unit" id="${id}-unit" hidden> toks</span></dd></div>`).join('')}<div id="cache-write-row" class="span-row" hidden><dt data-i18n="cacheWrite">${t('cacheWrite')}</dt><dd id="cache-write">—</dd></div><div class="span-row" id="task-own-row" hidden><dt data-i18n="taskOwn">${t('taskOwn')}</dt><dd id="task-own">—</dd></div><div class="span-row" id="task-subagents-row" hidden><dt id="task-subagents-label"></dt><dd id="task-subagents">—</dd></div></dl><p class="footnote" id="cache-note" hidden></p>
+      <details class="breakdown-details" id="orchestrator-breakdown" hidden><summary><span id="orch-phase-label"></span><strong class="breakdown-meta" id="orch-phase-meta"></strong></summary><div class="breakdown-body" id="orch-phase-body"></div></details>
       <details class="breakdown-details" id="orchestration-breakdown" hidden><summary><span id="orch-summary-label"></span><strong class="breakdown-meta" id="orch-summary-meta"></strong></summary><div class="breakdown-body" id="orch-body"></div></details>
     </section><section class="card quota-card" id="quota-card" role="region" data-i18n-aria="quotaRingTitle" hidden>
       <div class="heading quota-hero"><div class="quota-spotlight-head" id="active-quota-group"><i class="spot-dot" id="spot-dot" aria-hidden="true"></i><strong class="spot-name" id="active-group-name">—</strong></div><div class="quota-actions"><span class="refresh quota-spinner" id="quota-spinner" role="status" data-i18n-aria="refreshing" aria-label="Refreshing…" aria-busy="false" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.8 6a5.1 5.1 0 1 0 .1 4M12.8 2.5V6H9.2"/></svg></span><span class="pace-badge" id="quota-pace" hidden><i class="pace-dot" aria-hidden="true"></i><span id="quota-pace-text"></span></span></div></div>
@@ -1533,6 +1534,58 @@ module.exports = function installAgPulseInlineWidget() {
     }
     const taskNote=taskUsage?.state==='loading'?t('taskLoading'):taskUsage?.state==='partial'?t(taskUsage.loadedSubagents===0?'taskCurrentOnly':'taskPartial'):'';
     text('cache-note',taskNote);hidden($('cache-note'),!taskNote);
+    const orchPhaseEl=$('orchestrator-breakdown');
+    const orch=speed?.orchestrator?.detected?speed.orchestrator:null;
+    if(orchPhaseEl){
+      hidden(orchPhaseEl,!orch);
+      if(orch){
+        const phaseSig=JSON.stringify([language.language,orch]);
+        if(orchPhaseEl.dataset.signature!==phaseSig){
+          orchPhaseEl.dataset.signature=phaseSig;
+          text('orch-phase-label',t('orchCardTitle'));
+          text('orch-phase-meta',orch.switched?t('orchSwitchCount',{n:count(orch.phaseSwitchCount||1)}):t('orchReadOnlyTag'));
+          const phaseNodes=[];
+          const sec=mkEl('div','breakdown-section');
+          sec.append(mkEl('div','breakdown-head',t('orchScopeHint')));
+          if(orch.planner){
+            const pName=`${t('orchRolePlanner')} · ${orch.planner.model||orch.configuredPlanner||'—'}`;
+            const pVal=`${compact(orch.planner.totalTokens)} · ${orch.planner.requests}× · ${pct(orch.planner.hitRate)}`;
+            const r=mkRow(pName,pVal);
+            attribute(r,'title',`${pName} — ${pVal}`);
+            sec.append(r);
+          }
+          if(orch.executor){
+            const eName=`${t('orchRoleExecutor')} · ${orch.executor.model||orch.configuredExecutor||'—'}`;
+            const eVal=`${compact(orch.executor.totalTokens)} · ${orch.executor.requests}× · ${pct(orch.executor.hitRate)}`;
+            const r=mkRow(eName,eVal);
+            attribute(r,'title',`${eName} — ${eVal}`);
+            sec.append(r);
+          }
+          if(!orch.switched){
+            const noSwitch=t('orchNoSwitchYet');
+            const r=mkRow(noSwitch,'');
+            attribute(r,'title',noSwitch);
+            sec.append(r);
+            if(orch.configuredPlanner&&orch.configuredExecutor){
+              const pairText=t('orchConfiguredPair',{planner:orch.configuredPlanner,executor:orch.configuredExecutor});
+              const pr=mkRow(pairText,'');
+              attribute(pr,'title',pairText);
+              sec.append(pr);
+            }
+          }
+          if(orch.coldStartSwitches>0){
+            const note=t('orchColdStartNote',{n:orch.coldStartSwitches});
+            const r=mkRow('⚠',note,true,false);
+            attribute(r,'title',note);
+            sec.append(r);
+          }
+          phaseNodes.push(sec);
+          $('orch-phase-body').replaceChildren(...phaseNodes);
+        }
+      }else if(orchPhaseEl.dataset.signature){
+        delete orchPhaseEl.dataset.signature;$('orch-phase-body').replaceChildren();
+      }
+    }
     const orchEl=$('orchestration-breakdown');
     if(orchEl){
       const sessionModels=Array.isArray(speed?.modelBreakdown)?speed.modelBreakdown:[];
@@ -1540,11 +1593,10 @@ module.exports = function installAgPulseInlineWidget() {
       const models=taskUsage&&taskModels.length?taskModels:sessionModels;
       const surges=speed?.cacheMissSurges||0;
       const roleMeta=speed?.sessionMeta||null;
-      const orch=speed?.orchestrator||null;
-      const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar||orch?.detected);
+      const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar);
       hidden(orchEl,!showOrch);
       if(showOrch){
-        const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,Boolean(taskUsage?.isSwarm),taskUsage?.swarmTitle||null,swarmRosterExpanded,orch,surges,speed?.cacheMissSurgeTokens||0,roleMeta]);
+        const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,Boolean(taskUsage?.isSwarm),taskUsage?.swarmTitle||null,swarmRosterExpanded,surges,speed?.cacheMissSurgeTokens||0,roleMeta]);
         if(orchEl.dataset.signature!==orchSig){
           orchEl.dataset.signature=orchSig;
           text('orch-summary-label',taskUsage?.isSwarm?(taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:t('swarmDetails')):t('multiAgentDetails'));
@@ -1556,44 +1608,10 @@ module.exports = function installAgPulseInlineWidget() {
           const poolNames={gemini:t('poolGemini'),'3p':t('pool3p'),local:t('poolLocal'),other:t('poolOther')};
           const activePools=Object.entries(poolMap).filter(([,v])=>v&&(v.totalTokens>0||v.requests>0));
           const poolTotal=activePools.reduce((n,[,v])=>n+(v.totalTokens||0),0);
-          text('orch-summary-meta',activePools.length?activePools.map(([p,v])=>`${poolNames[p]||p} ${compact(v.totalTokens)}`).slice(0,2).join(' · '):orch?.detected?(orch.switched?'2':'1'):`${models.length}`);
+          text('orch-summary-meta',activePools.length?activePools.map(([p,v])=>`${poolNames[p]||p} ${compact(v.totalTokens)}`).slice(0,2).join(' · '):`${models.length}`);
           const nodes=[];
-          if(orch?.detected){
-            const sec=mkEl('div','breakdown-section');
-            sec.append(mkEl('div','breakdown-head',t('orchSplitTitle')));
-            if(orch.planner){
-              const pName=`${t('orchRolePlanner')} · ${orch.planner.model||orch.configuredPlanner||'—'}`;
-              const pVal=`${compact(orch.planner.totalTokens)} · ${orch.planner.requests}× · ${pct(orch.planner.hitRate)}`;
-              const r=mkRow(pName,pVal);
-              attribute(r,'title',`${pName} — ${pVal}`);
-              sec.append(r);
-            }
-            if(orch.executor){
-              const eName=`${t('orchRoleExecutor')} · ${orch.executor.model||orch.configuredExecutor||'—'}`;
-              const eVal=`${compact(orch.executor.totalTokens)} · ${orch.executor.requests}× · ${pct(orch.executor.hitRate)}`;
-              const r=mkRow(eName,eVal);
-              attribute(r,'title',`${eName} — ${eVal}`);
-              sec.append(r);
-            }
-            if(!orch.switched){
-              const noSwitch=t('orchNoSwitchYet');
-              const r=mkRow(noSwitch,'');
-              attribute(r,'title',noSwitch);
-              sec.append(r);
-              if(orch.configuredPlanner&&orch.configuredExecutor){
-                const pairText=t('orchConfiguredPair',{planner:orch.configuredPlanner,executor:orch.configuredExecutor});
-                const pr=mkRow(pairText,'');
-                attribute(pr,'title',pairText);
-                sec.append(pr);
-              }
-            }
-            if(orch.coldStartSwitches>0){
-              const note=t('orchColdStartNote',{n:orch.coldStartSwitches});
-              const r=mkRow('⚠',note,true,false);
-              attribute(r,'title',note);
-              sec.append(r);
-            }
-            nodes.push(sec);
+          if(taskUsage?.isSwarm){
+            nodes.push(mkEl('div','breakdown-head',t('swarmScopeHint')));
           }
           if(activePools.length){
             const sec=mkEl('div','breakdown-section');
