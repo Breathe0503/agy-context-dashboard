@@ -1500,10 +1500,15 @@ function render() {
         if(models.length){
           const sec=mkEl('div','breakdown-section');
           for(const m of models.slice(0,6)){
-            const thinkNote=m.thinkingTokens>0?` · 🧠${compact(m.thinkingTokens)}`:'';
-            const val=`${compact(m.totalTokens)} · ${t('reqCountShort',{n:smallCount(m.requests)})}${thinkNote}`;
+            const val=`${compact(m.totalTokens)} · ${t('reqCountShort',{n:smallCount(m.requests)})}`;
             const mRow=mkRow(m.model,val,false,false);
-            setTip(mRow,`${m.model} · ${poolNames[m.pool]||m.pool}`);
+            if(m.thinkingTokens>0){
+              const dot=mkEl('i','thinking-dot');
+              dot.setAttribute('aria-hidden','true');
+              dot.title=`${t('breakdownThinking')}: ${count(m.thinkingTokens)}`;
+              mRow.lastChild.append(' · ',dot,compact(m.thinkingTokens));
+            }
+            setTip(mRow,`${m.model} · ${poolNames[m.pool]||m.pool}${m.thinkingTokens>0?` · ${t('breakdownThinking')} ${compact(m.thinkingTokens)}`:''}`);
             sec.append(mRow);
           }
           if(surges>0){
