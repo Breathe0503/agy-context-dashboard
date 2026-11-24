@@ -233,6 +233,30 @@ First installation, plugin code updates, and uninstall require a full app restar
 
 `python manage.py install --panel-only` disables inline attachment and installs only the sidecar panel. It requires native UI Extensions to be available on the account and does not provide the inline strip.
 
+### Remote SSH Window Support
+
+In Antigravity Desktop 2.33+ Remote SSH windows, conversations execute on the remote headless host (`antigravity-hub-server`) while the Electron UI renders locally. The plugin supports both modes out of the box:
+
+- **Graceful fallback (zero config)**: Remote SSH windows are detected automatically. When no remote bridge is configured or the tunnel is unreachable, the inline bar hides unavailable local speed / token / context placeholders, keeps the **shared account quota** visible, migrates host localization and language controls to the quota popover, and directs you to the right sidebar panel for full remote session stats.
+- **Optional loopback forwarding (full remote metrics in the inline bar)**: Strictly loopback-only (`127.0.0.1`) across Windows, macOS, and Linux:
+  1. **Remote Linux host**: Install in panel-only mode with an optional loopback bridge port (binds strictly to remote `127.0.0.1`):
+     ```bash
+     python3 manage.py install --panel-only --remote-bridge-port 17891
+     # Or toggle anytime: python3 manage.py set-remote-bridge --port 17891 / --off
+     ```
+  2. **Local SSH config (`~/.ssh/config`)**: Forward the loopback port for your host:
+     ```sshconfig
+     Host <your-remote-host>
+       LocalForward 127.0.0.1:17891 127.0.0.1:17891
+       ExitOnForwardFailure no
+     ```
+  3. **Local desktop machine**: Map the SSH host label (or `*`) to the forwarded loopback port (use `python` on Windows):
+     ```bash
+     python3 manage.py set-remote-endpoint user@your-host 17891
+     # Remove mapping: python3 manage.py remove-remote-endpoint user@your-host
+     ```
+  After reconnecting the SSH window, the composer bar displays live remote `tok/s`, tokens, cache, and context usage with an `SSH · <host>` badge in the context card, and seamlessly falls back to shared-quota mode whenever the tunnel is down.
+
 The stable internal plugin ID remains `antigravity-pulse` for compatibility with earlier installations. The public project name is **Antigrative Dashboard**.
 
 ## How the numbers work
