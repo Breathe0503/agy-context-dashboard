@@ -699,7 +699,8 @@ module.exports = function installAgPulseInlineWidget() {
     const fits=()=>{
       const rect=node.getBoundingClientRect(),row=composer.row.getBoundingClientRect();
       const intersects=other=>Math.min(rect.right,other.right)-Math.max(rect.left,other.left)>1&&Math.min(rect.bottom,other.bottom)-Math.max(rect.top,other.top)>1;
-      if(bar.scrollWidth>bar.clientWidth+2||rect.width<=0||rect.left< -1||rect.right>innerWidth+1||rect.top< -1||rect.bottom>innerHeight+1||rect.left<row.left-1||rect.right>row.right+1)return false;
+      const barOverflow=composer.kind==='main'&&!node.classList.contains('icons-only')&&(()=>{const items=Array.from(bar.children).filter(c=>!c.hidden&&getComputedStyle(c).display!=='none');if(!items.length)return false;const gap=parseFloat(getComputedStyle(bar).columnGap)||0;return items.reduce((s,c)=>s+c.getBoundingClientRect().width,0)+gap*Math.max(0,items.length-1)>bar.clientWidth+1;})();
+      if(barOverflow||bar.scrollWidth>bar.clientWidth+2||rect.width<=0||rect.left< -1||rect.right>innerWidth+1||rect.top< -1||rect.bottom>innerHeight+1||rect.left<row.left-1||rect.right>row.right+1)return false;
       if(!nativeComfortable())return false;
       if(composer.kind==='subagent'&&intersects(composer.anchor.getBoundingClientRect()))return false;
       for(const control of document.querySelectorAll('button,[role="button"],a[href],input,select,[contenteditable="true"]')){
@@ -721,7 +722,7 @@ module.exports = function installAgPulseInlineWidget() {
     };
     let safe=false;
     const rowWidth=composer.row.getBoundingClientRect().width;
-    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
+    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
     if(emptyCompact){
       if(!node.classList.contains('icons-only')){if(oldReady)previous=densitySnapshot(previous);node.classList.add('icons-only');}
       densityProbe=null;safe=fits();
@@ -754,11 +755,102 @@ module.exports = function installAgPulseInlineWidget() {
     densityFrame=next;
     updateGuide();
   }
+  function modelTruncationDeficit(branch,trigger){
+    if(!branch?.isConnected)return 0;
+    let deficit=0;
+    const visit=el=>{
+      if(!el||el.nodeType!==1||el.tagName==='SVG'||el.closest('svg,[hidden],[inert]'))return;
+      const css=getComputedStyle(el);
+      if(css.display==='none'||css.visibility==='hidden'||['absolute','fixed'].includes(css.position))return;
+      if(el.getClientRects().length>0&&el.scrollWidth>el.clientWidth+1){
+        deficit=Math.max(deficit,el.scrollWidth-el.clientWidth);
+      }
+      for(const child of el.children)visit(child);
+    };
+    visit(branch);
+    if(trigger?.isConnected){
+      const clipBoxes=[];
+      for(let el=trigger;el&&el!==branch.parentElement;el=el.parentElement){
+        const css=getComputedStyle(el);
+        if(['hidden','clip','scroll','auto'].includes(css.overflowX))clipBoxes.push(el.getBoundingClientRect().right);
+      }
+      if(clipBoxes.length){
+        const clipRight=Math.min(...clipBoxes);
+        for(const r of badgeTextRects(trigger)){
+          if(r.right>clipRight+1)deficit=Math.max(deficit,r.right-clipRight);
+        }
+      }
+    }
+    return deficit;
+  }
+  function effectiveModelDeficit(branch,trigger){
+    const raw=modelTruncationDeficit(branch,trigger);
+    if(raw<=0)return 0;
+    let cap=Infinity;
+    for(const el of [branch,trigger]){
+      if(!el?.isConnected)continue;
+      const css=getComputedStyle(el);
+      if(css.maxWidth&&css.maxWidth.endsWith('px')){
+        const maxW=parseFloat(css.maxWidth);
+        if(Number.isFinite(maxW))cap=Math.min(cap,Math.max(0,maxW-el.getBoundingClientRect().width));
+      }
+    }
+    return Math.min(raw,cap);
+  }
+  function naturalFlexItemWidth(el,withDeficit=false,trigger=null){
+    if(!el?.isConnected)return 0;
+    const css=getComputedStyle(el);
+    if(css.display==='none'||css.visibility==='hidden'||['absolute','fixed'].includes(css.position))return 0;
+    const deficit=withDeficit?effectiveModelDeficit(el,trigger):0;
+    const grow=parseFloat(css.flexGrow)||0;
+    let result=0;
+    if(grow>0){
+      const kids=Array.from(el.children).filter(c=>{
+        if(c===node||isPulseBar(c))return false;
+        const cs=getComputedStyle(c);
+        return cs.display!=='none'&&cs.visibility!=='hidden'&&!['absolute','fixed'].includes(cs.position)&&c.getClientRects().length>0;
+      });
+      const pad=(parseFloat(css.paddingLeft)||0)+(parseFloat(css.paddingRight)||0)+(parseFloat(css.borderLeftWidth)||0)+(parseFloat(css.borderRightWidth)||0);
+      if(!kids.length){
+        const text=el.textContent?.trim();
+        result=!text?Math.max(0,parseFloat(css.minWidth)||0):Math.ceil(Math.max(el.scrollWidth,el.getBoundingClientRect().width+deficit));
+      }else{
+        const gap=parseFloat(css.columnGap)||0;
+        const kidsWidth=kids.reduce((sum,c)=>sum+naturalFlexItemWidth(c,withDeficit,trigger&&c.contains(trigger)?trigger:null),0)+gap*Math.max(0,kids.length-1);
+        result=Math.ceil(Math.max(parseFloat(css.minWidth)||0,kidsWidth+pad));
+      }
+    }else{
+      result=Math.ceil(Math.max(el.scrollWidth,el.getBoundingClientRect().width+deficit));
+    }
+    if(css.maxWidth&&css.maxWidth.endsWith('px')){
+      const maxW=parseFloat(css.maxWidth);
+      if(Number.isFinite(maxW))result=Math.min(result,Math.ceil(maxW));
+    }
+    return result;
+  }
+  function minMainBranchWidth(branch,trigger,reserve){
+    if(!branch?.isConnected)return 0;
+    if(!trigger||branch===trigger)return Math.min(reserve,32);
+    const css=getComputedStyle(branch);
+    const kids=Array.from(branch.children).filter(c=>{
+      if(c===node||isPulseBar(c)||!c.getClientRects().length)return false;
+      const cs=getComputedStyle(c);
+      return cs.display!=='none'&&cs.visibility!=='hidden'&&!['absolute','fixed'].includes(cs.position);
+    });
+    const pad=(parseFloat(css.paddingLeft)||0)+(parseFloat(css.paddingRight)||0)+(parseFloat(css.borderLeftWidth)||0)+(parseFloat(css.borderRightWidth)||0);
+    const gap=parseFloat(css.columnGap)||0;
+    const nonModel=kids.reduce((sum,c)=>sum+(c===trigger||c.contains(trigger)?32:naturalFlexItemWidth(c,false)),0);
+    return Math.min(reserve,Math.ceil(nonModel+gap*Math.max(0,kids.length-1)+pad));
+  }
   function nativeComfortable(){
     const baseline=composer.native;
     if(!baseline)return true;
     if(composer.branch.getBoundingClientRect().height>baseline.height+1)return false;
     if(baseline.icons.some(({icon,width})=>icon.isConnected&&icon.getBoundingClientRect().width<width-.5))return false;
+    if(composer.kind==='main'&&!node.classList.contains('icons-only')){
+      const trigger=currentModelTrigger();
+      if(effectiveModelDeficit(composer.branch,trigger)>0.5)return false;
+    }
     if(composer.kind==='ide'&&composer.branch.getBoundingClientRect().width<baseline.reserve-1)return false;
     if(composer.kind==='subagent'){
       if(composer.branch.getBoundingClientRect().width<baseline.reserve-1)return false;
@@ -768,15 +860,34 @@ module.exports = function installAgPulseInlineWidget() {
     return true;
   }
   function reserveNativeSpace(){
-    if(!['subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
-    const row=composer.row,style=getComputedStyle(row),siblings=Array.from(row.children).filter(e=>e!==node&&e!==composer.branch&&e.getClientRects().length);
-    const room=row.clientWidth-(parseFloat(style.paddingLeft)||0)-(parseFloat(style.paddingRight)||0)-composer.native.reserve-siblings.reduce((sum,e)=>{const s=getComputedStyle(e);return sum+e.getBoundingClientRect().width+(parseFloat(s.marginLeft)||0)+(parseFloat(s.marginRight)||0);},0)-(parseFloat(style.columnGap)||0)*(siblings.length+1)-10;
+    if(!['main','subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
+    const row=composer.row,style=getComputedStyle(row),siblings=Array.from(row.children).filter(e=>{if(e===node||e===composer.branch||!e.getClientRects().length)return false;const s=getComputedStyle(e);return s.display!=='none'&&!['absolute','fixed'].includes(s.position);});
+    const trigger=composer.kind==='main'?currentModelTrigger():null;
+    const reserve=composer.kind==='main'?naturalFlexItemWidth(composer.branch,true,trigger):(composer.native?.reserve||0);
+    const siblingWidth=siblings.reduce((sum,e)=>{
+      if(composer.kind==='main')return sum+naturalFlexItemWidth(e,false);
+      const s=getComputedStyle(e);
+      return sum+e.getBoundingClientRect().width+(parseFloat(s.marginLeft)||0)+(parseFloat(s.marginRight)||0);
+    },0);
+    const sharedRoom=row.clientWidth-(parseFloat(style.paddingLeft)||0)-(parseFloat(style.paddingRight)||0)-siblingWidth-(parseFloat(style.columnGap)||0)*(siblings.length+1)-10;
+    const visibleChips=root?Array.from(root.querySelectorAll('.bar .chip')).filter(c=>!c.hidden).length:3;
+    const minIconsWidth=visibleChips>0?visibleChips*24+Math.max(0,visibleChips-1)*2:0;
+    if(composer.kind==='main'){
+      const room=sharedRoom-reserve-4;
+      const minBranch=minMainBranchWidth(composer.branch,trigger,reserve);
+      const noRoom=minIconsWidth>0&&sharedRoom<minIconsWidth+minBranch;
+      const budget=noRoom?Math.max(0,Math.floor(sharedRoom-minBranch)):Math.max(minIconsWidth,Math.floor(room));
+      const width=`${budget}px`;
+      if(node.style.getPropertyValue('--pulse-native-room')!==width)node.style.setProperty('--pulse-native-room',width);
+      node.classList.toggle('native-no-room',noRoom);
+      return;
+    }
+    const room=sharedRoom-reserve;
     const width=`${Math.max(0,Math.floor(room))}px`;if(node.style.getPropertyValue('--pulse-native-room')!==width)node.style.setProperty('--pulse-native-room',width);
     // A hidden ribbon must release its flex space as well as its hit targets.
     // The budget is independent of our own rectangle, so it recovers directly
     // when the sidebar is closed, without probing the native badge each frame.
-    const quotaChip=root?.querySelector('[data-card="quota"]');
-    node.classList.toggle('native-no-room',room<(quotaChip&&!quotaChip.hidden?102:76));
+    node.classList.toggle('native-no-room',minIconsWidth>0&&room<minIconsWidth);
   }
   function currentModelTrigger(){
     const trigger=composer?.model?.isConnected?composer.model:(composer?.branch||composer?.row)?.querySelector('[data-testid="model-selector-trigger"]');
@@ -985,11 +1096,11 @@ module.exports = function installAgPulseInlineWidget() {
     node.dataset.agPulseBar='true';
     node.dataset.pulseWidget='true';
     node.dataset.scope=found.kind;
-    node.style.cssText='display:flex;align-items:center;flex:0 1 auto;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 5px;position:relative;';
+    node.style.cssText='display:flex;align-items:center;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 5px;position:relative;';
     root=node.attachShadow({mode:'open'});
     setMarkup(root,`<style>${theme.shadowCss()}
-      :host{color-scheme:var(--pulse-scheme);font-family:var(--pulse-font,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif);color:var(--pulse-foreground);font-size:11px}*{box-sizing:border-box}button,select{font:inherit}button{cursor:pointer}svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;flex:none}button:focus-visible,select:focus-visible{outline:2px solid var(--pulse-accent);outline-offset:2px}
-      .bar{display:flex;justify-content:flex-start;width:100%;align-items:center;gap:6px;min-height:28px;padding:2px 0;overflow:clip;min-width:0;max-width:100%}.chip{display:flex;align-items:center;gap:4px;min-width:0;color:var(--pulse-chip);background:none;border:0;border-radius:5px;padding:3px 5px;font-size:11px;white-space:nowrap;line-height:18px}.chip:hover,.chip[aria-expanded=true]{background:var(--pulse-hover);color:var(--pulse-hover-text)}.chip strong{font-weight:550;font-variant-numeric:tabular-nums}.dim{color:var(--pulse-muted)}.countdown{font-size:11px;font-variant-numeric:tabular-nums}.dot{width:4px;height:4px;background:var(--pulse-dot);border-radius:50%;flex:none}.dot.live{background:var(--pulse-success)}.dot.stale{background:var(--pulse-warning)}.group{color:var(--pulse-muted);font-size:11px;margin-right:1px}
+      :host{flex:0 999 auto;color-scheme:var(--pulse-scheme);font-family:var(--pulse-font,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif);color:var(--pulse-foreground);font-size:11px}*{box-sizing:border-box}button,select{font:inherit}button{cursor:pointer}svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;flex:none}button:focus-visible,select:focus-visible{outline:2px solid var(--pulse-accent);outline-offset:2px}
+      .bar{display:flex;justify-content:flex-start;width:100%;align-items:center;gap:6px;min-height:28px;padding:2px 0;overflow:clip;min-width:0;max-width:100%}.chip{display:flex;flex:0 0 auto;align-items:center;gap:4px;color:var(--pulse-chip);background:none;border:0;border-radius:5px;padding:3px 5px;font-size:11px;white-space:nowrap;line-height:18px}.chip:hover,.chip[aria-expanded=true]{background:var(--pulse-hover);color:var(--pulse-hover-text)}.chip strong{font-weight:550;font-variant-numeric:tabular-nums}.dim{color:var(--pulse-muted)}.countdown{font-size:11px;font-variant-numeric:tabular-nums}.dot{width:4px;height:4px;background:var(--pulse-dot);border-radius:50%;flex:none}.dot.live{background:var(--pulse-success)}.dot.stale{background:var(--pulse-warning)}.group{color:var(--pulse-muted);font-size:11px;margin-right:1px}
       .card{position:fixed;inset:auto;margin:0;z-index:2147483000;padding:11px 14px;border-radius:12px;background:var(--pulse-card);box-shadow:0 6px 20px var(--pulse-shadow);border:1px solid var(--pulse-border);color:var(--pulse-foreground);font-size:12px}.card::backdrop{background:transparent;pointer-events:none}.card[hidden]{display:none}dl{margin:0}dl>[hidden]{display:none}
       .heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;margin-bottom:7px;border-bottom:1px solid var(--pulse-separator);font-weight:600;font-size:11px}.heading>span{display:flex;align-items:center;gap:6px}.hero-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--pulse-muted)}.tag{font-size:11px;font-weight:400;color:var(--pulse-muted);white-space:nowrap}.heading .tag{max-width:52%;overflow:hidden;text-overflow:ellipsis}.tag:empty{display:none}
       .footnote{font-size:12px;color:var(--pulse-subtle);line-height:1.5;margin:8px 0 0}.footnote[hidden]{display:none}
@@ -1013,7 +1124,7 @@ module.exports = function installAgPulseInlineWidget() {
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
       [data-card=context][data-ctx-mode=rounds][data-has-rounds=true] .context-label,[data-card=context][data-ctx-mode=compact] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
       :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
-      :host(.icons-only) .bar{gap:2px}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
+      :host(.icons-only) .bar{gap:2px}:host([data-scope=main].icons-only){flex-shrink:0}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       :host([data-layout=blocked]){visibility:hidden!important;pointer-events:none!important}:host(.native-no-room){flex:0 0 0px!important;width:0!important;max-width:0!important;margin:0!important}
       .density-stage{position:absolute;overflow:clip;pointer-events:none;user-select:none}.density-piece{pointer-events:none!important}
       .scope-note{margin:6px 0 0;color:var(--pulse-muted);font-size:11px}:host([data-scope=main]) .scope-note,:host([data-scope=ide]) .scope-note{display:none}
