@@ -12,6 +12,33 @@ const localGet=key=>{try{return localStorage.getItem(key);}catch{return null;}};
 const localSet=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 const language=createI18n(localGet('ag-pulse-language'));
 const t=language.t;
+const TL_FALLBACK_ZH={
+  insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',
+  insightsSkillsSubtotal:'{n} 技能 · {runs} 次',
+  insightsToolsSubtotal:'{n} 工具 · {calls} 次',
+  insightsCommandsSubtotal:'{n} 命令 · {runs} 次',
+  insightsUnitSessions:'{n} 会话',
+  insightsUnitRuns:'{n} 次',
+  insightsUnitCalls:'{n} 次',
+  taskSwarm:'Swarm（{n} 成员）',
+  swarmDetails:'Swarm 协同与模型',
+  swarmRoster:'Swarm 成员',
+  swarmShowAll:'展开全部 {n} 个',
+  swarmShowLess:'收起',
+  swarmStatusKilled:'已结束',
+  orchSplitTitle:'Orchestrator 主/执行分工',
+  orchRolePlanner:'主调度',
+  orchRoleExecutor:'干活执行',
+  orchConfiguredPair:'已配组合：{planner} → {executor}',
+  orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',
+  orchColdStartNote:'切模型冷缓存 {n} 次',
+};
+const tl=(key,vars={},fallback=key)=>{
+  const res=t(key,vars);
+  if(res!==key)return res;
+  const tpl=language.language!=='en'&&TL_FALLBACK_ZH[key]?TL_FALLBACK_ZH[key]:fallback;
+  return String(tpl).replace(/\{(\w+)\}/g,(_,k)=>String(vars?.[k]??''));
+};
 
 const $ = id => document.getElementById(id);
 const text=(id,value)=>{const element=$(id);if(element&&element.textContent!==String(value))element.textContent=String(value);};
@@ -31,7 +58,7 @@ let inspectedConversationId=null,lastContextDetailAt=0;
 let refreshEpoch=0,inFlightRefreshEpoch=-1,inFlightNeedDetail=false,inFlightUsageSync=false,queuedRefresh=false,queuedRefreshForce=false,queuedRefreshUsageSync=false;
 let insightsEpoch=0,queuedInsights=false,queuedInsightsForce=false;
 let auditEpoch=0,scopeRequestEpoch=0,didInitialUsageSync=false,didSyncUsageScope=false,usageGuideDismissed=false;
-let compositionView='bar',trendMode='total',tokenBaseExpanded=false,stepsDrawerOpen=false;
+let compositionView='bar',trendMode='total',tokenBaseExpanded=false,stepsDrawerOpen=false,swarmRosterExpanded=false;
 const expandedDrilldownGroups=new Set(['Rules']);
 const expandedMcpServers=new Set();
 let auditOpen=false,auditTab='files',auditStepFilter='all',auditData=null,auditConvId=null,auditLoading=false,auditError=null,highlightedStepIndex=null;
@@ -112,6 +139,7 @@ function activeConversationId(){
 }
 function setInspectedConversation(id){
   inspectedConversationId=id||null;
+  swarmRosterExpanded=false;
   auditOpen=false;auditData=null;auditConvId=null;auditError=null;highlightedStepIndex=null;
   renderAuditSection();
   lastContextDetailAt=0;
@@ -785,7 +813,7 @@ async function loadInsights(force = false) {
   }
 }
 
-function renderDistList(id, items, formatVal) {
+function renderDistList(id, items, { tone, metric, formatVal }) {
   const el = $(id);
   if (!el) return;
   const list = Array.isArray(items) ? items : [];
@@ -793,13 +821,27 @@ function renderDistList(id, items, formatVal) {
     el.replaceChildren(Object.assign(document.createElement('div'), { className: 'dist-row', textContent: '—' }));
     return;
   }
-  el.replaceChildren(...list.slice(0, 6).map(item => {
+  const top = list.slice(0, 6);
+  const maxMetric = Math.max(1, ...top.map(item => Number(metric(item)) || 0));
+  el.replaceChildren(...top.map(item => {
+    const wrap = document.createElement('div'); wrap.className = 'dist-item';
     const row = document.createElement('div'); row.className = 'dist-row';
+    const nameWrap = document.createElement('span'); nameWrap.className = 'dist-name-wrap';
+    const dot = document.createElement('i'); dot.className = `dist-dot dist-tone-${tone}`; dot.setAttribute('aria-hidden', 'true');
     const name = Object.assign(document.createElement('span'), { className: 'dist-name', textContent: item.name });
     setAttr(name, 'title', item.name);
-    const val = Object.assign(document.createElement('span'), { textContent: formatVal(item) });
-    row.append(name, val);
-    return row;
+    nameWrap.append(dot, name);
+    const valText = formatVal(item);
+    const val = Object.assign(document.createElement('span'), { className: 'dist-val', textContent: valText });
+    setAttr(val, 'title', valText);
+    row.append(nameWrap, val);
+    const bar = document.createElement('div'); bar.className = 'dist-bar'; bar.setAttribute('aria-hidden', 'true');
+    const rawVal = Math.max(0, Number(metric(item)) || 0);
+    const pct = rawVal > 0 ? Math.max(2, Math.min(100, (rawVal / maxMetric) * 100)) : 0;
+    const fill = document.createElement('i'); fill.className = `dist-tone-${tone}`; fill.style.width = `${pct.toFixed(1)}%`;
+    bar.append(fill);
+    wrap.append(row, bar);
+    return wrap;
   }));
 }
 
@@ -958,10 +1000,39 @@ function renderInsightsView() {
 
   // 4 distribution cards
   const dist = insightsData.distributions || {};
-  renderDistList('insights-dist-projects', dist.projects, p => `${p.sessions} · ${compact(p.tokens)}`);
-  renderDistList('insights-dist-skills', dist.skills, s => `${s.count} (${s.sessions})`);
-  renderDistList('insights-dist-tools', dist.tools, item => count(item.count));
-  renderDistList('insights-dist-commands', dist.commands, item => count(item.count));
+  const projects = Array.isArray(dist.projects) ? dist.projects : [];
+  const skills = Array.isArray(dist.skills) ? dist.skills : [];
+  const tools = Array.isArray(dist.tools) ? dist.tools : [];
+  const commands = Array.isArray(dist.commands) ? dist.commands : [];
+  const projTokens = projects.reduce((n, p) => n + (p.tokens || 0), 0);
+  const skillRuns = skills.reduce((n, s) => n + (s.count || 0), 0);
+  const toolCallsSum = tools.reduce((n, item) => n + (item.count || 0), 0);
+  const toolCalls = Number.isFinite(k.totalToolCalls) && k.totalToolCalls >= toolCallsSum ? k.totalToolCalls : toolCallsSum;
+  const cmdRuns = commands.reduce((n, item) => n + (item.count || 0), 0);
+  text('insights-dist-projects-sub', tl('insightsProjectsSubtotal', { n: count(projects.length), tokens: compact(projTokens) }, `${count(projects.length)} projects · ${compact(projTokens)} toks`));
+  text('insights-dist-skills-sub', tl('insightsSkillsSubtotal', { n: count(skills.length), runs: count(skillRuns) }, `${count(skills.length)} skills · ${count(skillRuns)} runs`));
+  text('insights-dist-tools-sub', tl('insightsToolsSubtotal', { n: count(tools.length), calls: count(toolCalls) }, `${count(tools.length)} tools · ${count(toolCalls)} calls`));
+  text('insights-dist-commands-sub', tl('insightsCommandsSubtotal', { n: count(commands.length), runs: count(cmdRuns) }, `${count(commands.length)} cmds · ${count(cmdRuns)} runs`));
+  renderDistList('insights-dist-projects', projects, {
+    tone: 'projects',
+    metric: p => p.tokens || p.sessions || 0,
+    formatVal: p => `${tl('insightsUnitSessions', { n: smallCount(p.sessions) }, `${p.sessions} sess`)} · ${compact(p.tokens)} toks`,
+  });
+  renderDistList('insights-dist-skills', skills, {
+    tone: 'skills',
+    metric: s => s.count || 0,
+    formatVal: s => `${tl('insightsUnitRuns', { n: smallCount(s.count) }, `${s.count} runs`)} · ${tl('insightsUnitSessions', { n: smallCount(s.sessions) }, `${s.sessions} sess`)}`,
+  });
+  renderDistList('insights-dist-tools', tools, {
+    tone: 'tools',
+    metric: item => item.count || 0,
+    formatVal: item => tl('insightsUnitCalls', { n: count(item.count) }, `${count(item.count)} calls`),
+  });
+  renderDistList('insights-dist-commands', commands, {
+    tone: 'commands',
+    metric: item => item.count || 0,
+    formatVal: item => tl('insightsUnitRuns', { n: count(item.count) }, `${count(item.count)} runs`),
+  });
 
   // Sessions list
   const sessions = Array.isArray(insightsData.sessions) ? insightsData.sessions : [];
@@ -1348,7 +1419,7 @@ function render() {
     setTip($('session-cost-row'),t('estimatedCostTitle'));
   }
   hidden('task-own-row',!taskUsage);hidden('task-subagents-row',!taskUsage);
-  text('task-subagents-label',taskUsage?t('taskSubagents',{n:count(taskUsage.subagents)}):'');
+  text('task-subagents-label',taskUsage?(taskUsage.isSwarm?tl('taskSwarm',{n:count(taskUsage.subagents)},`Swarm (${count(taskUsage.subagents)} members)`):t('taskSubagents',{n:count(taskUsage.subagents)})):'');
   for(const [field,id,rowId]of[['ownTokens','task-own','task-own-row'],['subagentTokens','task-subagents','task-subagents-row']]){
     const value=taskUsage?.[field],known=field!=='subagentTokens'||taskUsage?.loadedSubagents>0;
     const ok=known&&Number.isSafeInteger(value)&&value>=0;
@@ -1364,13 +1435,15 @@ function render() {
     const models=taskUsage&&taskModels.length?taskModels:sessionModels;
     const surges=speed?.cacheMissSurges||0;
     const roleMeta=speed?.sessionMeta||null;
-    const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar);
+    const orch=speed?.orchestrator?.detected?speed.orchestrator:null;
+    const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar||orch);
     hidden('orchestration-breakdown',!showOrch);
     if(showOrch){
-      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta]);
+      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,taskUsage?.isSwarm||false,taskUsage?.swarmTitle||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta,orch,swarmRosterExpanded]);
       if(orchEl.dataset.signature!==orchSig){
         orchEl.dataset.signature=orchSig;
-        text('orch-summary-label',t('multiAgentDetails'));
+        const summaryLabel=taskUsage?.isSwarm?(taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:tl('swarmDetails',{},'Swarm & models')):t('multiAgentDetails');
+        text('orch-summary-label',summaryLabel);
         const poolMap=taskUsage?.poolBreakdown||(()=>{
           const out={gemini:{totalTokens:0,requests:0},'3p':{totalTokens:0,requests:0},local:{totalTokens:0,requests:0},other:{totalTokens:0,requests:0}};
           for(const m of models){const b=out[m.pool]||out.other;b.totalTokens+=m.totalTokens||0;b.requests+=m.requests||0;}
@@ -1381,6 +1454,32 @@ function render() {
         const poolTotal=activePools.reduce((n,[,v])=>n+(v.totalTokens||0),0);
         text('orch-summary-meta',activePools.length?activePools.map(([p,v])=>`${poolNames[p]||p} ${compact(v.totalTokens)}`).slice(0,2).join(' · '):`${models.length}`);
         const nodes=[];
+        if(orch){
+          const sec=mkEl('div','breakdown-section');
+          sec.append(mkEl('div','breakdown-head',tl('orchSplitTitle',{},'Orchestrator split')));
+          if(orch.planner){
+            const p=orch.planner,pName=`${tl('orchRolePlanner',{},'Planner')} · ${p.model||orch.configuredPlanner||'—'}`;
+            const pRow=mkRow(pName,`${compact(p.totalTokens)} · ${p.requests}× · ${percent(p.hitRate)}`);
+            setTip(pRow,pName);sec.append(pRow);
+          }
+          if(orch.executor){
+            const e=orch.executor,eName=`${tl('orchRoleExecutor',{},'Executor')} · ${e.model||orch.configuredExecutor||'—'}`;
+            const eRow=mkRow(eName,`${compact(e.totalTokens)} · ${e.requests}× · ${percent(e.hitRate)}`);
+            setTip(eRow,eName);sec.append(eRow);
+          }
+          if(!orch.switched){
+            sec.append(mkRow(tl('orchNoSwitchYet',{},'Read-only turn · no switch yet'),''));
+            if(orch.configuredPlanner&&orch.configuredExecutor){
+              const pairText=tl('orchConfiguredPair',{planner:orch.configuredPlanner,executor:orch.configuredExecutor},`Configured: ${orch.configuredPlanner} → ${orch.configuredExecutor}`);
+              const pairRow=mkRow(pairText,'');
+              setTip(pairRow,pairText);sec.append(pairRow);
+            }
+          }
+          if(orch.coldStartSwitches>0){
+            sec.append(mkRow('⚠',tl('orchColdStartNote',{n:count(orch.coldStartSwitches)},`${count(orch.coldStartSwitches)}× switch cache cold-start`),true,false));
+          }
+          nodes.push(sec);
+        }
         if(activePools.length){
           const sec=mkEl('div','breakdown-section');
           sec.append(mkEl('div','breakdown-head',t('poolRollup')));
@@ -1418,7 +1517,23 @@ function render() {
         const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
         if(agList.length>1){
           const sec=mkEl('div','breakdown-section');
-          for(const a of agList.slice(0,6))sec.append(mkRow(`${a.label} · ${a.model}`,`${compact(a.tokens)} (${a.requests}×)`));
+          if(taskUsage?.isSwarm)sec.append(mkEl('div','breakdown-head',tl('swarmRoster',{},'Swarm roster')));
+          const visibleAgents=swarmRosterExpanded?agList:agList.slice(0,6);
+          for(const a of visibleAgents){
+            const wsTag=a.workspaceMode&&a.workspaceMode!=='inherit'?` [${a.workspaceMode}]`:'';
+            const killedTag=a.killed?` · ${tl('swarmStatusKilled',{},'ended')}`:'';
+            const rowLabel=`${a.label}${wsTag}${killedTag} · ${a.model}`;
+            const row=mkRow(rowLabel,`${compact(a.tokens)} (${a.requests}×)`);
+            setTip(row,rowLabel);
+            if(a.killed)row.classList.add('is-killed');
+            sec.append(row);
+          }
+          if(agList.length>6){
+            const btn=mkEl('button','mini-pill-btn orch-expand-btn',swarmRosterExpanded?tl('swarmShowLess',{},'Collapse'):tl('swarmShowAll',{n:count(agList.length)},`Show all ${count(agList.length)}`));
+            btn.type='button';btn.id='orch-agents-expand';btn.setAttribute('aria-expanded',String(swarmRosterExpanded));
+            btn.addEventListener('click',()=>{swarmRosterExpanded=!swarmRosterExpanded;render();});
+            sec.append(btn);
+          }
           nodes.push(sec);
         }
         $('orch-body').replaceChildren(...nodes);

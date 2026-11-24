@@ -459,6 +459,31 @@ try {
   assert.match(await page.locator('#insights-kpis').textContent(), /540K/);
   assert.match(await page.locator('#insights-kpis').textContent(), /\$1\.28/);
   assert.match(await page.locator('#insights-dist-skills').textContent(), /tabbit/);
+  const distEn = await page.evaluate(() => ({
+    subs: [
+      document.getElementById('insights-dist-projects-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-skills-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-tools-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-commands-sub')?.textContent?.trim() || '',
+    ],
+    items: [...document.querySelectorAll('.insights-dist-card .dist-item')].length,
+    barWidths: [...document.querySelectorAll('.insights-dist-card .dist-bar > i')].map(el => el.getBoundingClientRect().width),
+    projectsText: document.getElementById('insights-dist-projects')?.textContent || '',
+    skillsText: document.getElementById('insights-dist-skills')?.textContent || '',
+    toolsText: document.getElementById('insights-dist-tools')?.textContent || '',
+    commandsText: document.getElementById('insights-dist-commands')?.textContent || '',
+  }));
+  assert.ok(distEn.subs.every(Boolean), `Expected non-empty dist subtotals in en: ${JSON.stringify(distEn.subs)}`);
+  assert.match(distEn.subs[0], /projects.*toks/);
+  assert.match(distEn.subs[1], /skills.*runs/);
+  assert.match(distEn.subs[2], /tools.*calls/);
+  assert.match(distEn.subs[3], /cmds.*runs/);
+  assert.match(distEn.projectsText, /sess.*toks/);
+  assert.match(distEn.skillsText, /runs.*sess/);
+  assert.match(distEn.toolsText, /calls/);
+  assert.match(distEn.commandsText, /runs/);
+  assert.equal(distEn.items, 6);
+  assert.ok(distEn.barWidths.length === 6 && distEn.barWidths.every(w => w > 0), `Expected positive dist-bar widths in en: ${JSON.stringify(distEn.barWidths)}`);
 
   await page.locator('#heatmap-metric-tokens').click();
   assert.equal(await page.locator('#heatmap-metric-tokens').getAttribute('aria-pressed'), 'true');
@@ -494,6 +519,33 @@ try {
   await page.setViewportSize({ width: 280, height: 700 });
   const overflow = await page.locator('.widget').evaluate(el => el.scrollWidth > el.clientWidth);
   assert.equal(overflow, false);
+  const distZh = await page.evaluate(() => ({
+    subs: [
+      document.getElementById('insights-dist-projects-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-skills-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-tools-sub')?.textContent?.trim() || '',
+      document.getElementById('insights-dist-commands-sub')?.textContent?.trim() || '',
+    ],
+    items: [...document.querySelectorAll('.insights-dist-card .dist-item')].length,
+    barWidths: [...document.querySelectorAll('.insights-dist-card .dist-bar > i')].map(el => el.getBoundingClientRect().width),
+    projectsText: document.getElementById('insights-dist-projects')?.textContent || '',
+    skillsText: document.getElementById('insights-dist-skills')?.textContent || '',
+    toolsText: document.getElementById('insights-dist-tools')?.textContent || '',
+    commandsText: document.getElementById('insights-dist-commands')?.textContent || '',
+    insightsOverflow: document.getElementById('insights-view').scrollWidth > document.getElementById('insights-view').clientWidth,
+  }));
+  assert.ok(distZh.subs.every(Boolean), `Expected non-empty dist subtotals in zh-CN: ${JSON.stringify(distZh.subs)}`);
+  assert.match(distZh.subs[0], /项目.*toks/);
+  assert.match(distZh.subs[1], /技能.*次/);
+  assert.match(distZh.subs[2], /工具.*次/);
+  assert.match(distZh.subs[3], /命令.*次/);
+  assert.match(distZh.projectsText, /会话.*toks/);
+  assert.match(distZh.skillsText, /次.*会话/);
+  assert.match(distZh.toolsText, /次/);
+  assert.match(distZh.commandsText, /次/);
+  assert.equal(distZh.items, 6);
+  assert.ok(distZh.barWidths.length === 6 && distZh.barWidths.every(w => w > 0), `Expected positive dist-bar widths in zh-CN: ${JSON.stringify(distZh.barWidths)}`);
+  assert.equal(distZh.insightsOverflow, false);
 
   await page.locator('#view-activity-tab').click();
   await page.locator('#usage-panel-view').waitFor({ state: 'visible' });
