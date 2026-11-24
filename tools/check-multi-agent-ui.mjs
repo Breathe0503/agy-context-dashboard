@@ -269,10 +269,12 @@ try {
   const workerPanel = await browser.newPage({ viewport: { width: 420, height: 640 } });
   workerPanel.on('pageerror', e => errors.push(e.message));
   await workerPanel.goto(base + '/');
+  assert.equal(await workerPanel.locator('#strip-route-pill').textContent(), 'Dual · 1×');
   await checkWorkerRow(workerPanel, workerPanel.locator('#cache-tab'), '#orchestration-breakdown summary', '#orch-body', 'Agent role', 'Worker');
   await workerPanel.locator('#language-toggle').click();
   await workerPanel.locator('[data-language-menu] [data-language="zh-CN"]').click();
   await workerPanel.locator('#orchestration-breakdown summary').filter({ hasText: '多代理与模型拆分' }).waitFor();
+  assert.equal(await workerPanel.locator('#strip-route-pill').textContent(), '双模型 · 切1次');
   const zhPairs = await workerPanel.locator('#orch-body .breakdown-row').evaluateAll(rows =>
     rows.map(r => [r.querySelector('.breakdown-row-name')?.textContent?.trim(), r.querySelector('.breakdown-row-val')?.textContent?.trim()])
   );
@@ -614,11 +616,14 @@ try {
   const panelSep = await browser.newPage({ viewport: { width: 420, height: 700 } });
   panelSep.on('pageerror', e => errors.push(e.message));
   await panelSep.goto(`${base}/`);
-  await panelSep.locator('#cache-tab').click();
+  await panelSep.locator('#strip-route-pill').waitFor({ state: 'visible' });
+  assert.match((await panelSep.locator('#strip-route-pill').textContent()) || '', /^双模型/);
+  await panelSep.locator('#strip-route-pill').click();
+  await panelSep.locator('#cache-card').waitFor({ state: 'visible' });
   await panelSep.locator('#orchestrator-breakdown').waitFor({ state: 'visible' });
   await panelSep.locator('#orchestration-breakdown').waitFor({ state: 'visible' });
-  await panelSep.locator('#orchestrator-breakdown summary').click();
-  await panelSep.locator('#orchestration-breakdown summary').click();
+  assert.equal(await panelSep.locator('#orchestrator-breakdown').evaluate(e => e.open), true);
+  assert.equal(await panelSep.locator('#orchestration-breakdown').evaluate(e => e.open), true);
   const pOrchText = await panelSep.locator('#orch-phase-body').textContent();
   const pSwarmText = await panelSep.locator('#orch-body').textContent();
   assert.ok(pOrchText.includes('同一会话内 · 规划与执行切模型') && pOrchText.includes('主调度 · Orchestrator (Neon)'), pOrchText);
