@@ -64,6 +64,13 @@ const speedStyle=language.connectSpeedStyle({initial:localGet('ag-pulse-speed-st
   changed:()=>{applySpeedStyle();localize();render();}});
 const hostUiLocalization=language.connectHostUiLocalization({initial:localGet('ag-pulse-host-ui-localization')==='true',cache:value=>localSet('ag-pulse-host-ui-localization',value?'true':'false'),write:preferenceRequest,
   changed:()=>{localize();}});
+const readBarColorsCache=()=>{try{const raw=localGet('ag-pulse-bar-colors');return raw?JSON.parse(raw):null;}catch{return null;}};
+const barColorsPref=language.connectBarColors({initial:readBarColorsCache(),cache:value=>localSet('ag-pulse-bar-colors',JSON.stringify(value)),write:preferenceRequest,
+  changed:()=>{themeController?.setBarColors?.(barColorsPref.colors);}});
+const themeModePref=language.connectThemeMode({initial:localGet('ag-pulse-theme-mode'),cache:value=>localSet('ag-pulse-theme-mode',value),write:preferenceRequest,
+  changed:()=>{themeController?.setThemeMode?.(themeModePref.value);}});
+themeController?.setThemeMode?.(themeModePref.value);
+themeController?.setBarColors?.(barColorsPref.colors);
 const usageScope=language.connectUsageScope({initial:localGet('ag-pulse-usage-scope'),cache:value=>localSet('ag-pulse-usage-scope',value),write:preferenceRequest,
   changed:()=>{usageDashboard?.renderIfVisible?.();}});
 const usageFactory=typeof createUsageDashboard==='function'?createUsageDashboard:window.__agPulseUsageFactory;
@@ -2080,7 +2087,7 @@ function refresh(force = false, {usageSync=false}={}) {
     const preservedUsage = reqScopeEpoch !== scopeRequestEpoch && snapshot?.usage ? snapshot.usage : value.usage;
     snapshot = preservedUsage === value.usage ? value : {...value, usage: preservedUsage};
     if(Object.hasOwn(value,'theme'))themeController.setHostTheme(value.theme);
-    if(value.preferences){didSyncUsageScope=true;syncUsageGuide(value.preferences);preferences.sync(value.preferences);speedStyle.sync(value.preferences);hostUiLocalization.sync(value.preferences);usageScope.sync(value.preferences);}
+    if(value.preferences){didSyncUsageScope=true;syncUsageGuide(value.preferences);preferences.sync(value.preferences);speedStyle.sync(value.preferences);hostUiLocalization.sync(value.preferences);barColorsPref.sync(value.preferences);themeModePref.sync(value.preferences);usageScope.sync(value.preferences);}
     serverOffset = Date.parse(value.serverTime) - Date.now();
     if (!Number.isFinite(serverOffset)) serverOffset = 0;
     render();
