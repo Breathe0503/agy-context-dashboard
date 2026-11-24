@@ -225,6 +225,30 @@ python manage.py install --with-launcher
 
 `python manage.py install --panel-only` 关闭内嵌挂载，只安装原生 sidecar 面板。需要账号原生 UI Extensions 已开放；这个模式不能保证出现模型旁的缩略条。
 
+### Remote SSH 远程窗口支持
+
+在 Antigravity Desktop 2.33+ 的 Remote SSH 窗口中，对话运行在远程无头服务器（`antigravity-hub-server`），而桌面界面渲染在本机客户端。本插件同时支持两种模式：
+
+- **默认优雅降级（零配置）**：自动识别 Remote SSH 窗口；未配置远程转发或隧道不可达时，底栏自动隐藏无法从本机获取的速度 / Token / 上下文占位图标，仅保留**共享账号额度**并将宿主汉化与语言设置迁移至额度浮卡，同时提示在右侧辅助栏查看远程会话详情。
+- **可选回环转发（底栏同步完整远程数据）**：所有通信严格限定在 `127.0.0.1` 回环内，支持 Windows / macOS / Linux：
+  1. **远程 Linux 端**：安装纯侧栏模式并开启回环桥接端口（仅监听远程 `127.0.0.1`）：
+     ```bash
+     python3 manage.py install --panel-only --remote-bridge-port 17891
+     # 或随时单独开关：python3 manage.py set-remote-bridge --port 17891 / --off
+     ```
+  2. **本机 SSH 配置（`~/.ssh/config`）**：为对应主机添加本地回环转发：
+     ```sshconfig
+     Host <your-remote-host>
+       LocalForward 127.0.0.1:17891 127.0.0.1:17891
+       ExitOnForwardFailure no
+     ```
+  3. **本机客户端**：将远程主机标签（或通配符 `*`）映射到该本机回环端口（Windows 将 `python3` 换为 `python`）：
+     ```bash
+     python3 manage.py set-remote-endpoint user@your-host 17891
+     # 移除映射：python3 manage.py remove-remote-endpoint user@your-host
+     ```
+  重新连接 SSH 窗口后，远程窗口输入框底栏即可实时展示远程会话的 `tok/s`、Token、缓存与上下文占比，并在上下文卡顶部显示 `SSH · <host>` 标识；隧道断开时自动无损回退到共享额度降级模式。
+
 ## 上下文窗口
 
 状态栏分别常驻额度环形指示（`5h` / `周`）与上下文占用百分比：悬停额度可查看剩余百分比、重置倒计时与耗尽预测，并在同组或跨组额度间切换；悬停上下文可查看已用 Token 与容量、宿主 8 分类构成、压缩记录与请求趋势。数值来自最近请求开始时的 `contextWindowMetadata.estimatedTokensUsed` / `maxContextTokens`，由宿主估计。不是会话累计输入量，也不是生成中的实时 Token 计数。

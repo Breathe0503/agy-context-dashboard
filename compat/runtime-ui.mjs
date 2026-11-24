@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { platformPaths } from './platform.mjs';
 import { createHash } from 'node:crypto';
+import { sanitizeRemoteHost } from './remote-ssh.mjs';
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,6 +89,10 @@ export function validatedInput(value) {
   if (typeof value.composerModel === 'string') {
     const composerModel = value.composerModel.replace(/[\x00-\x1f\x7f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
     if (composerModel) result.composerModel = composerModel;
+  }
+  if (typeof value.remoteHost === 'string') {
+    const remoteHost = sanitizeRemoteHost(value.remoteHost);
+    if (remoteHost) result.remoteHost = remoteHost;
   }
   return result;
 }

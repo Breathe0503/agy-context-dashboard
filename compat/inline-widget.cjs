@@ -452,7 +452,34 @@ module.exports = function installAgPulseInlineWidget() {
   let chosen=null,group=null,autoGroupId=null,lastModelSig=null,quotaSigCache=null,quotaObservedAt=0;
   let refreshRequest=null,manualRequest=null,hoverQuotaRequest=null,lastQuotaHoverAt=0,requestEpoch=0,scopeRequestEpoch=0;
   let composer=null,usageDashboard=null,updateMenu=null;
-  let barCustomizeOpen=false,barMigrateNote=null,hostUiRow=null,languageRow=null,barCustomizeDrawer=null,saveNote=null,lastBarLayoutSig='',lastFooterHost='context',lastCustomizeSig='',draggingChipId=null;
+  let barCustomizeOpen=false,barMigrateNote=null,remoteSessionNote=null,hostUiRow=null,languageRow=null,barCustomizeDrawer=null,saveNote=null,lastBarLayoutSig='',lastFooterHost='context',lastCustomizeSig='',draggingChipId=null;
+  let stickyRemoteHost=null;
+  const detectRemoteHost=()=>{
+    if(surface&&typeof surface.remoteHost==='function'){
+      const explicit=surface.remoteHost(composer);
+      if(explicit){stickyRemoteHost=explicit;return explicit;}
+    }
+    const candidates=document.querySelectorAll('button,[role="button"],[data-remote-host]');
+    for(const el of candidates){
+      if(el.closest('main,[role="main"],article,pre,code,[contenteditable="true"],.rounded-composer'))continue;
+      const attrHost=el.getAttribute('data-remote-host');
+      if(attrHost){
+        const cleaned=attrHost.trim().replace(/^ssh:\s*/i,'').trim();
+        if(cleaned&&/^[A-Za-z0-9._:@\[\]-]{1,120}$/.test(cleaned)){stickyRemoteHost=cleaned;return cleaned;}
+      }
+      const raw=(el.textContent||el.getAttribute('aria-label')||el.getAttribute('title')||'').replace(/\s+/g,' ').trim();
+      const match=raw.match(/^SSH:\s*([A-Za-z0-9._:@\[\]-]{1,120})$/i);
+      if(!match)continue;
+      const inSidebar=Boolean(el.closest('aside,nav,[data-testid*="sidebar" i],[data-testid*="ssh" i]'));
+      if(!inSidebar){
+        const rect=el.getBoundingClientRect();
+        if(!(rect.width>20&&rect.width<=420&&rect.height>=16&&rect.height<=64&&rect.left<400))continue;
+      }
+      stickyRemoteHost=match[1];
+      return stickyRemoteHost;
+    }
+    return stickyRemoteHost;
+  };
   let densityFrame=null,densityMotion=null,densityProbe=null;
   let isPrimary=false,parked=false,parkedKind=null,instDisposed=false;
   let emptyCompact=true,hydrated=false,seenEmptySession=false,suppressNextMotion=false,springNextExpand=false,swarmRosterFilter='active';
@@ -832,7 +859,9 @@ module.exports = function installAgPulseInlineWidget() {
   // the pointer departs. Only keyboard-visible focus keeps a card engaged.
   // The explicit first-use action moves focus into language choices. Keep
   // that guided destination available until the user chooses or leaves it.
-  const footerHostCard=()=>{const hiddenSet=new Set(barPrefs.hidden);if(!hiddenSet.has('context'))return 'context';const vis=barPrefs.order.filter(id=>!hiddenSet.has(id));return vis[vis.length-1]||'context';};
+  const isRemoteFallback=()=>data?.remoteSession?.mode==='fallback';
+  const effectiveHiddenSet=()=>isRemoteFallback()?new Set(['speed','cache','context']):new Set(barPrefs.hidden);
+  const footerHostCard=()=>{const hiddenSet=effectiveHiddenSet();if(!hiddenSet.has('context'))return 'context';const vis=barPrefs.order.filter(id=>!hiddenSet.has(id));return vis[vis.length-1]||'quota';};
   const cardEngaged=()=>Boolean(root?.activeElement?.matches(':focus-visible')||(guideOpened&&!guideDismissed&&cardName===footerHostCard()&&root?.activeElement?.matches('[data-language-choice]'))||node?.matches(':hover')||root?.querySelector('.card:not([hidden]):hover'));
   function cardVisibility(element,visible){
     if(visible){hidden(element,false);if(element.hasAttribute('popover')&&!element.matches(':popover-open'))element.showPopover();}
@@ -1166,7 +1195,7 @@ module.exports = function installAgPulseInlineWidget() {
       <p class="footnote quota-error" id="quota-error" hidden></p>
       <div class="quota-siblings" id="quota-siblings" hidden></div>
     </section><section class="card context-card" id="context-card" role="region" data-i18n-aria="context" hidden>
-      <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span></span><span class="tag" id="context-model">—</span></div>
+      <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span><span class="tag" id="remote-connected-tag" hidden></span></span><span class="tag" id="context-model">—</span></div>
       <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span id="context-tokens">—</span></span></div>
       <div class="context-submeta-row" id="context-submeta-row" hidden><button type="button" class="tag context-rounds-pill" id="context-rounds-pill" aria-expanded="false" aria-controls="context-steps-drawer" hidden><span id="context-rounds-pill-text"></span><svg class="rounds-pill-chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5l3-3"/></svg></button><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span class="tag context-bloat-pill" id="context-bloat-pill" hidden></span></div>
       <div class="steps-drawer" id="context-steps-drawer" hidden></div>
@@ -1193,6 +1222,8 @@ module.exports = function installAgPulseInlineWidget() {
     const displayRow=document.createElement('div');displayRow.className='quota-display-row';
     setMarkup(displayRow,'<span data-i18n="quotaDisplay"></span><div class="language-options" role="group" data-i18n-aria="quotaDisplay">'+[['both','quotaDisplayBoth'],['auto','quotaDisplayAuto'],['compact','quotaDisplayCompact']].map(([value,key])=>`<button type="button" class="language-button" data-quota-display-choice="${value}" data-i18n="${key}"></button>`).join('')+'</div>');
     $('quota-card').append(displayRow);
+    remoteSessionNote=document.createElement('p');remoteSessionNote.className='bar-migrate-note';remoteSessionNote.id='remote-session-note';remoteSessionNote.hidden=true;
+    $('quota-card').append(remoteSessionNote);
     barMigrateNote=document.createElement('p');barMigrateNote.className='bar-migrate-note';barMigrateNote.id='bar-migrate-note';barMigrateNote.dataset.i18n='barFooterMigrated';barMigrateNote.hidden=true;
     $('context-card').append(barMigrateNote);
     hostUiRow=document.createElement('div');hostUiRow.className='card-language';hostUiRow.id='host-i18n-row';
@@ -1268,7 +1299,7 @@ module.exports = function installAgPulseInlineWidget() {
         }finally{await save;}
       }});
       root.getElementById('usage-dashboard')?.addEventListener('close',scheduleLayout);
-      $('open-usage').addEventListener('click',()=>{const trigger=root.querySelector('[data-card=cache]'),conversation=conversationId(),model=currentComposerModel();for(const other of instances)other.hide();usageDashboard.open(data?.usage,trigger);void window.agPulseHost.getMetrics({conversationId:conversation,force:true,usageSync:true,...(model?{composerModel:model}:{})}).then(result=>{if(!disposed&&!instDisposed&&result?.usage&&(!result.usage.scope||result.usage.scope===usageScope.scope)){if(data)data={...data,usage:result.usage};usageDashboard.update(result.usage);}}).catch(()=>{});});
+      $('open-usage').addEventListener('click',()=>{const trigger=root.querySelector('[data-card=cache]'),conversation=conversationId(),model=currentComposerModel(),remoteHost=detectRemoteHost();for(const other of instances)other.hide();usageDashboard.open(data?.usage,trigger);void window.agPulseHost.getMetrics({conversationId:conversation,force:true,usageSync:true,...(model?{composerModel:model}:{}),...(remoteHost?{remoteHost}:{})}).then(result=>{if(!disposed&&!instDisposed&&result?.usage&&(!result.usage.scope||result.usage.scope===usageScope.scope)){if(data)data={...data,usage:result.usage};usageDashboard.update(result.usage);}}).catch(()=>{});});
     }
     lastConversation=conversationId();
     if(!lastConversation){hydrated=true;seenEmptySession=true;}
@@ -1305,8 +1336,8 @@ module.exports = function installAgPulseInlineWidget() {
   }
   function applyBarLayout(){
     if(!root)return;
-    const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden);
-    const sig=JSON.stringify([order,barPrefs.hidden]);
+    const order=barPrefs.order,remoteFallback=isRemoteFallback(),hiddenSet=effectiveHiddenSet();
+    const sig=JSON.stringify([order,barPrefs.hidden,remoteFallback]);
     if(sig===lastBarLayoutSig)return;
     lastBarLayoutSig=sig;
     const bar=root.querySelector('.bar');
@@ -1330,7 +1361,7 @@ module.exports = function installAgPulseInlineWidget() {
       }
       if(barCustomizeOpen&&cardName===prevHost&&!hiddenSet.has(host))show(host);
     }
-    if(barMigrateNote)hidden(barMigrateNote,host==='context');
+    if(barMigrateNote)hidden(barMigrateNote,host==='context'||remoteFallback);
     if(cardName&&hiddenSet.has(cardName))show(host);
     densityProbe=null;
     scheduleLayout();
@@ -1448,11 +1479,27 @@ module.exports = function installAgPulseInlineWidget() {
     }
     applyBarLayout();
     renderBarCustomize();
-    hidden(root.querySelector('[data-card="speed"]'),barPrefs.hidden.includes('speed'));
-    hidden(root.querySelector('[data-card="cache"]'),barPrefs.hidden.includes('cache'));
+    const hiddenSet=effectiveHiddenSet(),remoteSession=data.remoteSession||null;
+    attribute(node,'data-remote-mode',remoteSession?.mode||null);
+    attribute(node,'data-remote-host',remoteSession?.host||null);
+    if(remoteSessionNote){
+      if(remoteSession?.mode==='fallback'&&remoteSession.host){
+        const noteText=t(remoteSession.reason==='unreachable'?'remoteFallbackUnreachable':'remoteFallbackUnconfigured',{host:remoteSession.host});
+        if(remoteSessionNote.textContent!==noteText)remoteSessionNote.textContent=noteText;
+        hidden(remoteSessionNote,false);
+      }else hidden(remoteSessionNote,true);
+    }
+    const remoteConnectedTag=$('remote-connected-tag');
+    if(remoteConnectedTag){
+      const showTag=remoteSession?.mode==='connected'&&Boolean(remoteSession.host);
+      hidden(remoteConnectedTag,!showTag);
+      if(showTag)text('remote-connected-tag',t('remoteConnectedBadge',{host:remoteSession.host}));
+    }
+    hidden(root.querySelector('[data-card="speed"]'),hiddenSet.has('speed'));
+    hidden(root.querySelector('[data-card="cache"]'),hiddenSet.has('cache'));
     const context=speed?.context,hasCapacity=typeof context?.usedFraction==='number';
     const ringColor=!hasCapacity?'var(--pulse-ring)':context.usedFraction>=0.9?'var(--pulse-danger)':context.usedFraction>=0.75?'var(--pulse-warning)':'var(--pulse-ring)';
-    hidden(root.querySelector('[data-card="context"]'),barPrefs.hidden.includes('context'));
+    hidden(root.querySelector('[data-card="context"]'),hiddenSet.has('context'));
     const empty=(surface&&!surface.useSharedComposer?surface.conversationState?.(composer).status==='new':composer?.kind==='main'&&(!lastConversation||(!speed?.requests&&!speed?.steps&&!hasCapacity)))&&data.connection==='live'&&!data.sessionError&&!collectionActive;
     text('context-percent',hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—');
     style($('context-ring'),'--used-angle',`${hasCapacity?Math.min(1,context.usedFraction)*360:0}deg`);
@@ -2021,7 +2068,7 @@ module.exports = function installAgPulseInlineWidget() {
     // em-dash on a dashed ring, never 0%.
     const quotaChip=root.querySelector('[data-card="quota"]'),quotaArcEl=$('quota-ring-arc'),quotaTextEl=$('quota-text');
     if(quotaChip&&quotaArcEl){
-      hidden(quotaChip,(!group&&!quotaError)||barPrefs.hidden.includes('quota'));
+      hidden(quotaChip,isRemoteFallback()?false:((!group&&!quotaError)||hiddenSet.has('quota')));
       if(group){
         const view=language.quotaRingView(group,quotaDisplay.value),RING=2*Math.PI*8;
         const ringPct=v=>`${Math.round(v*100)}%`;
@@ -2201,8 +2248,8 @@ module.exports = function installAgPulseInlineWidget() {
     const wait=data.speed.contextComposition?.customization?.available?9*60*1000:15000;
     if(Date.now()-contextDetailAt<wait)return;
     contextDetailAt=Date.now();
-    const conversation=conversationId(),model=currentComposerModel(),epoch=requestEpoch;
-    void window.agPulseHost.getMetrics({conversationId:conversation,force:false,contextDetail:true,...(model?{composerModel:model}:{})}).then(result=>{
+    const conversation=conversationId(),model=currentComposerModel(),remoteHost=detectRemoteHost(),epoch=requestEpoch;
+    void window.agPulseHost.getMetrics({conversationId:conversation,force:false,contextDetail:true,...(model?{composerModel:model}:{}),...(remoteHost?{remoteHost}:{})}).then(result=>{
       if(disposed||instDisposed||parked||epoch!==requestEpoch||!data?.speed)return;
       const next=result?.speed?.contextComposition;
       if(!next)return;
@@ -2237,8 +2284,8 @@ module.exports = function installAgPulseInlineWidget() {
     const current=()=>!disposed&&!instDisposed&&epoch===requestEpoch&&node?.isConnected&&(parked||(conversation===conversationId()&&conversation===lastConversation));
     pending=true;lastFetch=Date.now();
     refreshRequest=(async()=>{
-      const composerModel=currentComposerModel();
-      try{const result=await window.agPulseHost.getMetrics({conversationId:conversation,force,...(quotaRefresh?{quotaRefresh:true}:{}),...(composerModel?{composerModel}:{}),...(syncUsage?{usageSync:true}:{})});if(!current())return;if(force||quotaRefresh)lastQuotaHoverAt=Date.now();node.style.visibility=result.enabled===false?'hidden':'';if(result.enabled===false){hide();return;}if(!conversation||result.speed&&result.speed.conversationId!==conversation)result.speed=null;if(result.usage?.scope&&data?.usage?.scope===usageScope.scope&&result.usage.scope!==usageScope.scope)result.usage=data.usage;data=result;hydrated=true;if(result.preferences){syncGuide(result.preferences);preferences.sync(result.preferences);guideReady=!preferences.error;}if(Object.hasOwn(result,'theme'))themeController?.setHostTheme(result.theme);render();}
+      const composerModel=currentComposerModel(),remoteHost=detectRemoteHost();
+      try{const result=await window.agPulseHost.getMetrics({conversationId:conversation,force,...(quotaRefresh?{quotaRefresh:true}:{}),...(composerModel?{composerModel}:{}),...(remoteHost?{remoteHost}:{}),...(syncUsage?{usageSync:true}:{})});if(!current())return;if(force||quotaRefresh)lastQuotaHoverAt=Date.now();node.style.visibility=result.enabled===false?'hidden':'';if(result.enabled===false){hide();return;}if(!conversation||result.speed&&result.speed.conversationId!==conversation)result.speed=null;if(result.usage?.scope&&data?.usage?.scope===usageScope.scope&&result.usage.scope!==usageScope.scope)result.usage=data.usage;data=result;hydrated=true;if(result.preferences){syncGuide(result.preferences);preferences.sync(result.preferences);guideReady=!preferences.error;}if(Object.hasOwn(result,'theme'))themeController?.setHostTheme(result.theme);render();}
       catch{if(current()&&data){data.connection='stale';data.error=t('reconnecting');render();}}
       finally{if(epoch===requestEpoch){pending=false;refreshRequest=null;}}
     })();

@@ -18,6 +18,15 @@ import { readHostOrchestrator } from '../../compat/host-orchestrator.mjs';
 import { panelAppSource,panelPageSource } from './panel-source.mjs';
 import { AppUpdater, releaseRuntimeDirectory } from './updater.mjs';
 import { scheduleHostRelaunch } from '../../compat/debug-relaunch.mjs';
+import {
+  sanitizeRemoteHost,
+  resolveRemoteEndpoint,
+  fetchRemoteMetrics,
+  mergeRemoteMetrics,
+  buildRemoteFallbackMetrics,
+  validateBridgePort,
+  startRemoteBridgeServer,
+} from '../../compat/remote-ssh.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // The host starts this sidecar in sidecars/panel. Windows holds the process's
@@ -57,6 +66,53 @@ const metrics = async input => {
     if(!store.serverPid&&!store.identity){try{await store.snapshot({conversationId:null,force:false,selectLatest:false,orchestratorSettings});}catch{}}
     const requestedScope=(input.usageScope==='local'||input.usageScope==='account')?input.usageScope:(prefs?.usageScope||'local');
     return {connection:store.quota?'live':'stale',groups:store.quota||[],speed:null,usage:await usage.snapshot({sync:false,scope:requestedScope,groups:store.quota}),preferences:prefs,theme,orchestratorSettings,integration:integration.health,update};
+  }
+  const remoteHost = sanitizeRemoteHost(input?.remoteHost);
+  if (remoteHost) {
+    const settings = runtimeSettings();
+    const resolved = resolveRemoteEndpoint(remoteHost, settings);
+    if (resolved) {
+      const remoteRes = await fetchRemoteMetrics(resolved.endpoint, input);
+      if (remoteRes.ok) {
+        let localBase = null;
+        if (!Array.isArray(remoteRes.data?.groups) || !remoteRes.data.groups.length) {
+          localBase = await store.snapshot({ conversationId: null, force: false, selectLatest: false, orchestratorSettings }).catch(() => null);
+        }
+        return mergeRemoteMetrics({
+          remoteData: remoteRes.data,
+          localBase,
+          remoteHost,
+          liveComposerModel,
+          preferences: prefs,
+          theme,
+          orchestratorSettings,
+          integration: integration.health,
+          update,
+        });
+      }
+      const localBase = await store.snapshot({ conversationId: null, force: input?.force === true, quotaRefresh: input?.quotaRefresh === true, selectLatest: false, orchestratorSettings }).catch(() => null);
+      return buildRemoteFallbackMetrics({
+        localBase,
+        remoteHost,
+        reason: 'unreachable',
+        preferences: prefs,
+        theme,
+        orchestratorSettings,
+        integration: integration.health,
+        update,
+      });
+    }
+    const localBase = await store.snapshot({ conversationId: null, force: input?.force === true, quotaRefresh: input?.quotaRefresh === true, selectLatest: false, orchestratorSettings }).catch(() => null);
+    return buildRemoteFallbackMetrics({
+      localBase,
+      remoteHost,
+      reason: 'unconfigured',
+      preferences: prefs,
+      theme,
+      orchestratorSettings,
+      integration: integration.health,
+      update,
+    });
   }
   const base=await store.snapshot({...input,orchestratorSettings});if(input?.usageSync===true)void usage.sync(true);
   const requestedScope=(input?.usageScope==='local'||input?.usageScope==='account')?input.usageScope:(prefs?.usageScope||'local');
@@ -216,10 +272,21 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   },'POST');
   app.run();
   integration.start();
+  const bridgePort = validateBridgePort(process.env.AG_PULSE_REMOTE_BRIDGE_PORT ?? runtimeSettings().remoteBridgePort);
+  const remoteBridge = bridgePort
+    ? startRemoteBridgeServer({
+        port: bridgePort,
+        metrics,
+        sessionAudit,
+        sessionInsights,
+        health: () => ({ ok: true, mode: 'sidecar-bridge', port: bridgePort }),
+      })
+    : null;
   const passiveUpdateBoot=setTimeout(()=>{if(owns()&&typeof updater?.checkPassive==='function')void updater.checkPassive().catch(()=>{});},4000);passiveUpdateBoot.unref?.();
   const passiveUpdateTimer=setInterval(()=>{if(owns()&&typeof updater?.checkPassive==='function')void updater.checkPassive().catch(()=>{});},5*60*1000);passiveUpdateTimer.unref?.();
   const shutdown=async()=>{
     clearTimeout(passiveUpdateBoot);clearInterval(passiveUpdateTimer);
+    try { remoteBridge?.close(); } catch {}
     auditService.dispose();insightsScanner.dispose();usage.dispose();store.dispose();
     const exitTimer=setTimeout(()=>process.exit(0),2000);exitTimer.unref();
     await integration.stop();ownership.stop();process.exit(0);

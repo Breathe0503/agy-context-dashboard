@@ -34,6 +34,7 @@ async function entryFixture(host,url,selection=false){
     'launch-config.mjs':{ensureDesktopLaunchConfig:async()=>({configured:false,supported:false,entrypoints:[]}),inspectDesktopLaunch:async()=>({configured:false,supported:false,entrypoints:[]}),inspectHostArchive:async()=>({version:'2.33.0',requiresDebugFlag:true})},
     'preferences.mjs':{PreferencesStore:class{async snapshot(){return state.prefs;}async set(v){state.prefs={...state.prefs,...v};return state.prefs;}}},
     'debug-relaunch.mjs':{scheduleHostRelaunch:async input=>{state.relaunchCalls.push(input);return {scheduled:true,reason:input.reason};}},
+    'remote-ssh.mjs':{sanitizeRemoteHost:()=>null,resolveRemoteEndpoint:()=>null,fetchRemoteMetrics:async()=>({ok:false}),mergeRemoteMetrics:x=>x,buildRemoteFallbackMetrics:x=>x,validateBridgePort:()=>null,startRemoteBridgeServer:()=>null},
     'sidecar-owner.mjs':{SidecarOwner:Owner},'host-theme.mjs':{readHostTheme:async()=>({})},
     'host-orchestrator.mjs':{readHostOrchestrator:async()=>({orchestratorModel:null,orchestratorExecutorModel:null})},
     'panel-source.mjs':{panelAppSource:()=>'',panelPageSource:()=>''},
