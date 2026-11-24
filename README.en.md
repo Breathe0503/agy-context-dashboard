@@ -4,7 +4,7 @@
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
-DSH-style Antigravity (`agy`) context composition, token throughput, cache hit rate, quota pace, and global insights dashboard beside the model selector and inside the companion Side Panel.<br>
+DSH-style Antigravity (`agy`) context composition, token throughput, cache hit rate, quota pace, and global insights dashboard beside the model selector and inside the Side Panel.<br>
 Keep the summary visible. Hover or switch tabs for full details.
 
 [![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
@@ -13,7 +13,7 @@ Keep the summary visible. Hover or switch tabs for full details.
 [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#language)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
-[Preview](#preview) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-status-line) · [Install](#install) · [Enable or remove](#plug-and-unplug) · [Companion Sidebar](#companion-sidebar) · [Host UI Chinese & Acknowledgements](#host-ui-chinese-and-acknowledgements) · [Compatibility](#compatibility) · [FAQ](#faq) · [中文](README.md)
+[Preview](#preview) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-status-line) · [Install](#install) · [Enable or remove](#plug-and-unplug) · [Host UI Chinese & Acknowledgements](#host-ui-chinese-and-acknowledgements) · [Compatibility](#compatibility) · [FAQ](#faq) · [中文](README.md)
 
 </div>
 
@@ -52,7 +52,7 @@ Keep the summary visible. Hover or switch tabs for full details.
 <table>
 <tr><th width="50%">Side Panel · Session view (4-tab navigation)</th><th width="50%">Side Panel · Global Insights view</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/panel-session.png?v=0.9.8" width="100%" alt="Companion Side Panel four top-level tabs and Session token usage with USD cost estimate"></td>
+<td width="50%" valign="top"><img src="docs/assets/panel-session.png?v=0.9.8" width="100%" alt="Side Panel four top-level tabs and Session token usage with USD cost estimate"></td>
 <td width="50%" valign="top"><img src="docs/assets/panel-insights.png?v=0.9.8" width="100%" alt="Global Insights tab: Prompt/Flow credits, total sessions, estimated cost, 7-day trend and activity heatmap"></td>
 </tr>
 </table>
@@ -315,28 +315,6 @@ Opening **View token usage** or clicking its top-right **Refresh usage** button 
 
 Desktop: `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/data/usage-v1/` (the host may override the data directory). IDE: `User/globalStorage/you-should-know-me.antigrative-dashboard-ide/usage-v1/` under its profile. Stop the plugin before deleting its ledger; available conversations can be imported again by opening the usage window after restart. `history-v1` remains the separate latest-per-conversation statistics store. [Accounting, cleanup and limitations](docs/USAGE.md).
 
-## Companion Sidebar
-
-Pair this dashboard with [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar) if you manage many concurrent conversations in Antigravity Desktop:
-
-<table>
-<tr><th width="58%">Inbox / Follow-up / Snooze Triage</th><th width="42%">Native Display Options Menu</th></tr>
-<tr>
-<td width="58%" valign="top"><img src="docs/assets/companion-inbox.png" width="100%" alt="AGY Project Sidebar Inbox section with hover Follow-up, Snooze popover, and Settle controls above collapsed Snoozed and Idle"></td>
-<td width="42%" valign="top"><img src="docs/assets/companion-menu.png" width="100%" alt="Antigravity official Display Options menu extended with Status + Requirement Group By, Inbox Triage toggle, and 24h auto-retire setting"></td>
-</tr>
-</table>
-
-- **Ordered Multi-Select `Group By`**: Extends Antigravity's native `Display Options -> Group By` menu with a `Requirement` dimension (e.g., `Status + Requirement`, `Project + Requirement`) and nested collapsible hierarchy sections without adding extra sidebar toolbars.
-- **Inbox Triage (`Inbox` / `Follow-up` / `Snooze` / `24h` Auto-retire)**: Decouples opening a thread (`Unread`) from finishing it (`Settle`), includes hover actions with `5s` Undo, and keeps ongoing follow-ups or snoozed tasks organized above `Idle`.
-- **Clean Coexistence**: Runs as an independent user-space Sidecar + CDP plugin (`~/.gemini/config/plugins/agy-project-sidebar/`), never modifies host Antigravity installation bundles, and runs smoothly alongside `agy-context-dashboard`.
-
-```bash
-git clone https://github.com/wycocoyu/agy-project-sidebar.git
-cd agy-project-sidebar
-python3 manage.py install
-```
-
 ## Host UI Chinese and Acknowledgements
 
 The Side Panel `汉` toggle and the inline Context Card **Host UI Chinese** switch enable or disable live **Simplified Chinese localization for the Antigravity Desktop host UI** without patching `app.asar` or restarting the app (using CDP DOM matching + `WeakMap` original-text restoration so turning it off restores exact upstream English strings). Theme skins, font overrides, and sidebar layout rewrites are intentionally excluded, while inline model-selector anchors and user project names are protected from accidental translation.
@@ -408,6 +386,4 @@ Open **context details → bottom-right Check for updates**. The App-only update
 ---
 
 > **Fork & Independent Design Notice:** This repository (**`wycocoyu/agy-context-dashboard`**) is a fork of the original author's repository [`ATtacK030130/antigrative-dashboard`](https://github.com/ATtacK030130/antigrative-dashboard). Starting from the `v0.8.12` baseline under the original [MIT License](LICENSE), it has diverged in design and is now developed independently from the upstream repository, while preserving original copyright attribution as well as compatibility with existing user settings, `history-v1`, `usage-v1`, and IDE storage paths.
->
-> **Companion Sidebar Plugin:** If you also want multi-select `Group By` (such as `Status + Requirement`) and a decoupled **Inbox / Follow-up / Snooze / 24h Auto-retire** workflow in Antigravity's left conversation sidebar, check out [`wycocoyu/agy-project-sidebar`](https://github.com/wycocoyu/agy-project-sidebar). It uses the same non-invasive Sidecar + CDP architecture and coexists cleanly alongside this dashboard.
 
