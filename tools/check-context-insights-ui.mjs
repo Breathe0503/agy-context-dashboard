@@ -507,10 +507,10 @@ try {
       return items.map(i => [i.id, i.text]);
     }),
     [
-      ['view-activity-tab', '每日/每周活动'],
-      ['view-models-tab', '按模型用量'],
       ['view-session-tab', '当前会话'],
       ['view-insights-tab', '全局洞察'],
+      ['view-activity-tab', '每日/每周活动'],
+      ['view-models-tab', '按模型用量'],
     ],
   );
   await page.locator('#view-insights-tab').click();
