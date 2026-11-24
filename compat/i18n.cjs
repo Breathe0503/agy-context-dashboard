@@ -65,6 +65,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       insightsProjectsSubtotal:'{n} projects · {tokens} toks',insightsSkillsSubtotal:'{n} skills · {runs} runs',insightsToolsSubtotal:'{n} tools · {calls} calls',insightsCommandsSubtotal:'{n} cmds · {runs} runs',insightsUnitSessions:'{n} sess',insightsUnitRuns:'{n} runs',insightsUnitCalls:'{n} calls',
       barCustomize:'Customize',barCustomizeTitle:'Customize status bar',barReset:'Reset',barContextChipMode:'Context ring label',barContextModeRounds:'Turns',barContextModeLabel:'Label',barContextModeCompact:'Compact',barOrderLabel:'Visible chips & order',barKeepOneHint:'Keep at least 1 chip visible',barSaveFailed:'Status bar setting could not be saved. Try again.',barMoveUp:'Move up',barMoveDown:'Move down',barChipSpeed:'Speed',barChipCache:'Cache',barChipQuota:'Quota',barChipContext:'Context',barFooterMigrated:'Context chip is hidden — settings moved here so you can restore it anytime.',
       remoteFallbackUnconfigured:'Remote SSH ({host}): inline bar shows shared quota only. Open Antigrative Dashboard in the right sidebar for remote session stats, or configure SSH port forwarding in settings.json.',remoteFallbackUnreachable:'Remote SSH ({host}): remote bridge unreachable — showing shared quota only. Check SSH port forwarding or use the right sidebar.',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'Remote SSH ({host}) · Shared quota',
+      stripMode:'Inline bar display',stripFull:'Full bar',stripMinimal:'Minimal bar',stripCollapse:'Collapse to minimal bar',stripExpand:'Expand full bar',stripModeSaveFailed:'Display mode could not be saved. Try again.',
     },
     'zh-CN':{
       collectionBackgroundFailed:'后台暂时无法完成，稍后会自动重试。',collectionProcessing:'正在补全统计',collectionProcessingReason:'后台处理中，可继续使用。',collectionProgress:'查看进度',collectionProgressCounts:'已处理 {steps} 个步骤 · {requests} 条请求记录',collectionQueued:'等待处理',collectionSteps:'读取步骤',collectionGenerators:'读取请求记录',collectionReducing:'计算统计',collectionPublishing:'保存已校验统计',
@@ -127,6 +128,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 命令 · {runs} 次',insightsUnitSessions:'{n} 会话',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
       barCustomize:'自定义',barCustomizeTitle:'状态栏自定义',barReset:'恢复默认',barContextChipMode:'上下文圆环副文案',barContextModeRounds:'轮数',barContextModeLabel:'标签',barContextModeCompact:'极简',barOrderLabel:'显示项与顺序',barKeepOneHint:'至少保留 1 个状态栏入口',barSaveFailed:'状态栏设置暂时无法保存，请重试。',barMoveUp:'上移',barMoveDown:'下移',barChipSpeed:'速度',barChipCache:'缓存',barChipQuota:'额度',barChipContext:'上下文',barFooterMigrated:'已隐藏上下文芯片，设置入口已自动迁移至此浮卡底部。',
       remoteFallbackUnconfigured:'远程 SSH（{host}）：底栏仅显示共享额度；请在右侧辅助栏打开 Antigrative Dashboard 查看远程会话统计，或配置 SSH 端口转发以同步完整底栏。',remoteFallbackUnreachable:'远程 SSH（{host}）：未连上远程转发端点，底栏暂仅显示共享额度；请确认 SSH 端口转发已开启，或使用右侧辅助栏查看。',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'远程 SSH（{host}）· 共享额度',
+      stripMode:'状态条显示模式',stripFull:'完整状态条',stripMinimal:'极简状态条',stripCollapse:'收起为极简状态条',stripExpand:'展开完整状态条',stripModeSaveFailed:'显示模式暂时无法保存，请重试。',
     },
     'zh-TW':{
       collectionBackgroundFailed:'背景暫時無法完成，稍後會自動重試。',collectionProcessing:'正在補全統計',collectionProcessingReason:'背景處理中，可繼續使用。',collectionProgress:'查看進度',collectionProgressCounts:'已處理 {steps} 個步驟 · {requests} 筆請求記錄',collectionQueued:'等待處理',collectionSteps:'讀取步驟',collectionGenerators:'讀取請求記錄',collectionReducing:'計算統計',collectionPublishing:'儲存已驗證統計',
@@ -189,6 +191,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       insightsProjectsSubtotal:'{n} 專案 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 指令 · {runs} 次',insightsUnitSessions:'{n} 工作階段',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
       barCustomize:'自訂',barCustomizeTitle:'狀態列自訂',barReset:'重設預設',barContextChipMode:'上下文圓環副文案',barContextModeRounds:'輪數',barContextModeLabel:'標籤',barContextModeCompact:'極簡',barOrderLabel:'顯示項與順序',barKeepOneHint:'至少保留 1 個狀態列入口',barSaveFailed:'狀態列設定暫時無法儲存，請重試。',barMoveUp:'上移',barMoveDown:'下移',barChipSpeed:'速率',barChipCache:'快取',barChipQuota:'額度',barChipContext:'上下文',barFooterMigrated:'已隱藏上下文晶片，設定入口已自動遷移至此浮卡底部。',
       remoteFallbackUnconfigured:'遠端 SSH（{host}）：底欄僅顯示共享額度；請在右側輔助欄開啟 Antigrative Dashboard 查看遠端工作階段統計，或設定 SSH 連接埠轉發以同步完整底欄。',remoteFallbackUnreachable:'遠端 SSH（{host}）：無法連線至遠端轉發端點，底欄暫僅顯示共享額度；請確認 SSH 連接埠轉發已開啟，或使用右側輔助欄查看。',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'遠端 SSH（{host}）· 共享額度',
+      stripMode:'狀態列顯示模式',stripFull:'完整狀態列',stripMinimal:'極簡狀態列',stripCollapse:'收合為極簡狀態列',stripExpand:'展開完整狀態列',stripModeSaveFailed:'顯示模式暫時無法儲存，請重試。',
     },
   };
   let language=initialLanguage==='zh-CN'||initialLanguage==='zh-TW'?initialLanguage:'en';
@@ -344,11 +347,13 @@ module.exports = function createDashboardI18n(initialLanguage) {
   const QUOTA_DISPLAYS=['both','auto','compact'];
   const HOST_UI_LOCALIZATIONS=[false,true];
   const INLINE_CACHE_HITS=[false,true];
+  const STRIP_MODES=['full','minimal'];
   function normalizeSpeedStyle(value){return SPEED_STYLES.includes(value)?value:'minimal';}
   function normalizeUsageScope(value){return USAGE_SCOPES.includes(value)?value:'local';}
   function normalizeQuotaDisplay(value){return QUOTA_DISPLAYS.includes(value)?value:'both';}
   function normalizeHostUiLocalization(value){return value===true;}
   function normalizeInlineCacheHit(value){return value!==false;}
+  function normalizeStripMode(value){return STRIP_MODES.includes(value)?value:'full';}
   function connectSpeedStyle(options){
     const ctrl=connectChoicePreference({key:'speedStyle',allowed:SPEED_STYLES,fallback:'minimal',...options});
     return {sync:ctrl.sync,choose:ctrl.choose,get style(){return ctrl.value;},get error(){return ctrl.error;},dispose:ctrl.dispose};
@@ -368,6 +373,10 @@ module.exports = function createDashboardI18n(initialLanguage) {
   function connectInlineCacheHit(options){
     const ctrl=connectChoicePreference({key:'inlineCacheHit',allowed:INLINE_CACHE_HITS,fallback:true,...options});
     return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value!==false;},get error(){return ctrl.error;},dispose:ctrl.dispose};
+  }
+  function connectStripMode(options){
+    const ctrl=connectChoicePreference({key:'stripMode',allowed:STRIP_MODES,fallback:'full',...options});
+    return {sync:ctrl.sync,choose:ctrl.choose,get mode(){return ctrl.value;},get error(){return ctrl.error;},dispose:ctrl.dispose};
   }
   const BAR_CARDS=['speed','cache','quota','context'];
   const CONTEXT_CHIP_MODES=['rounds','label','compact'];
@@ -631,5 +640,5 @@ module.exports = function createDashboardI18n(initialLanguage) {
     if(mode==='compact'&&show){const other=show==='5h'?wv:fv;if(other!==null&&other<=0.25)dot=other<=0.10?'danger':'warn';}
     return {five,week,min,show,arcValue,level,dot};
   }
-  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeInlineCacheHit,connectInlineCacheHit,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
+  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeInlineCacheHit,connectInlineCacheHit,normalizeStripMode,connectStripMode,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
 };
