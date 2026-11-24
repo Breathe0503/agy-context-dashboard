@@ -7,7 +7,7 @@
 DSH-style Antigravity (`agy`) context composition, token throughput, cache hit rate, quota pace, and global insights dashboard beside the model selector and inside the Side Panel.<br>
 Keep the summary visible. Hover or switch tabs for full details.
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 1.0.1](https://img.shields.io/badge/version-1.0.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#language)
@@ -30,6 +30,8 @@ Keep the summary visible. Hover or switch tabs for full details.
 > - **Why `2.33.0+` drops the debugging port**: Starting in Antigravity `2.33.0`, `--remote-debugging-port` is CLI opt-in only and `<profile>/DevToolsActivePort` is deleted when absent; in-app updates (`quitAndInstall()`) also drop CLI flags on restart; and `app.asar` is sealed by `ElectronAsarIntegrity` and Hardened Runtime signing, so this plugin leaves `app.asar` untouched.
 > - **Dual recovery in `v0.9.5+` (shortcut self-healing + default-on `autoRelaunchDebug`)**: On Windows (`.lnk`) and Linux (`.desktop`), the dashboard syncs debug flags into user-owned desktop shortcuts automatically; on macOS Dock launches and after in-app `quitAndInstall()` restarts without flags, **`autoRelaunchDebug` stays enabled by default (opt-out)** and triggers only during the **first 20s of sidecar startup** (max 1 auto-relaunch per sidecar, guarded by a **60s sliding window allowing up to 2 distinct-PID relaunches at least 5s apart** plus same-PID dedupe).
 > - **Zero-relaunch launcher & opt-out control**: Use the generated debug launcher (`manage.py install --with-launcher`: `~/Applications/Antigravity (Debug).app` on macOS, `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` on Windows, `~/.local/share/applications/antigravity-pulse-debug.desktop` on Linux) to start with zero extra restarts, or uncheck **Auto-relaunch when debug port is missing** in the official Side Panel (**+ → Extensions → Antigrative Dashboard**) to persist `autoRelaunchDebug: false`.
+
+**v1.0.1:** Per-item bar color customization, strip collapse & heatmap polish ([`#76`](https://github.com/wycocoyu/agy-context-dashboard/issues/76), [`#69`](https://github.com/wycocoyu/agy-context-dashboard/pull/69), [`#84`](https://github.com/wycocoyu/agy-context-dashboard/pull/84), [`#72`](https://github.com/wycocoyu/agy-context-dashboard/issues/72), [`#81`](https://github.com/wycocoyu/agy-context-dashboard/pull/81), [`#75`](https://github.com/wycocoyu/agy-context-dashboard/pull/75), [`#74`](https://github.com/wycocoyu/agy-context-dashboard/pull/74)) — keeps the default borderless bar and accent-blue high cache-hit rate while adding a non-modal Settings popover for light/dark mode and independent per-item color pickers (`Speed`, `Token`, `Quota`, `Context`), plus a synced inline cache-hit switch inside `Token · Cache`, model selector truncation guard with minimal collapse, square Insights/usage heatmaps, and Remote SSH support (see [Release v1.0.1](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v1.0.1)).
 
 **v1.0.0:** Major milestone release ([`#60`](https://github.com/wycocoyu/agy-context-dashboard/issues/60), [`#53`](https://github.com/wycocoyu/agy-context-dashboard/issues/53), [`#57`](https://github.com/wycocoyu/agy-context-dashboard/issues/57), [`#61`](https://github.com/wycocoyu/agy-context-dashboard/issues/61)) — adds customizable bottom status bar chips (visibility toggles, drag-and-drop/`↑`/`↓` reordering, 3-way Context label mode, and anti-lockout footer access), Context rounds & 5-bucket step breakdown drawer, Orchestrator Planner/Executor split with two-line Swarm roster filtering, and polished Day/Week/Month usage charts (see [Release v1.0.0](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v1.0.0)).
 
@@ -95,7 +97,7 @@ Keep the summary visible. Hover or switch tabs for full details.
 ## Antigravity IDE
 
 **v0.7.0** adds a separate VSIX for Google's own standalone IDE. Download
-`antigrative-dashboard-ide-1.0.0.vsix` from the release and choose **Install from VSIX…**
+`antigrative-dashboard-ide-1.0.1.vsix` from the release and choose **Install from VSIX…**
 in the IDE's Extensions view. No desktop App installation is required.
 
 Fully quit the IDE, then start it with
