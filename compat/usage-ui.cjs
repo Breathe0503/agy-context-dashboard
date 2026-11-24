@@ -50,7 +50,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     .top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}h1{font-size:19px;letter-spacing:-.4px;line-height:1.25;margin:0 0 3px;font-weight:600}.sub{font-size:12px;color:var(--pulse-muted)}.actions{display:flex;gap:8px;align-items:center}.actions button{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;padding:0;line-height:1;border-radius:8px;color:var(--pulse-muted)}.actions button:hover{background:var(--pulse-hover);color:var(--pulse-foreground)}.actions svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.locale-label{display:block;min-width:16px;height:16px;line-height:16px;text-align:center;font-size:11px}.live-dot{display:inline-block;width:5px;height:5px;background:var(--pulse-success);border-radius:50%;margin-right:6px}
     .tabs-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--pulse-separator);margin:10px 0 0}.tabs{display:flex;gap:22px;border-bottom:0;margin:0}.tabs button{border:0;border-radius:0;background:transparent;color:var(--pulse-muted);padding:0 2px 10px;position:relative;font-size:13px}.tabs button[aria-selected=true]{color:var(--pulse-foreground);font-weight:600}.tabs button[aria-selected=true]:after{content:'';position:absolute;height:2px;background:var(--pulse-accent);bottom:-1px;left:0;right:0}
     .totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--pulse-separator);padding:11px 0;margin-bottom:14px}.metric{padding:0 18px}.metric:first-child{padding-left:0}.metric:last-child{padding-right:0}.metric+.metric{border-left:1px solid var(--pulse-separator)}.metric label{color:var(--pulse-muted);font-size:11px}.value{font-size:20px;letter-spacing:-.6px;line-height:1.2;margin:2px 0 0;font-weight:600}.unit{font-size:11px;color:var(--pulse-muted);margin-left:5px;font-weight:400;letter-spacing:0}
-    section[hidden]{display:none}.section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:0 0 10px}h2{font-size:14px;font-weight:600;letter-spacing:-.2px;margin:0}.detail-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}.muted{font-size:11px;color:var(--pulse-muted)}.seg{display:flex;padding:3px;background:var(--pulse-hover);border-radius:8px;gap:2px}.seg button{border:0;padding:4px 12px;border-radius:5px;font-size:11px;color:var(--pulse-muted)}.seg button[aria-pressed=true]{background:var(--pulse-control);color:var(--pulse-foreground);box-shadow:0 1px 3px #0001}select{padding:4px 8px;font-size:11px;background:var(--pulse-background)}
+    section[hidden]{display:none}.section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:0 0 10px}h2{font-size:14px;font-weight:600;letter-spacing:-.2px;margin:0}.detail-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}.muted{font-size:11px;color:var(--pulse-muted)}.seg{display:flex;padding:3px;background:var(--pulse-hover);border-radius:8px;gap:2px}.seg button{border:0;padding:4px 12px;border-radius:5px;font-size:11px;color:var(--pulse-muted)}.seg button[aria-pressed=true]{background:var(--pulse-card);color:var(--pulse-foreground);font-weight:600;box-shadow:0 1px 3px var(--pulse-shadow)}select{padding:4px 8px;font-size:11px;background:var(--pulse-background)}
     .scope-seg{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border:1px solid var(--pulse-border);background:var(--pulse-hover);border-radius:9px;gap:0;margin-bottom:6px;flex:none;isolation:isolate}#scope-controls[hidden]{display:none}.scope-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:6px;background:var(--pulse-card);border:1px solid color-mix(in srgb,var(--pulse-accent) 35%,var(--pulse-border));box-shadow:0 1px 3px var(--pulse-shadow);transition:transform 190ms cubic-bezier(.23,1,.32,1);pointer-events:none;z-index:0}.scope-seg[data-active-scope=account] .scope-thumb{transform:translateX(100%)}.scope-seg button{position:relative;z-index:1;background:transparent!important;box-shadow:none!important;padding:4px 12px;font-weight:500;transition:color 150ms ease}.scope-seg button[aria-pressed=true]{color:var(--pulse-foreground);font-weight:600}.page[data-scope-loading=true] .totals,.page[data-scope-loading=true] #overview,.page[data-scope-loading=true] #details{opacity:.62;transition:opacity 120ms ease}
     .heat-wrap{overflow-x:auto;padding:3px 3px 7px}.calendar{min-width:680px}.months{display:grid;margin-left:35px;font-size:11px;color:var(--pulse-muted);margin-bottom:7px}.months span{white-space:nowrap}.heat-row{display:flex;gap:9px}.weekdays{display:grid;grid-template-rows:repeat(7,1fr);width:26px;flex:none;font-size:11px;color:var(--pulse-muted)}.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;width:100%}.heat button{border:0;border-radius:3px;padding:0;min-width:0;aspect-ratio:1;background:var(--pulse-hover);outline-offset:1px}.heat button[data-level="1"],.swatch[data-level="1"]{background:color-mix(in srgb,var(--pulse-accent) 22%,var(--pulse-hover))}.heat button[data-level="2"],.swatch[data-level="2"]{background:color-mix(in srgb,var(--pulse-accent) 45%,var(--pulse-hover))}.heat button[data-level="3"],.swatch[data-level="3"]{background:color-mix(in srgb,var(--pulse-accent) 68%,var(--pulse-hover))}.heat button[data-level="4"],.swatch[data-level="4"]{background:var(--pulse-accent)}.heat button.future{opacity:.25;cursor:default}.heat.week{grid-template-columns:repeat(26,minmax(0,1fr))!important;grid-template-rows:repeat(2,1fr);grid-auto-flow:row}.week button{max-height:28px;aspect-ratio:1}.heat-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 16px;font-size:11px;color:var(--pulse-muted)}.scale{display:flex;align-items:center;gap:4px}.swatch{width:11px;height:11px;border-radius:3px;background:var(--pulse-hover)}.selected{padding:12px 0 0;border-top:1px solid var(--pulse-separator);display:flex;justify-content:space-between;gap:16px;align-items:center}.selected button{border:0;color:var(--pulse-accent);font-size:12px;font-weight:550;padding:5px 8px}.selected button:hover{background:var(--pulse-hover)}.selected .title{font-weight:550;margin-bottom:2px}.selected strong{font-weight:550}
     .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;background:var(--model-color)}
@@ -87,7 +87,8 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     .page.embedded .section-head{align-items:flex-start;flex-wrap:wrap;gap:8px}
     .page.embedded .chart-controls{width:100%;justify-content:space-between;flex-wrap:wrap;gap:6px}
     .page.embedded .heat-wrap{padding:2px 2px 6px}
-    .page.embedded .chart{min-width:520px;gap:8px}
+    .page.embedded .chart{min-width:0;width:100%;gap:6px}
+    .page.embedded .plot{gap:2px;padding:0 10px}
     .page.embedded .chart:has(.chart-empty){min-width:0}
     .page.embedded .table-wrap{overflow-x:auto}
     .page.embedded .selected{flex-wrap:wrap;gap:8px;align-items:center}
@@ -269,13 +270,15 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   const hsl=a=>{const [r,g,b]=a.map(v=>v/255),hi=Math.max(r,g,b),lo=Math.min(r,g,b),d=hi-lo,l=(hi+lo)/2;return [d?((hi===r?(g-b)/d+(g<b?6:0):hi===g?(b-r)/d+2:(r-g)/d+4)*60):0,d?d/(1-Math.abs(2*l-1)):0,l];};
   const fromHsl=(h,s,l)=>{const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))));};return [f(0),f(8),f(4)];};
   function syncPalette(){
-    const models=[...(value?.models||[])].sort(),key=themeSignature()+'|'+models.join('|');if(key===paletteKey)return;paletteKey=key;modelColors.clear();
+    const totalsByModel=new Map();
+    for(const day of value?.days||[])for(const [m,r]of Object.entries(day?.models||{}))totalsByModel.set(m,(totalsByModel.get(m)||0)+(Number(r?.total)||0));
+    const models=[...(value?.models||[])].sort((a,b)=>(totalsByModel.get(b)||0)-(totalsByModel.get(a)||0)||a.localeCompare(b));
+    const key=themeSignature()+'|'+models.join('|');if(key===paletteKey)return;paletteKey=key;modelColors.clear();
     const style=getComputedStyle(themeTarget()),base=rgb(style.getPropertyValue('--pulse-accent').trim()||'#85a8ff'),background=rgb(style.getPropertyValue('--pulse-background').trim()||'#1c1d1f'),[h,s]=hsl(base);
-    // An analogous scale stays harmonious as the host accent changes. Tonal
-    // variation distinguishes adjacent series without provider brand colors.
-    const dark=luminance(background)<.35,offsets=[0,-18,18,-36,36,-9,9,-27,27],tones=dark?[.64,.52,.73,.59,.68]:[.43,.33,.51,.38,.47];
+    // Widen hue steps around the host accent while ordering by total usage so top series remain visually distinct.
+    const dark=luminance(background)<.35,offsets=[0,-34,34,-72,72,-112,112,-154,154],tones=dark?[.64,.54,.72,.60,.68]:[.44,.35,.50,.40,.47];
     const end=contrast([255,255,255],background)>contrast([0,0,0],background)?1:0;
-    models.forEach((model,i)=>{const hue=(h+offsets[i%offsets.length]+360)%360,saturation=s<.08?.07:Math.max(.28,Math.min(.55,s*.72));let lightness=tones[i%tones.length],c=fromHsl(hue,saturation,lightness);
+    models.forEach((model,i)=>{const hue=(h+offsets[i%offsets.length]+360)%360,saturation=s<.08?.07:Math.max(.28,Math.min(.58,s*.76));let lightness=tones[i%tones.length],c=fromHsl(hue,saturation,lightness);
       // Chart marks (including small legend dots) need contrast on the actual
       // custom background, rather than relying solely on dark/light labels.
       for(let step=0;contrast(c,background)<3&&step<100;step++){lightness+=end? .005:-.005;lightness=Math.max(0,Math.min(1,lightness));c=fromHsl(hue,saturation,lightness);}
@@ -353,26 +356,39 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   }
   const chartSummary=node('div','chart-summary');$('detail-title').after(chartSummary);
   const chartHeading=node('div','detail-heading');$('detail-title').before(chartHeading);chartHeading.append($('detail-title'),chartSummary);
+  function monthAxisLabel(ym,index,endYear,compactWidth){
+    const [y,m]=ym.split('-').map(Number),yy=String(y).slice(2);
+    const showYear=m===1||String(y)!==endYear||(index===0&&!compactWidth);
+    if(zh())return showYear?`${yy}年${m}月`:`${m}月`;
+    const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return showYear?`${names[m-1]} '${yy}`:names[m-1];
+  }
   function renderChart(){
     if(!value)return;syncPalette();$('tip').hidden=true;highlightModel(null);
     const todayStr=syncDateState(value);
+    const weekCount=embedded?8:12,monthCount=embedded?6:12;
     const buckets=[];
     if(period==='day'){const start=month(anchor,0),end=add(month(anchor,1),-1);for(let date=start;date<=end;date=add(date,1))buckets.push(totals(date,date,true));text('range-label',start.slice(0,7));}
-    else if(period==='week'){const start=add(week(anchor),-11*7);for(let i=0;i<12;i++){const from=add(start,i*7);buckets.push(totals(from,add(from,6),true));}text('range-label',start.slice(5)+' – '+add(week(anchor),6).slice(5));}
-    else{for(let i=-11;i<=0;i++){const from=month(anchor,i);buckets.push(totals(from,add(month(from,1),-1),true));}text('range-label',buckets[0].from.slice(0,7)+' – '+month(anchor,0).slice(0,7));}
+    else if(period==='week'){const start=add(week(anchor),-(weekCount-1)*7);for(let i=0;i<weekCount;i++){const from=add(start,i*7);buckets.push(totals(from,add(from,6),true));}text('range-label',start.slice(5)+' – '+add(week(anchor),6).slice(5));}
+    else{for(let i=-(monthCount-1);i<=0;i++){const from=month(anchor,i);buckets.push(totals(from,add(month(from,1),-1),true));}text('range-label',buckets[0].from.slice(0,7)+' – '+month(anchor,0).slice(0,7));}
     $('next').disabled=period==='week'?week(anchor)>=week(todayStr):anchor.slice(0,7)>=todayStr.slice(0,7);$('legend').replaceChildren();
-    for(const model of value.models){const button=node('button',''),dot=node('i','dot');dot.style.setProperty('--model-color',color(model));button.append(dot,document.createTextNode(modelName(model)));button.type='button';button.setAttribute('aria-pressed',String(!disabledModels.has(model)));button.addEventListener('click',()=>{if(disabledModels.has(model))disabledModels.delete(model);else disabledModels.add(model);renderChart();});button.addEventListener('pointerenter',()=>highlightModel(disabledModels.has(model)?null:model));button.addEventListener('pointerleave',()=>highlightModel(null));$('legend').append(button);}
+    const periodAll=totals(buckets[0].from,buckets.at(-1).to,false);
+    const periodModels=value.models.filter(m=>(periodAll.models[m]?.total||0)>0||disabledModels.has(m)).sort((a,b)=>(periodAll.models[b]?.total||0)-(periodAll.models[a]?.total||0)||modelName(a).localeCompare(modelName(b)));
+    for(const model of periodModels){const button=node('button',''),dot=node('i','dot');dot.style.setProperty('--model-color',color(model));button.append(dot,document.createTextNode(modelName(model)));button.type='button';button.setAttribute('aria-pressed',String(!disabledModels.has(model)));button.addEventListener('click',()=>{if(disabledModels.has(model))disabledModels.delete(model);else disabledModels.add(model);renderChart();});button.addEventListener('pointerenter',()=>highlightModel(disabledModels.has(model)?null:model));button.addEventListener('pointerleave',()=>highlightModel(null));$('legend').append(button);}
     const max=Math.max(1,...buckets.map(b=>b.total)),ceiling=max>1?Math.ceil(max/(10**Math.floor(Math.log10(max))))*10**Math.floor(Math.log10(max)):1;
     $('axis').replaceChildren();$('plot').replaceChildren();
     for(let i=0;i<=4;i++){const label=node('span','',compact(ceiling*i/4));label.style.bottom=(18+150*i/4)+'px';$('axis').append(label);const line=node('i','grid-line');line.style.bottom=(18+150*i/4)+'px';$('plot').append(line);}
+    const surfW=surface.clientWidth||0,dayStep=embedded&&surfW>0?(surfW<300?7:surfW<360?5:3):3,weekStep=embedded&&surfW>0?(surfW<300?3:surfW<360?2:1):1,monthStep=embedded&&surfW>0&&surfW<300?2:1,compactMonth=embedded&&surfW>0&&surfW<320,endYear=buckets.at(-1).from.slice(0,4);
+    const keepLabel=(i,step)=>step<=1||(i===buckets.length-1||(i%step===0&&buckets.length-1-i>=Math.ceil(step/2)));
     for(const [i,bucket]of buckets.entries()){
       const button=node('button','bar-column');button.type='button';const stack=node('div','stack');
-      const segments=value.models.filter(model=>bucket.models[model]?.total>0);
+      const segments=periodModels.filter(model=>bucket.models[model]?.total>0);
       // Continuous stack: rounding clips only its outer top corners. Internal
       // separators are inset, so small values and total heights remain exact.
       for(const [j,model]of segments.entries()){const r=bucket.models[model],bar=node('i','bar-segment'),height=r.total/ceiling*150;bar.dataset.model=model;bar.setAttribute('aria-hidden','true');bar.style.setProperty('--model-color',color(model));bar.style.height=height+'px';if(j&&height>=3)bar.style.boxShadow='inset 0 -1px 0 color-mix(in srgb,var(--pulse-background) 48%,transparent)';stack.append(bar);}
       if(!bucket.total)stack.append(node('i','empty-bar'));button.append(stack);
-      if(period!=='day'||i%3===0||i===buckets.length-1)button.append(node('span','x-label',period==='day'?String(i+1):period==='week'?bucket.from.slice(5):bucket.from.slice(0,7)));
+      const showX=period==='day'?keepLabel(i,dayStep):period==='week'?keepLabel(i,weekStep):keepLabel(i,monthStep);
+      if(showX)button.append(node('span','x-label',period==='day'?String(i+1):period==='week'?bucket.from.slice(5):monthAxisLabel(bucket.from.slice(0,7),i,endYear,compactMonth)));
       bindBucket(button,bucket);$('plot').append(button);
     }
     if(!buckets.some(b=>b.total))$('plot').append(node('div','chart-empty',w('所选时段暂无用量记录','No usage recorded in this period','所選時段尚無用量記錄')));
@@ -397,7 +413,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
         pill.append(node('span','pool-pill-name',poolNames[pk]||pk),val);return pill;
       }));
     }
-    for(const [model,r]of Object.entries(rangeTotals.models).sort((a,b)=>b[1].total-a[1].total)){
+    for(const [model,r]of Object.entries(rangeTotals.models).sort((a,b)=>b[1].total-a[1].total||modelName(a[0]).localeCompare(modelName(b[0])))){
       const hitInput=(r.uncached||0)+(r.cacheRead||0)+(r.cacheWrite||0),hitCell=hitInput>0?`${((r.cacheRead||0)/hitInput*100).toFixed(1)}%`:'—';
       const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead].map(n=>node('td','',full(n))),node('td','',hitCell),...[r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));$('table-body').append(row);
     }
@@ -513,8 +529,9 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     let next=event.key==='Home'?buttons.findIndex(b=>!b.disabled):event.key==='End'?buttons.findLastIndex(b=>!b.disabled):index+(delta[event.key]??NaN);
     if(!Number.isFinite(next)||next<0||next>=buttons.length||buttons[next].disabled)return;event.preventDefault();event.target.tabIndex=-1;buttons[next].tabIndex=0;buttons[next].focus();
   });
+  $('legend').addEventListener('pointerleave',()=>highlightModel(null));$('plot').addEventListener('pointerleave',()=>highlightModel(null));
   $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||safeToday(value));period=heatMode;changeTab('details',true);});
-  for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*84):month(anchor,step*12);renderChart();});
+  for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*(embedded?8:12)*7):month(anchor,step*(embedded?6:12));renderChart();});
   const languagePicker=embedded?null:language.mountLanguagePicker({button:$('locale'),label:$('locale-label'),parent:dialog,choose:onLanguage});
   $('refresh').addEventListener('click',async()=>{
     if(busy||disposed)return;busy=true;const button=$('refresh'),turn=600,started=performance.now();button.disabled=true;button.setAttribute('aria-busy','true');

@@ -564,6 +564,24 @@ try {
   }));
   assert.equal(modelsZhOverflow.overflow, false);
   assert.equal(modelsZhOverflow.title, '按模型统计');
+  for (const [per, expectedCols] of [['week', 8], ['month', 6], ['day', 30]]) {
+    await page.evaluate((p) => {
+      document.querySelector('#usage-embed > div').shadowRoot.querySelector(`[data-period="${p}"]`).click();
+    }, per);
+    const periodCheck = await page.evaluate(() => {
+      const sr = document.querySelector('#usage-embed > div').shadowRoot;
+      const activeBtn = sr.getElementById('period-controls').querySelector('button[aria-pressed="true"]');
+      return {
+        cols: sr.querySelectorAll('#plot .bar-column').length,
+        activePeriod: activeBtn?.dataset.period || null,
+        firstLegend: sr.querySelector('#legend button')?.textContent || '',
+        firstRowModel: sr.querySelector('#table-body tr td')?.textContent || '',
+      };
+    });
+    assert.equal(periodCheck.cols, expectedCols, `${per} column count`);
+    assert.equal(periodCheck.activePeriod, per, `${per} aria-pressed`);
+    assert.equal(periodCheck.firstLegend, periodCheck.firstRowModel, `${per} legend sorted by usage`);
+  }
 
   await page.locator('#view-insights-tab').click();
   await page.locator('#insights-view').waitFor({ state: 'visible' });

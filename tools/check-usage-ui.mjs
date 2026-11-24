@@ -137,7 +137,11 @@ try{
  for(let i=0;i<5;i++)await page.locator('#previous').click();assert.equal(await page.locator('#table-body tr').count(),0);assert.deepEqual(await frame(),initialFrame,'Empty months must not shrink/recenter the window');assert.deepEqual(await chartFrame(),initialChart,'Scrollbar changes must not move the chart');
  for(let i=0;i<5;i++)await page.locator('#next').click();assert.deepEqual(await frame(),initialFrame);
  const colors=await page.locator('#legend .dot').evaluateAll(ns=>ns.map(n=>getComputedStyle(n).backgroundColor));assert.equal(new Set(colors).size,5);
- await page.locator('[data-period=week]').click();assert.equal(await page.locator('.bar-column').count(),12);await page.locator('[data-period=month]').click();assert.equal(await page.locator('.bar-column').count(),12);
+ await page.locator('[data-period=week]').click();assert.equal(await page.locator('.bar-column').count(),12);
+ const checkNoXOverlap=()=>page.locator('.x-label').evaluateAll(els=>{const xs=els.map(e=>({t:e.textContent,l:e.getBoundingClientRect().left,r:e.getBoundingClientRect().right}));const ov=[];for(let i=1;i<xs.length;i++)if(xs[i].l<xs[i-1].r+1)ov.push([xs[i-1].t,xs[i].t]);return ov;});
+ assert.deepEqual(await checkNoXOverlap(),[],'Week x-axis labels must not overlap');
+ await page.locator('[data-period=month]').click();assert.equal(await page.locator('.bar-column').count(),12);
+ assert.deepEqual(await checkNoXOverlap(),[],'Month x-axis labels must not overlap');
  assert.deepEqual(await frame(),initialFrame,'Day/week/month changes must preserve the window frame');
  const multistack=page.locator('.stack').filter({has:page.locator('.bar-segment')}).last();
  const stackGeometry=await multistack.evaluate(n=>({gap:parseFloat(getComputedStyle(n).gap),height:n.getBoundingClientRect().height,segments:[...n.children].map(s=>({radius:parseFloat(getComputedStyle(s).borderTopLeftRadius),height:s.getBoundingClientRect().height}))}));
@@ -173,5 +177,35 @@ try{
  await page.locator('#locale').click();await page.locator('[data-language-menu] [data-language="zh-CN"]').click();await page.waitForTimeout(150);assert.equal(await page.locator('#usage-intro').isVisible(),true,'Local replay: changing language resets the introduction');
  await page.locator('#usage-intro-done').click();await page.evaluate(()=>document.documentElement.style.setProperty('--primary','#46895e'));await page.waitForTimeout(400);assert.equal(await page.locator('#usage-intro').isVisible(),true,'Local replay: changing theme resets the introduction');
  await page.waitForTimeout(3500);assert.equal(await page.locator('#usage-intro').isVisible(),true,'Polling must not dismiss a replayed introduction');
+ const embedPage=await browser.newPage({viewport:{width:640,height:760}});embedPage.on('pageerror',e=>errors.push(e.message));
+ await embedPage.goto(`http://127.0.0.1:${server.address().port}`);
+ await embedPage.evaluate(()=>{
+  const host=document.createElement('div');host.id='embed-period-check';host.style.cssText='width:460px;height:620px;background:#fff;position:relative;';document.body.replaceChildren(host);
+  const lang=window.__agPulseI18nFactory('zh-CN'),theme=window.__agPulseThemeFactory();
+  const s=document.createElement('style');s.textContent=theme.css('#embed-period-check');document.head.append(s);host.dataset.pulseTheme='light';
+  const ud=window.__agPulseUsageFactory({root:host,language:lang,embedded:true,showHeaderTabs:false,themeHost:host,...(window.__agPulseSurface?{setMarkup:window.__agPulseSurface.setMarkup}:{})});
+  ud.setTab('details');ud.open(testData);window.__embedUd=ud;window.__embedHost=host;
+ });
+ for(const w of [460,280]){
+  await embedPage.evaluate(width=>{window.__embedHost.style.width=width+'px';window.__embedUd.renderIfVisible();},w);
+  for(const [per,expectedCols] of [['week',8],['month',6],['day',31]]){
+   await embedPage.evaluate(p=>window.__embedHost.querySelector('#usage-embed > div').shadowRoot.querySelector(`[data-period="${p}"]`).click(),per);
+   await embedPage.waitForTimeout(200);
+   const r=await embedPage.evaluate(()=>{
+    const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+    const wrap=sr.querySelector('.chart-wrap'),xs=[...sr.querySelectorAll('.x-label')].map(e=>({t:e.textContent,l:e.getBoundingClientRect().left,r:e.getBoundingClientRect().right}));
+    const overlaps=[];for(let i=1;i<xs.length;i++)if(xs[i].l<xs[i-1].r+1)overlaps.push([xs[i-1].t,xs[i].t]);
+    const controls=sr.getElementById('period-controls'),activeBtn=controls.querySelector('button[aria-pressed="true"]');
+    return {cols:sr.querySelectorAll('#plot .bar-column').length,wrapOverflow:wrap.scrollWidth>wrap.clientWidth+1,overlaps,segBg:getComputedStyle(controls).backgroundColor,activeBg:getComputedStyle(activeBtn).backgroundColor,firstLegend:sr.querySelector('#legend button')?.textContent||'',firstRow:sr.querySelector('#table-body tr td')?.textContent||''};
+   });
+   assert.equal(r.cols,expectedCols,`embed ${w}px ${per} cols`);
+   assert.equal(r.wrapOverflow,false,`embed ${w}px ${per} wrapOverflow`);
+   assert.deepEqual(r.overlaps,[],`embed ${w}px ${per} overlaps`);
+   assert.notEqual(r.activeBg,r.segBg,`embed ${w}px ${per} contrast`);
+   assert.notEqual(r.activeBg,'rgba(0, 0, 0, 0)',`embed ${w}px ${per} opaque active pill`);
+   assert.equal(r.firstLegend,r.firstRow,`embed ${w}px ${per} legend order`);
+  }
+ }
+ await embedPage.close();
  assert.deepEqual(errors,[]);console.log(JSON.stringify({host:ide?'ide':'desktop',trustedTypes:ide,checks:'Usage entry and onboarding persistence/retry/local replay; hover dismissal and keyboard return; themed year menu; stable frame; heatmap and model chart/filter; polling; language/theme; narrow layout; account isolation; missing snapshots and composer replacement',passed:true}));
 }finally{await browser.close();await new Promise(r=>server.close(r));}
