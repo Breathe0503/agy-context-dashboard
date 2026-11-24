@@ -981,7 +981,11 @@ function positionHeatmapTip(cell) {
   }
   const rect = cell.getBoundingClientRect();
   const rTip = tip.getBoundingClientRect();
-  const left = Math.max(8, Math.min(window.innerWidth - rTip.width - 8, rect.left + rect.width / 2 - rTip.width / 2));
+  const frame = $('insights-heatmap-section')?.closest('.widget')?.getBoundingClientRect();
+  const minLeft = Math.max(8, (frame ? frame.left : 0) + 8);
+  const maxRight = Math.min(window.innerWidth - 8, (frame ? frame.right : window.innerWidth) - 8);
+  const maxLeft = Math.max(minLeft, maxRight - rTip.width);
+  const left = Math.max(minLeft, Math.min(maxLeft, rect.left + rect.width / 2 - rTip.width / 2));
   const above = rect.top - rTip.height - 6;
   const top = above >= 8 ? above : Math.min(window.innerHeight - rTip.height - 8, rect.bottom + 6);
   tip.style.left = `${left}px`;
