@@ -157,7 +157,7 @@ try {
       sample: sr.getElementById('trend-sample').textContent,
     };
   });
-  assert.equal(degraded.source, 'Injection — · steps + logged text');
+  assert.equal(degraded.source, 'Config — · steps + logged text');
   assert.equal(degraded.trackHidden, true, 'Plain track is hidden when composition meter is active');
   assert.equal(degraded.listHidden, false, 'List mode is active by default');
   assert.equal(degraded.legendHidden, true);
@@ -253,7 +253,7 @@ try {
       markerTitle: sr.querySelector('#context-trend-svg .trend-marker-group title')?.textContent,
     };
   });
-  assert.equal(zhCheck.source, '定制注入 16.5K · 步级桶 + 日志估算');
+  assert.equal(zhCheck.source, '配置 16.5K · 步级桶 + 日志估算');
   assert.ok(zhCheck.labels.includes('规则') && zhCheck.labels.includes('技能') && zhCheck.labels.includes('MCP 工具'));
   assert.equal(zhCheck.viewBtnList, '清单');
   assert.equal(zhCheck.viewBtnBar, '条形');
