@@ -1433,7 +1433,7 @@ function render() {
           }
         }
         if(orch.coldStartSwitches>0){
-          const csRow=mkRow(t('orchColdStartLabel'),t('reqCountShort',{n:smallCount(orch.coldStartSwitches)}),false,false);
+          const csRow=mkRow(t('orchColdStartLabel'),t('countTimes',{n:smallCount(orch.coldStartSwitches)}),false,false);
           setTip(csRow,t('orchColdStartTip'));
           sec.append(csRow);
         }

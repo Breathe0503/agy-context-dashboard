@@ -1574,7 +1574,7 @@ module.exports = function installAgPulseInlineWidget() {
             }
           }
           if(orch.coldStartSwitches>0){
-            const r=mkRow(t('orchColdStartLabel'),t('reqCountShort',{n:smallCount(orch.coldStartSwitches)}),false,false);
+            const r=mkRow(t('orchColdStartLabel'),t('countTimes',{n:smallCount(orch.coldStartSwitches)}),false,false);
             attribute(r,'title',t('orchColdStartTip'));
             sec.append(r);
           }

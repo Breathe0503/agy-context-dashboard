@@ -510,7 +510,8 @@ try {
       assert.ok(phaseText.includes('Same session · Planner switches to Executor'), phaseText);
       assert.ok(phaseText.includes('Planner · Orchestrator (Neon)'), phaseText);
       assert.ok(phaseText.includes('Executor · Gemini 4 Hydrogen (Orchestrator)'), phaseText);
-      assert.ok(phaseText.includes('Switch cold-starts') && phaseText.includes('1 req'), phaseText);
+      assert.ok(phaseText.includes('Switch cold-starts') && phaseText.includes('1×'), phaseText);
+      assert.ok(phaseText.includes('1 req'), phaseText);
       assert.ok(!phaseText.includes('⚠') && !teamText.includes('⚠'), 'Cold-cache rows must stay neutral without warning glyph');
       assert.ok(teamText.includes('Multi-session team · Independent worker chats'), teamText);
       assert.ok(!teamText.includes('Planner ·') && !teamText.includes('Orchestrator split'), teamText);
@@ -520,6 +521,7 @@ try {
       assert.ok(phaseText.includes('主调度 · Orchestrator (Neon)'), phaseText);
       assert.ok(phaseText.includes('干活执行 · Gemini 4 Hydrogen (Orchestrator)'), phaseText);
       assert.ok(phaseText.includes('切模型冷缓存') && phaseText.includes('1 次'), phaseText);
+      assert.ok(phaseText.includes('1 次请求'), phaseText);
       assert.ok(!phaseText.includes('⚠') && !teamText.includes('⚠'), 'Cold-cache rows must stay neutral without warning glyph');
       assert.ok(teamText.includes('多会话并行团队 · 主协调与各成员独立对话'), teamText);
       assert.ok(!teamText.includes('主调度 ·'), teamText);
