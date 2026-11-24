@@ -16,9 +16,61 @@ const cache = ['inputTokens','cachedTokens','cacheWriteTokens','uncachedTokens',
 const tokens = ['inputTokens','cachedTokens','cacheWriteTokens','uncachedTokens','outputTokens','measuredRequests','inputRequests','outputRequests','missingInputRequests','missingOutputRequests','totalTokens'];
 const POOLS = ['gemini','3p','local','other'];
 const ROLES = ['coordinator','worker','monitor','sidecar'];
+const ORCH_SOURCES = ['trajectory','model-id','settings'];
 const number = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 const tokenNumber = value => number(value) && Number.isSafeInteger(value);
+
+function cleanOrchModelName(raw) {
+  if (typeof raw !== 'string') return null;
+  const cleaned = (formatModelName(raw) || raw.replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, '').trim()).slice(0, 120);
+  if (!cleaned || GUID.test(cleaned) || /[0-9a-f]{8}-[0-9a-f]{4}-/i.test(cleaned)) return null;
+  return cleaned;
+}
+
+function safeOrchestratorBucket(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const requests = tokenNumber(raw.requests) ? raw.requests : null;
+  if (!requests) return null;
+  const nums = ['inputTokens','cachedTokens','uncachedTokens','outputTokens','totalTokens'];
+  const values = {};
+  for (const k of nums) {
+    if (!tokenNumber(raw[k])) return null;
+    values[k] = raw[k];
+  }
+  if (values.cachedTokens + values.uncachedTokens > values.inputTokens) return null;
+  if (values.inputTokens + values.outputTokens !== values.totalTokens) return null;
+  const model = cleanOrchModelName(raw.model) || 'Unknown';
+  const pool = POOLS.includes(raw.pool) ? raw.pool : quotaPoolForModel(model, '');
+  return {
+    model, pool, requests, ...values,
+    hitRate: values.inputTokens > 0 ? values.cachedTokens / values.inputTokens : null,
+  };
+}
+
+export function safeOrchestrator(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.detected !== true) return null;
+  if (!ORCH_SOURCES.includes(raw.source)) return null;
+  const configuredPlanner = cleanOrchModelName(raw.configuredPlanner);
+  const configuredExecutor = cleanOrchModelName(raw.configuredExecutor);
+  const hasPlanner = raw.planner !== null && raw.planner !== undefined;
+  const hasExecutor = raw.executor !== null && raw.executor !== undefined;
+  const planner = hasPlanner ? safeOrchestratorBucket(raw.planner) : null;
+  const executor = hasExecutor ? safeOrchestratorBucket(raw.executor) : null;
+  if ((hasPlanner && !planner) || (hasExecutor && !executor)) return null;
+  if (!planner && !executor && !configuredPlanner && !configuredExecutor) return null;
+  return {
+    detected: true,
+    source: raw.source,
+    configuredPlanner,
+    configuredExecutor,
+    switched: raw.switched === true,
+    phaseSwitchCount: tokenNumber(raw.phaseSwitchCount) ? raw.phaseSwitchCount : 0,
+    coldStartSwitches: tokenNumber(raw.coldStartSwitches) ? raw.coldStartSwitches : 0,
+    planner,
+    executor,
+  };
+}
 
 function safeSessionModelBreakdown(raw) {
   if (!Array.isArray(raw)) return [];
@@ -138,6 +190,9 @@ export function safeMetrics(value, conversationId) {
   // displayed as current data or combined with the new root's requests.
   const previousTask=safeTaskUsage(value.previousTaskUsage);
   if(previousTask)result.previousTaskUsage=previousTask;
+  const orch=safeOrchestrator(value.orchestrator);
+  if(orch)result.orchestrator=orch;
+  else if(Object.hasOwn(value,'orchestrator')&&value.orchestrator===null)result.orchestrator=null;
   if(Array.isArray(value.delegatedConversations))result.delegatedConversations=[...new Set(value.delegatedConversations.map(normalizeConversationId).filter(id=>id&&id!==conversationId.toLowerCase()))].slice(0,128);
   const transcript=safeTranscriptStats(value.transcriptStats);
   // Transient loading/I/O status must not churn history timestamps or revive
@@ -174,6 +229,7 @@ export function shouldKeepSaved(saved, fresh) {
 export function reconcileMetrics(saved, fresh, savedAt = null) {
   if (shouldKeepSaved(saved,fresh)) return {...saved,taskUsage:safeTaskUsage(fresh.taskUsage)||safeTaskUsage(saved.taskUsage),delegatedConversations:fresh.delegatedConversations||saved.delegatedConversations,transcriptStats:fresh.transcriptStats||null,transcriptRestoredFromHistory:false,context:fresh.context || null,contextRestored:false,
     ...(fresh.contextComposition ? { contextComposition: fresh.contextComposition } : {}),
+    ...(fresh.orchestrator ? { orchestrator: fresh.orchestrator } : saved.orchestrator ? { orchestrator: saved.orchestrator } : {}),
     restoredFromHistory:true,savedAt};
   const result = {...fresh,contextRestored:false,transcriptRestoredFromHistory:false,restoredFromHistory:false,
     speedRestoredFromHistory:fresh.speedRestoredFromHistory===true,

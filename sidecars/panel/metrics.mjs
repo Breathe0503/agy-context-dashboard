@@ -4,6 +4,41 @@ import { estimateTextTokens } from './trajectory-json.mjs';
 import { classifyRates, median, RATE_VERSION, RATE_REASONS } from './rate-quality.mjs';
 const TOOL_STEP_RE=/SEARCH_WEB|BROWSE|RUN_COMMAND|COMMAND|READ|WRITE|EDIT|CODE_ACTION|TOOL|MCP|LIST|GREP|VIEW|FIND|TERMINAL/i;
 const cleanToolName=value=>typeof value==='string'?value.replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,80):'';
+const isBuiltInPlannerModel=(rawModel,formattedModel)=>{
+  const raw=String(rawModel||'').toLowerCase().replace(/^word\//,'');
+  const fmt=String(formattedModel||'');
+  return /^model_placeholder_m(?:537|667|681)$/.test(raw)||
+    /^gemini-pro-orchestrator(?:-(?:neon|carbon|argon|g1-pro))?$/.test(raw)||
+    /^Orchestrator \(.+\)$/.test(fmt);
+};
+const isBuiltInExecutorModel=(rawModel,formattedModel)=>{
+  const raw=String(rawModel||'').toLowerCase().replace(/^word\//,'');
+  const fmt=String(formattedModel||'');
+  return raw==='model_placeholder_m669'||raw==='gemini-flash-worker-agy'||fmt==='Gemini 4 Hydrogen (Orchestrator)';
+};
+const isExitPlanModeStep=step=>{
+  if(/EXIT_PLAN_MODE/.test(String(step?.type||'')))return true;
+  if(String(step?.metadata?.toolCall?.name||'').trim()==='exit_plan_mode')return true;
+  return Array.isArray(step?.plannerResponse?.toolCalls)&&step.plannerResponse.toolCalls.some(tc=>String(tc?.name||'').trim()==='exit_plan_mode');
+};
+const hasPlanReviewMarker=step=>{
+  if(!/USER_INPUT|SYSTEM_MESSAGE/.test(String(step?.type||'')))return false;
+  const fields=[step?.userInput?.text,step?.userInput?.userResponse,step?.systemMessage?.message,step?.systemMessage?.text,step?.content,step?.text,
+    ...(Array.isArray(step?.userInput?.items)?step.userInput.items.map(item=>item?.text):[])];
+  return fields.some(v=>typeof v==='string'&&/\[plan review\]/i.test(v));
+};
+const createOrchBucket=()=>({model:'',pool:'other',requests:0,inputTokens:0,cachedTokens:0,uncachedTokens:0,outputTokens:0,totalTokens:0});
+const addToOrchBucket=(bucket,model,pool,reqUncached,reqRead,reqInput,reqOutput)=>{
+  if(model&&model!=='Unknown'){bucket.model=model;bucket.pool=pool;}
+  else if(!bucket.model){bucket.model=model||'Unknown';bucket.pool=pool;}
+  bucket.requests++;
+  bucket.inputTokens+=reqInput;
+  bucket.cachedTokens+=reqRead;
+  bucket.uncachedTokens+=reqUncached;
+  bucket.outputTokens+=reqOutput;
+  bucket.totalTokens+=reqInput+reqOutput;
+};
+const finalizeOrchBucket=bucket=>bucket&&bucket.requests>0?{...bucket,hitRate:bucket.inputTokens>0?bucket.cachedTokens/bucket.inputTokens:null}:null;
 const normalizeToolSource=value=>{
   const raw=typeof value==='string'?value.toUpperCase():'';
   if(!raw)return '';
@@ -68,11 +103,44 @@ function unionSeconds(intervals) {
   return total / 1000;
 }
 
-export function trajectoryMetrics(response, storage = null) {
+export function trajectoryMetrics(response, storage = null, options = null) {
   const trajectory = response.trajectory || {};
   const generators = trajectory.generatorMetadata || [];
   const samples = storage?.samples || [], ids = storage?.ids || new Map();
   const steps = trajectory.steps || [];
+  const stepPhases = new Uint8Array(steps.length);
+  let curPhase = 0, phaseSwitchCount = 0, hasExitPlanMode = false, stepIdx = 0;
+  for (const s of steps) {
+    const typeText = String(s?.type || '');
+    const isUser = /USER_INPUT/.test(typeText);
+    const isPlanReview = hasPlanReviewMarker(s);
+    const isExitPlan = isExitPlanModeStep(s);
+    if (isExitPlan) {
+      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+      if (curPhase !== 1) phaseSwitchCount++;
+      curPhase = 1;
+      hasExitPlanMode = true;
+    } else if (isPlanReview) {
+      if (curPhase === 1) phaseSwitchCount++;
+      curPhase = 0;
+      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+    } else if (isUser) {
+      curPhase = 0;
+      if (stepIdx < stepPhases.length) stepPhases[stepIdx] = curPhase;
+    } else if (stepIdx < stepPhases.length) {
+      stepPhases[stepIdx] = curPhase;
+    }
+    stepIdx++;
+  }
+  const orchCfg = options?.orchestratorSettings && typeof options.orchestratorSettings === 'object' ? options.orchestratorSettings : null;
+  const configuredPlanner = typeof orchCfg?.orchestratorModel === 'string' && orchCfg.orchestratorModel
+    ? (formatModelName(orchCfg.orchestratorModel) || orchCfg.orchestratorModel) : null;
+  const configuredExecutor = typeof orchCfg?.orchestratorExecutorModel === 'string' && orchCfg.orchestratorExecutorModel
+    ? (formatModelName(orchCfg.orchestratorExecutorModel) || orchCfg.orchestratorExecutorModel) : null;
+  const hasConfiguredPair = Boolean(configuredPlanner && configuredExecutor);
+  let plannerBucket = null, pendingPlannerBucket = null, executorBucket = null;
+  let hasBuiltInPlanner = false, hasBuiltInExecutor = false;
+  let prevOrchRole = null, inActiveExecutorSegment = false, coldStartSwitches = 0;
   const counts = { input: 0, output: 0, responseOutput: 0, thinkingOutput: 0, cacheRead: 0, cacheWrite: 0 };
   let modelSeconds = 0, cacheMissSurges = 0, cacheMissSurgeTokens = 0;
   const byModel = new Map();
@@ -180,6 +248,48 @@ export function trajectoryMetrics(response, storage = null) {
       cacheMissSurges++;
       cacheMissSurgeTokens += reqUncached;
     }
+    const builtInPlanner = isBuiltInPlannerModel(rawModel, formattedModel);
+    const builtInExecutor = isBuiltInExecutorModel(rawModel, formattedModel);
+    if (builtInPlanner) hasBuiltInPlanner = true;
+    if (builtInExecutor) hasBuiltInExecutor = true;
+    const gStepIndices = Array.isArray(generator.stepIndices) ? generator.stepIndices : [];
+    let inExecutorPhase = false, inPlannerPhase = false;
+    for (const si of gStepIndices) {
+      if (Number.isInteger(si) && si >= 0 && si < stepPhases.length) {
+        if (stepPhases[si] === 1) inExecutorPhase = true;
+        else inPlannerPhase = true;
+      }
+    }
+    if (inExecutorPhase) inPlannerPhase = false;
+    let orchRole = null;
+    if (builtInPlanner) orchRole = 'planner';
+    else if (builtInExecutor) orchRole = 'executor';
+    else if (inExecutorPhase) orchRole = 'executor';
+    else if (inPlannerPhase && hasExitPlanMode) orchRole = 'planner';
+    else if (hasConfiguredPair && configuredPlanner !== configuredExecutor) {
+      if (formattedModel === configuredPlanner) orchRole = 'planner';
+      else if (formattedModel === configuredExecutor) orchRole = 'executor';
+    } else if (hasConfiguredPair && formattedModel === configuredPlanner) {
+      orchRole = 'planner';
+    }
+    if (orchRole === 'planner') {
+      plannerBucket ||= createOrchBucket();
+      addToOrchBucket(plannerBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
+      inActiveExecutorSegment = false;
+      prevOrchRole = 'planner';
+    } else if (orchRole === 'executor') {
+      executorBucket ||= createOrchBucket();
+      addToOrchBucket(executorBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
+      if (!inActiveExecutorSegment && (hasExitPlanMode || prevOrchRole === 'planner' || inExecutorPhase)) {
+        inActiveExecutorSegment = true;
+        if (reqRead === 0 && reqInput > 0) coldStartSwitches++;
+      }
+      prevOrchRole = 'executor';
+    } else if (inPlannerPhase) {
+      pendingPlannerBucket ||= createOrchBucket();
+      addToOrchBucket(pendingPlannerBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
+      inActiveExecutorSegment = false;
+    }
     const sample = { outputTokens: streamTokens, responseTokens, duration, ttft, reasons, toolOnly,
       tps: streamTokens !== null && duration > 0 ? streamTokens / duration : null,
       model: formattedModel, basis,
@@ -280,12 +390,31 @@ export function trajectoryMetrics(response, storage = null) {
   const inputParts=[tokens.uncachedTokens,tokens.cachedTokens,tokens.cacheWriteTokens];
   tokens.inputTokens = tokenCount(inputParts.reduce((sum,value)=>sum+(value??0),0));
   const totalTokens=tokenCount((tokens.inputTokens??0)+(tokens.outputTokens??0));
+  const hasBuiltIn = hasBuiltInPlanner || hasBuiltInExecutor;
+  if (hasBuiltIn && !plannerBucket && pendingPlannerBucket) plannerBucket = pendingPlannerBucket;
+  const latestModel = latest?.model || null;
+  const settingsMatch = hasConfiguredPair && Boolean(latestModel) && (latestModel === configuredPlanner || latestModel === configuredExecutor);
+  const detected = hasExitPlanMode || hasBuiltIn || settingsMatch;
+  const source = hasExitPlanMode ? 'trajectory' : hasBuiltIn ? 'model-id' : 'settings';
+  const finalPlanner = finalizeOrchBucket(plannerBucket);
+  const finalExecutor = finalizeOrchBucket(executorBucket);
+  const orchestrator = detected ? {
+    detected: true,
+    source,
+    configuredPlanner,
+    configuredExecutor,
+    switched: hasExitPlanMode || Boolean(finalPlanner && finalExecutor),
+    phaseSwitchCount,
+    coldStartSwitches,
+    planner: finalPlanner,
+    executor: finalExecutor,
+  } : null;
   return {
     source: 'Antigravity request metadata', status: response.status || null,
     conversationId: trajectory.cascadeId || null,
     steps: Number(response.numTotalSteps ?? steps.length), rounds, stepBreakdown,
     requests: ids.size, measuredRequests: acceptedCount, missingTiming, excludedTiming, rateWarnings, timingReasons, rateVersion: RATE_VERSION, counts,
-    modelBreakdown, cacheMissSurges, cacheMissSurgeTokens, toolSummary,
+    modelBreakdown, cacheMissSurges, cacheMissSurgeTokens, toolSummary, orchestrator,
     tokens:{...tokens,totalTokens,
       complete:tokens.missingInputRequests===0&&tokens.missingOutputRequests===0&&inputParts.every(value=>value!==null)&&tokens.outputTokens!==null&&totalTokens!==null},
     cache:{...cache,totalTokens:cache.inputTokens+cache.outputTokens,hitRate:cache.inputTokens>0?cache.cachedTokens/cache.inputTokens:null,complete:cache.missingRequests===0},

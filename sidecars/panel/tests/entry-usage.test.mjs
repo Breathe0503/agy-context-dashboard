@@ -35,6 +35,7 @@ async function entryFixture(host,url,selection=false){
     'preferences.mjs':{PreferencesStore:class{async snapshot(){return state.prefs;}async set(v){state.prefs={...state.prefs,...v};return state.prefs;}}},
     'debug-relaunch.mjs':{scheduleHostRelaunch:async input=>{state.relaunchCalls.push(input);return {scheduled:true,reason:input.reason};}},
     'sidecar-owner.mjs':{SidecarOwner:Owner},'host-theme.mjs':{readHostTheme:async()=>({})},
+    'host-orchestrator.mjs':{readHostOrchestrator:async()=>({orchestratorModel:null,orchestratorExecutorModel:null})},
     'panel-source.mjs':{panelAppSource:()=>'',panelPageSource:()=>''},
     'updater.mjs':{AppUpdater:class{},releaseRuntimeDirectory(){}},
     'history.mjs':{SessionHistory:class{}},'transcript.mjs':{TranscriptReader:class{},transcriptBrainRoot:()=>''},

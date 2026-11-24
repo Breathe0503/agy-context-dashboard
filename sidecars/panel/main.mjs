@@ -14,6 +14,7 @@ import { inspectHostArchive, inspectDesktopLaunch, ensureDesktopLaunchConfig } f
 import { PreferencesStore } from '../../compat/preferences.mjs';
 import { SidecarOwner } from '../../compat/sidecar-owner.mjs';
 import { readHostTheme } from '../../compat/host-theme.mjs';
+import { readHostOrchestrator } from '../../compat/host-orchestrator.mjs';
 import { panelAppSource,panelPageSource } from './panel-source.mjs';
 import { AppUpdater, releaseRuntimeDirectory } from './updater.mjs';
 import { scheduleHostRelaunch } from '../../compat/debug-relaunch.mjs';
@@ -44,18 +45,22 @@ let liveComposerModel = null;
 const metrics = async input => {
   if(ownership&&!await ownership.isOwner())throw Error('Sidecar ownership changed');
   runtimeSettings();
-  const prefs=await preferences.snapshot();
-  const hostTheme=await readHostTheme(),liveTheme=integration.rendererTheme;
+  const [prefs, hostTheme, orchestratorSettings] = await Promise.all([
+    preferences.snapshot(),
+    readHostTheme(),
+    readHostOrchestrator(),
+  ]);
+  const liveTheme=integration.rendererTheme;
   const theme=(liveTheme?.fontFamily||liveTheme?.monoFontFamily)?{...liveTheme,...hostTheme}:hostTheme;
   const update = typeof updater?.passiveSummary==='function' ? updater.passiveSummary() : { available: false, latestVersion: null };
   if(input?.usageOnly===true){
-    if(!store.serverPid&&!store.identity){try{await store.snapshot({conversationId:null,force:false,selectLatest:false});}catch{}}
+    if(!store.serverPid&&!store.identity){try{await store.snapshot({conversationId:null,force:false,selectLatest:false,orchestratorSettings});}catch{}}
     const requestedScope=(input.usageScope==='local'||input.usageScope==='account')?input.usageScope:(prefs?.usageScope||'local');
-    return {connection:store.quota?'live':'stale',groups:store.quota||[],speed:null,usage:await usage.snapshot({sync:false,scope:requestedScope,groups:store.quota}),preferences:prefs,theme,integration:integration.health,update};
+    return {connection:store.quota?'live':'stale',groups:store.quota||[],speed:null,usage:await usage.snapshot({sync:false,scope:requestedScope,groups:store.quota}),preferences:prefs,theme,orchestratorSettings,integration:integration.health,update};
   }
-  const base=await store.snapshot(input);if(input?.usageSync===true)void usage.sync(true);
+  const base=await store.snapshot({...input,orchestratorSettings});if(input?.usageSync===true)void usage.sync(true);
   const requestedScope=(input?.usageScope==='local'||input?.usageScope==='account')?input.usageScope:(prefs?.usageScope||'local');
-  return {...base,...(liveComposerModel?{composerModel:liveComposerModel}:{}),usage:await usage.snapshot({sync:input?.usageSync===true,scope:requestedScope,groups:base.groups}),preferences:prefs,theme,integration:integration.health,update};
+  return {...base,...(liveComposerModel?{composerModel:liveComposerModel}:{}),usage:await usage.snapshot({sync:input?.usageSync===true,scope:requestedScope,groups:base.groups}),preferences:prefs,theme,orchestratorSettings,integration:integration.health,update};
 };
 const sessionAudit = async input => {
   if (ownership && !await ownership.isOwner()) throw Error('Sidecar ownership changed');
