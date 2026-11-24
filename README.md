@@ -10,11 +10,18 @@
 [![Version 0.9.9](https://img.shields.io/badge/version-0.9.9-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
+[![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#语言与缓存)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
 [看看效果](#看看效果) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-状态栏) · [开始安装](#安装) · [启用与停用](#可插拔) · [配套侧边栏](#配套侧边栏) · [宿主汉化与致谢](#宿主界面汉化与开源致谢) · [兼容性](#兼容性) · [常见问题](#常见问题) · [English](README.en.md)
 
 </div>
+
+> [!TIP]
+> **已支持中文与一键宿主汉化（插件三语言 + Antigravity 宿主界面简体中文）**
+>
+> - **支持宿主界面一键汉化（`汉` 按钮）**：在侧边栏顶部点击 `汉` 或在上下文详情底部开启「宿主界面汉化」，即可无侵入实时汉化 Antigravity 桌面端界面，无需修改 `app.asar` 或重启客户端，关闭开关即无损还原英文（[详细说明](#宿主界面汉化与开源致谢)）。
+> - **插件自身支持 `English / 简体中文 / 繁體中文`**：内嵌状态栏、悬浮卡、右侧边栏、用量窗口、CLI 状态栏与独立 IDE 均已适配，可在上下文详情或侧边栏菜单一键切换并跨重启保存。
 
 > [!IMPORTANT]
 > **Antigravity Desktop `2.33.0+` / `2.34.0+` 兼容、启动与更新后自动注入说明（`v0.9.6`，[`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19)、[`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17)）**
