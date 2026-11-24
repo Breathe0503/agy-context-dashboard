@@ -185,23 +185,25 @@ try {
     const vis = sel => getComputedStyle(sr.querySelector(sel)).display !== 'none';
     return {
       density: document.getElementById('ag-pulse-status-bar').dataset.density,
+      hasIconsOnly: document.getElementById('ag-pulse-status-bar').classList.contains('icons-only'),
       speed: vis('[data-card="speed"]'),
       cache: vis('[data-card="cache"]'),
       quota: vis('[data-card="quota"]'),
       context: vis('[data-card="context"]'),
-      pct: sr.getElementById('context-percent').textContent,
+      toggle: vis('#strip-toggle'),
     };
   });
   assert.equal(minimalState.density, 'minimal');
-  assert.equal(minimalState.speed, false);
-  assert.equal(minimalState.cache, false);
-  assert.equal(minimalState.quota, false);
+  assert.equal(minimalState.hasIconsOnly, true);
+  assert.equal(minimalState.speed, true);
+  assert.equal(minimalState.cache, true);
+  assert.equal(minimalState.quota, true);
   assert.equal(minimalState.context, true);
-  assert.equal(minimalState.pct, '62%');
+  assert.equal(minimalState.toggle, true);
 
-  // 3. Narrow width in minimal mode degrades to minimal-tight / minimal-icon cleanly
+  // 3. Narrow width in minimal mode degrades to minimal-icon cleanly
   await evalJs(() => { document.querySelector('.composer').style.width = '310px'; });
-  await waitUntil(() => ['minimal-tight', 'minimal-icon'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'minimal degrades cleanly');
+  await waitUntil(() => ['minimal', 'minimal-icon'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'minimal degrades cleanly');
 
   // 4. Restore width and expand back via hover card footer button
   await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });

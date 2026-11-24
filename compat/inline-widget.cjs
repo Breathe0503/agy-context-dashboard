@@ -775,7 +775,7 @@ module.exports = function installAgPulseInlineWidget() {
     };
     let safe=false,snapshotTaken=false,nextDensity='full';
     const captureBeforeMutate=()=>{if(oldReady&&!snapshotTaken){previous=densitySnapshot(previous);snapshotTaken=true;}};
-    const DENSITY_CLASSES=['icons-only','minimal','minimal-tight','minimal-icon','minimal-empty'];
+    const DENSITY_CLASSES=['icons-only','compact-text','minimal','minimal-tight','minimal-icon','minimal-empty'];
     const hasExactClasses=wanted=>DENSITY_CLASSES.every(cls=>node.classList.contains(cls)===wanted.includes(cls));
     const applyDensityClasses=wanted=>{
       if(hasExactClasses(wanted))return;
@@ -785,10 +785,10 @@ module.exports = function installAgPulseInlineWidget() {
     const rowWidth=composer.row.getBoundingClientRect().width;
     const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
     if(stripMode.mode==='minimal'){
-      const emptyMinimal=emptyCompact||!hasContextPercent;
-      const tiers=emptyMinimal
-        ? [{name:'minimal',classes:['minimal','minimal-empty']},{name:'minimal-icon',classes:['minimal','minimal-icon','minimal-empty']}]
-        : [{name:'minimal',classes:['minimal']},{name:'minimal-tight',classes:['minimal','minimal-tight']},{name:'minimal-icon',classes:['minimal','minimal-icon']}];
+      const tiers=[
+        {name:'minimal',classes:['minimal','icons-only']},
+        {name:'minimal-icon',classes:['minimal','minimal-icon']},
+      ];
       const curIdx=tiers.findIndex(item=>item.name===oldDensity);
       const key=curIdx>0?probeKey():null;
       const canRecover=curIdx>0&&(!densityProbe||key!==densityProbe.key||rowWidth>=densityProbe.width+12);
@@ -806,29 +806,33 @@ module.exports = function installAgPulseInlineWidget() {
       }
       if(!safe)densityProbe={key:key??probeKey(),width:rowWidth};
     }else{
-      if(node.classList.contains('minimal')){
-        applyDensityClasses(emptyCompact?['icons-only']:[]);
-        densityProbe=null;
-      }
       if(emptyCompact){
         applyDensityClasses(['icons-only']);
         densityProbe=null;safe=fits();
+        nextDensity='icons';
       }else{
-        safe=fits();
-        if(oldDensity==='icons'&&!snapshotTaken){
-          const key=probeKey();
-          // Twelve pixels of recovery headroom prevents threshold chatter. Shrinking
-          // or scrolling in icon mode never toggles back to full just to measure it.
-          if(!densityProbe||key!==densityProbe.key||rowWidth>=densityProbe.width+12){
-            applyDensityClasses([]);safe=fits();
-            if(!safe){applyDensityClasses(['icons-only']);safe=fits();densityProbe={key,width:rowWidth};}
-            else densityProbe=null;
+        const tiers=[
+          {name:'full',classes:[]},
+          {name:'compact-text',classes:['compact-text']},
+          {name:'icons',classes:['icons-only']},
+        ];
+        const curIdx=tiers.findIndex(item=>item.name===oldDensity);
+        const key=curIdx>0?probeKey():null;
+        const canRecover=curIdx>0&&(!densityProbe||key!==densityProbe.key||rowWidth>=densityProbe.width+12);
+        const startIdx=curIdx<=0||canRecover?0:curIdx;
+        nextDensity=tiers[tiers.length-1].name;
+        for(let i=startIdx;i<tiers.length;i++){
+          applyDensityClasses(tiers[i].classes);
+          safe=fits();
+          if(safe){
+            nextDensity=tiers[i].name;
+            if(i===0)densityProbe=null;
+            else if(startIdx===0||!densityProbe||key!==densityProbe.key)densityProbe={key:key??probeKey(),width:rowWidth};
+            break;
           }
-        }else if(!safe){
-          applyDensityClasses(['icons-only']);safe=fits();densityProbe={key:probeKey(),width:rowWidth};
         }
+        if(!safe)densityProbe={key:key??probeKey(),width:rowWidth};
       }
-      nextDensity=node.classList.contains('icons-only')?'icons':'full';
     }
     node.dataset.density=nextDensity;
     const state=safe?'ready':'blocked';
@@ -1220,10 +1224,10 @@ module.exports = function installAgPulseInlineWidget() {
       :host(.icons-only) .bar{gap:2px}:host([data-scope=main].icons-only){flex-shrink:0}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host([data-inline-cache-hit=true].icons-only) [data-card=cache]:has(.cache-hit:not(:empty)){flex:0 0 auto;width:auto;padding:0 5px;gap:4px}:host([data-inline-cache-hit=true].icons-only) [data-card=cache]>.cache-hit:not(:empty){display:inline}:host(.icons-only) .bar>.dot{display:none}
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
-      :host(.minimal) .bar{gap:2px}:host(.minimal) .bar>.dot,:host(.minimal) [data-card="speed"],:host(.minimal) [data-card="cache"],:host(.minimal) [data-card="quota"],:host(.minimal) .context-label,:host(.minimal) .context-rounds{display:none!important}:host(.minimal) [data-card="context"]{display:flex!important;gap:4px;padding:3px 5px}
-      :host(.minimal.minimal-empty) #context-percent{display:none}:host(.minimal.minimal-empty) [data-card="context"]{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}
-      :host(.minimal.minimal-tight) .strip-toggle{display:none}
-      :host(.minimal.minimal-icon) .strip-toggle,:host(.minimal.minimal-icon) #context-percent{display:none}:host(.minimal.minimal-icon) [data-card="context"]{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}
+      :host(.compact-text) .cache-hit,:host(.compact-text) .context-rounds,:host(.compact-text) .context-label,:host(.compact-text) .countdown{display:none!important}
+      :host(.minimal) .bar{gap:2px}:host(.minimal) .bar>.dot{display:none}
+      :host(.minimal.icons-only) .strip-toggle{display:inline-grid}:host(.minimal.icons-only) [data-card=cache]>.cache-hit{display:none!important}:host(.minimal.icons-only) [data-card=cache]{flex:0 0 24px!important;width:24px!important;padding:0!important;gap:0!important}
+      :host(.minimal.minimal-icon) .strip-toggle,:host(.minimal.minimal-icon) [data-card="speed"],:host(.minimal.minimal-icon) [data-card="cache"],:host(.minimal.minimal-icon) [data-card="quota"],:host(.minimal.minimal-icon) #context-percent,:host(.minimal.minimal-icon) .context-label,:host(.minimal.minimal-icon) .context-rounds{display:none!important}:host(.minimal.minimal-icon) [data-card="context"]{display:flex!important;flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}
       .strip-mode-options{display:inline-flex;gap:1px;padding:2px;border-radius:6px;background:var(--pulse-control);flex:none}
       .strip-mode-button{display:grid;place-items:center;width:22px;height:18px;padding:0;margin:0;border:0;border-radius:4px;background:none;color:var(--pulse-muted);opacity:.72;cursor:pointer;transition:background-color 140ms ease,color 140ms ease,opacity 140ms ease,transform 120ms ease}
       .strip-mode-button:hover{opacity:1;color:var(--pulse-hover-text);background:var(--pulse-hover)}.strip-mode-button:active{transform:scale(.94)}
