@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { trajectoryMetrics, quotaMetrics, seconds } from '../metrics.mjs';
-import { countdown } from '../format.mjs';
+import { countdown, smallCount } from '../format.mjs';
 import { MetricsStore } from '../store.mjs';
 
 const chat = (id, tokens, duration, thinking = '100', ttft = '2s') => ({ chatModel: { usage: { messageId: id, inputTokens:'1000', outputTokens:String(Number(tokens)+Number(thinking)), responseOutputTokens:String(tokens), thinkingOutputTokens:thinking }, streamingDuration:duration, timeToFirstToken:ttft } });
@@ -151,4 +151,13 @@ test('trajectoryMetrics partitions steps into non-overlapping stepBreakdown buck
   assert.equal(data.rounds, 1);
   assert.equal(data.steps, 7);
   assert.deepEqual(data.stepBreakdown, { user: 1, planner: 1, tool: 2, compaction: 2, other: 1 });
+});
+test('smallCount leaves 4-digit integers ungrouped while grouping 10,000+', () => {
+  assert.equal(smallCount(0), '0');
+  assert.equal(smallCount(999), '999');
+  assert.equal(smallCount(2464), '2464');
+  assert.equal(smallCount(9999), '9999');
+  assert.equal(smallCount(10000), '10,000');
+  assert.equal(smallCount(12345), '12,345');
+  assert.equal(smallCount(null), '—');
 });

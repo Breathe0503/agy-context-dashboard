@@ -356,6 +356,38 @@ try {
     await panelP.close();
   }
 
+  Object.assign(baseMetrics, {
+    rounds: 18,
+    steps: 2464,
+    stepBreakdown: { total: 2464, tool: 1900, planner: 400, user: 18, compaction: 2, other: 144 },
+  });
+  const fourDigitInline = await browser.newPage({ viewport: { width: 900, height: 800 } });
+  fourDigitInline.on('pageerror', e => errors.push(e.message));
+  await fourDigitInline.goto(`${base}/inline?lang=zh-CN`);
+  const fStrip = fourDigitInline.locator('#ag-pulse-status-bar');
+  await fStrip.waitFor();
+  await fStrip.locator('[data-card=context]').click();
+  await fStrip.locator('#context-rounds-pill').waitFor({ state: 'visible' });
+  assert.equal(await fStrip.locator('#context-rounds-pill').textContent(), '18 轮 · 2464 步');
+  await fStrip.locator('#context-rounds-pill').click();
+  await fStrip.locator('#context-steps-drawer').waitFor({ state: 'visible' });
+  assert.ok((await fStrip.locator('#context-steps-drawer .steps-drawer-head').textContent()).includes('2464'));
+  assert.equal(await fStrip.locator('#context-steps-drawer .steps-chip strong').first().textContent(), '1900');
+  await fourDigitInline.close();
+
+  prefs = { language: 'zh-CN', languageGuideDismissed: true, revision: 1 };
+  const fourDigitPanel = await browser.newPage({ viewport: { width: 320, height: 640 } });
+  fourDigitPanel.on('pageerror', e => errors.push(e.message));
+  await fourDigitPanel.goto(base + '/');
+  await fourDigitPanel.locator('#context-tab').click();
+  await fourDigitPanel.locator('#context-rounds-pill').waitFor({ state: 'visible' });
+  assert.equal(await fourDigitPanel.locator('#context-rounds-pill').textContent(), '18 轮 · 2464 步');
+  await fourDigitPanel.locator('#context-rounds-pill').click();
+  await fourDigitPanel.locator('#context-steps-drawer').waitFor({ state: 'visible' });
+  assert.ok((await fourDigitPanel.locator('#context-steps-drawer .steps-drawer-head').textContent()).includes('2464'));
+  assert.equal(await fourDigitPanel.locator('#context-steps-drawer .steps-chip strong').first().textContent(), '1900');
+  await fourDigitPanel.close();
+
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ multiAgentUi: true, panel: true, inline: true, usagePoolStrip: true, narrowNoClip: true, workerRoleLabel: true, heroWrapNoOverflow: true, pageErrors: [] }));
 } finally {

@@ -288,6 +288,7 @@ module.exports = function installAgPulseInlineWidget() {
   const pct=n=>typeof n==='number'&&Number.isFinite(n)?`${(n*100).toFixed(1)}%`:'—';
   const rate=n=>typeof n==='number'&&Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:1,minimumFractionDigits:1}):'—';
   const count=n=>typeof n==='number'&&Number.isFinite(n)?n.toLocaleString('en-US'):'—';
+  const smallCount=n=>typeof n==='number'&&Number.isFinite(n)?(Math.abs(n)<10000?String(n):n.toLocaleString('en-US')):'—';
   const compact=n=>{if(typeof n!=='number'||!Number.isFinite(n))return '—';for(const [base,suffix,nextBase,nextSuffix]of [[1e12,'T',0,''],[1e9,'B',1e12,'T'],[1e6,'M',1e9,'B'],[1e3,'K',1e6,'M']])if(n>=base){const scaled=n/base,rounded=Number(scaled.toFixed(1));return nextBase&&rounded*base>=nextBase?`1${nextSuffix}`:`${rounded}${suffix}`;}return String(n);};
   const tokUnit=n=>n===1?'tok':'toks';
   const compactDetail=n=>{if(typeof n!=='number'||!Number.isFinite(n))return '—';for(const [base,suffix,nextBase,nextSuffix]of [[1e12,'T',0,''],[1e9,'B',1e12,'T'],[1e6,'M',1e9,'B'],[1e3,'K',1e6,'M']])if(n>=base){const scaled=n/base,rounded=Number(scaled.toFixed(scaled<10?2:1));return nextBase&&rounded*base>=nextBase?`1${nextSuffix}`:`${rounded}${suffix}`;}return String(n);};
@@ -1297,11 +1298,11 @@ module.exports = function installAgPulseInlineWidget() {
     if(roundsPill){
       hidden(roundsPill,roundCount===null);
       if(roundCount!==null){
-        const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
+        const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:smallCount(roundCount),steps:smallCount(stepCount)}):t('contextTurnsCount',{n:smallCount(roundCount)});
         text('context-rounds-pill-text',baseText);
         if(roundsPill.disabled!==!canExpandSteps)roundsPill.disabled=!canExpandSteps;
         attribute(roundsPill,'aria-expanded',String(canExpandSteps&&stepsDrawerOpen));
-        attribute(roundsPill,'title',stepCount!==null?`${t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:count(roundCount)}));
+        attribute(roundsPill,'title',stepCount!==null?`${t('contextTurnsTitle',{rounds:smallCount(roundCount),steps:smallCount(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:smallCount(roundCount)}));
       }else{
         if(!roundsPill.disabled)roundsPill.disabled=true;
         attribute(roundsPill,'aria-expanded','false');
@@ -1347,18 +1348,18 @@ module.exports = function installAgPulseInlineWidget() {
         if(stepsDrawer.dataset.signature!==drawerSig){
           stepsDrawer.dataset.signature=drawerSig;
           const head=mkEl('div','steps-drawer-head');
-          head.append(mkEl('span','',t('stepBreakdownTitle',{n:count(sbTotal)})),mkEl('span','steps-drawer-sub',t('contextTurnsCount',{n:count(roundCount)})));
+          head.append(mkEl('span','',t('stepBreakdownTitle',{n:smallCount(sbTotal)})),mkEl('span','steps-drawer-sub',t('contextTurnsCount',{n:smallCount(roundCount)})));
           const bar=mkEl('div','steps-bar');
           const chips=mkEl('div','steps-chips');
           for(const b of stepBuckets){
             const pct=((b.count/sbTotal)*100).toFixed(1);
             const seg=mkEl('i',`steps-seg-${b.key}`);
             seg.style.width=`${pct}%`;
-            attribute(seg,'title',`${b.label}: ${count(b.count)} (${pct}%)`);
+            attribute(seg,'title',`${b.label}: ${smallCount(b.count)} (${pct}%)`);
             bar.append(seg);
             const chip=mkEl('span','steps-chip');
             attribute(chip,'title',seg.title);
-            chip.append(mkEl('i',`steps-dot steps-seg-${b.key}`),mkEl('span','',b.label),mkEl('strong','',count(b.count)));
+            chip.append(mkEl('i',`steps-dot steps-seg-${b.key}`),mkEl('span','',b.label),mkEl('strong','',smallCount(b.count)));
             chips.append(chip);
           }
           stepsDrawer.replaceChildren(head,bar,chips);
@@ -1423,10 +1424,10 @@ module.exports = function installAgPulseInlineWidget() {
       const chipRoundsEl=$('context-rounds');
       if(chipRoundsEl){
         hidden(chipRoundsEl,!showChipRounds);
-        if(showChipRounds)text('context-rounds',t('contextChipRounds',{n:count(roundCount)}));
+        if(showChipRounds)text('context-rounds',t('contextChipRounds',{n:smallCount(roundCount)}));
       }
       attribute(ctxChip,'data-has-rounds',showChipRounds?'true':null);
-      const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:count(roundCount)})}`:'';
+      const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:smallCount(roundCount)})}`:'';
       const compSuffix=compactions!==null&&compactions>0?` · ${t('contextCompactionSummary',{n:compactions})}`:'';
       const updateSuffix=hasUpdate&&updateVer?` · v${updateVer}`:'';
       const baseTip=hasCapacity?`Ctx ${Math.round(context.usedFraction*100)}% (${compact(context.usedTokens)} / ${compact(context.maxTokens)})${roundSuffix}${compSuffix}`:(roundSuffix||compSuffix?`Ctx${roundSuffix}${compSuffix}`:'');

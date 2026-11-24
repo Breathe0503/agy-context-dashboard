@@ -1,4 +1,4 @@
-import { percent, rate, count, elapsed, countdown, resetDate } from './format.mjs';
+import { percent, rate, count, smallCount, elapsed, countdown, resetDate } from './format.mjs';
 import { createI18n } from './i18n.js';
 import { createTheme } from './theme.js';
 function initPanel(){
@@ -1173,7 +1173,7 @@ function render() {
   const transcript=speed?.transcriptStats;
   const roundCount=Number.isSafeInteger(speed?.rounds)&&speed.rounds>0?speed.rounds:null;
   const stepCount=Number.isSafeInteger(speed?.steps)&&speed.steps>=0?speed.steps:null;
-  const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:count(roundCount)})}`:'';
+  const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:smallCount(roundCount)})}`:'';
   const compactions=transcript&&['ready','partial'].includes(transcript.status)&&typeof transcript.compactionMarkers==='number'?transcript.compactionMarkers:null;
   const compSuffix=compactions!==null&&compactions>0?` · ${t('contextCompactionSummary',{n:compactions})}`:'';
   $('strip-context').textContent=hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—';
@@ -1192,11 +1192,11 @@ function render() {
   if(roundsPill){
     hidden('context-rounds-pill',roundCount===null);
     if(roundCount!==null){
-      const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
+      const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:smallCount(roundCount),steps:smallCount(stepCount)}):t('contextTurnsCount',{n:smallCount(roundCount)});
       text('context-rounds-pill-text',baseText);
       if(roundsPill.disabled!==!canExpandSteps)roundsPill.disabled=!canExpandSteps;
       setAttr(roundsPill,'aria-expanded',String(canExpandSteps&&stepsDrawerOpen));
-      setTip(roundsPill,stepCount!==null?`${t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:count(roundCount)}));
+      setTip(roundsPill,stepCount!==null?`${t('contextTurnsTitle',{rounds:smallCount(roundCount),steps:smallCount(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:smallCount(roundCount)}));
     }else{
       if(!roundsPill.disabled)roundsPill.disabled=true;
       setAttr(roundsPill,'aria-expanded','false');
@@ -1238,18 +1238,18 @@ function render() {
       if(stepsDrawer.dataset.signature!==drawerSig){
         stepsDrawer.dataset.signature=drawerSig;
         const head=mkEl('div','steps-drawer-head');
-        head.append(mkEl('span','',t('stepBreakdownTitle',{n:count(sbTotal)})),mkEl('span','steps-drawer-sub',t('contextTurnsCount',{n:count(roundCount)})));
+        head.append(mkEl('span','',t('stepBreakdownTitle',{n:smallCount(sbTotal)})),mkEl('span','steps-drawer-sub',t('contextTurnsCount',{n:smallCount(roundCount)})));
         const bar=mkEl('div','steps-bar');
         const chips=mkEl('div','steps-chips');
         for(const b of stepBuckets){
           const pct=((b.count/sbTotal)*100).toFixed(1);
           const seg=mkEl('i',`steps-seg-${b.key}`);
           seg.style.width=`${pct}%`;
-          seg.title=`${b.label}: ${count(b.count)} (${pct}%)`;
+          seg.title=`${b.label}: ${smallCount(b.count)} (${pct}%)`;
           bar.append(seg);
           const chip=mkEl('span','steps-chip');
           chip.title=seg.title;
-          chip.append(mkEl('i',`steps-dot steps-seg-${b.key}`),mkEl('span','',b.label),mkEl('strong','',count(b.count)));
+          chip.append(mkEl('i',`steps-dot steps-seg-${b.key}`),mkEl('span','',b.label),mkEl('strong','',smallCount(b.count)));
           chips.append(chip);
         }
         stepsDrawer.replaceChildren(head,bar,chips);
