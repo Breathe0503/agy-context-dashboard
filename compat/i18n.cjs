@@ -59,6 +59,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       contextBreakdown:'Context & tool breakdown',breakdownUser:'User',breakdownReply:'Reply',breakdownThinking:'Thinking',breakdownTools:'Tool results',breakdownToolCalls:'Tool args',breakdownSystem:'System',
       topTools:'Heavy tool calls',bloatBadge:'{n} bloat',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'Single payload >= 20K (critical >= 50K)',
       hostUiLocalization:'Host UI Chinese',hostUiLocalizationHint:'Translate Antigravity desktop UI labels into Simplified Chinese (restart-free)',hostUiLocalizationOn:'On',hostUiLocalizationOff:'Off',hostUiLocalizationSaveFailed:'Host localization setting could not be saved. Try again.',hostUiLocalizationEnableAction:'Enable Host UI Chinese',hostUiLocalizationDisableAction:'Disable Host UI Chinese',
+      inlineCacheHit:'Inline cache hit',inlineCacheHitOn:'On',inlineCacheHitOff:'Off',inlineCacheHitSaveFailed:'Display setting could not be saved. Try again.',
       taskSwarm:'Swarm ({n} members)',swarmDetails:'Swarm & models',swarmRoster:'Swarm roster',swarmShowAll:'Show all {n}',swarmShowLess:'Collapse',swarmStatusKilled:'Ended',swarmStatusActive:'Active',swarmStatusAll:'All',
       orchSplitTitle:'Orchestrator split',orchCardTitle:'Orchestrator · Single-session split',orchScopeHint:'Same session · Planner switches to Executor',orchSwitchCount:'{n}× switch',orchReadOnlyTag:'Plan only',swarmScopeHint:'Multi-session team · Independent worker chats',orchRolePlanner:'Planner',orchRoleExecutor:'Executor',orchConfiguredPair:'Configured: {planner} → {executor}',orchNoSwitchYet:'Read-only turn · no switch yet',orchColdStartNote:'{n}× switch cache cold-start',orchColdStartLabel:'Switch cold-starts',orchColdStartTip:'First request after switching to Executor had 0 cached tokens (different models do not share KV cache)',cacheMissSurgeLabel:'Large cache-miss surge',cacheMissSurgeTip:'Requests with 0 cached tokens and >= 100K uncached input (e.g. after compaction, model switch, or cache expiry)',reqCountShort:'{n} req',countTimes:'{n}×',
       insightsProjectsSubtotal:'{n} projects · {tokens} toks',insightsSkillsSubtotal:'{n} skills · {runs} runs',insightsToolsSubtotal:'{n} tools · {calls} calls',insightsCommandsSubtotal:'{n} cmds · {runs} runs',insightsUnitSessions:'{n} sess',insightsUnitRuns:'{n} runs',insightsUnitCalls:'{n} calls',
@@ -119,6 +120,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       contextBreakdown:'上下文与工具构成',breakdownUser:'用户',breakdownReply:'回复',breakdownThinking:'思考',breakdownTools:'工具返回',breakdownToolCalls:'工具入参',breakdownSystem:'系统',
       topTools:'高占用工具',bloatBadge:'{n} 项膨胀',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'单次负载 ≥ 20K（严重 ≥ 50K）',
       hostUiLocalization:'宿主界面汉化',hostUiLocalizationHint:'将 Antigravity 宿主界面菜单与按钮汉化为简体中文（热切换无需重启）',hostUiLocalizationOn:'开启',hostUiLocalizationOff:'关闭',hostUiLocalizationSaveFailed:'宿主汉化设置暂时无法保存，请重试。',hostUiLocalizationEnableAction:'开启宿主界面汉化',hostUiLocalizationDisableAction:'关闭宿主界面汉化',
+      inlineCacheHit:'底栏显示命中率',inlineCacheHitOn:'开启',inlineCacheHitOff:'关闭',inlineCacheHitSaveFailed:'显示设置暂时无法保存，请重试。',
       taskSwarm:'Swarm（{n} 成员）',swarmDetails:'Swarm 协同与模型',swarmRoster:'Swarm 成员',swarmShowAll:'展开全部 {n} 个',swarmShowLess:'收起',swarmStatusKilled:'已结束',swarmStatusActive:'活跃',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/执行分工',orchCardTitle:'Orchestrator · 单会话双模型',orchScopeHint:'同一会话内 · 规划与执行切模型',orchSwitchCount:'切换 {n} 次',orchReadOnlyTag:'仅规划',swarmScopeHint:'多会话并行团队 · 主协调与各成员独立对话',orchRolePlanner:'主调度',orchRoleExecutor:'干活执行',orchConfiguredPair:'已配组合：{planner} → {executor}',orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',orchColdStartNote:'切模型冷缓存 {n} 次',orchColdStartLabel:'切模型冷缓存',orchColdStartTip:'切到执行模型后首步缓存读为 0（不同模型不共享 KV 缓存，需重新计算上下文）',cacheMissSurgeLabel:'大额冷缓存',cacheMissSurgeTip:'单次请求缓存读为 0 且未缓存输入 ≥ 100K 的次数与累计量（常见于压缩、切模型或缓存过期后重算）',reqCountShort:'{n} 次请求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 命令 · {runs} 次',insightsUnitSessions:'{n} 会话',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
@@ -179,6 +181,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       contextBreakdown:'上下文與工具組成',breakdownUser:'使用者',breakdownReply:'回覆',breakdownThinking:'思考',breakdownTools:'工具回傳',breakdownToolCalls:'工具參數',breakdownSystem:'系統',
       topTools:'高佔用工具',bloatBadge:'{n} 項膨脹',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'單次負載 ≥ 20K（嚴重 ≥ 50K）',
       hostUiLocalization:'宿主介面漢化',hostUiLocalizationHint:'將 Antigravity 宿主介面選單與按鈕翻譯為簡體中文（熱切換無需重啟）',hostUiLocalizationOn:'開啟',hostUiLocalizationOff:'關閉',hostUiLocalizationSaveFailed:'宿主漢化設定暫時無法儲存，請重試。',hostUiLocalizationEnableAction:'開啟宿主介面漢化',hostUiLocalizationDisableAction:'關閉宿主介面漢化',
+      inlineCacheHit:'底欄顯示命中率',inlineCacheHitOn:'開啟',inlineCacheHitOff:'關閉',inlineCacheHitSaveFailed:'顯示設定暫時無法儲存，請再試一次。',
       taskSwarm:'Swarm（{n} 成員）',swarmDetails:'Swarm 協同與模型',swarmRoster:'Swarm 成員',swarmShowAll:'展開全部 {n} 個',swarmShowLess:'收合',swarmStatusKilled:'已結束',swarmStatusActive:'活躍',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/執行分工',orchCardTitle:'Orchestrator · 單工作階段雙模型',orchScopeHint:'同一工作階段內 · 規劃與執行切模型',orchSwitchCount:'切換 {n} 次',orchReadOnlyTag:'僅規劃',swarmScopeHint:'多工作階段並行團隊 · 主協調與各成員獨立對話',orchRolePlanner:'主調度',orchRoleExecutor:'執行模型',orchConfiguredPair:'已配組合：{planner} → {executor}',orchNoSwitchYet:'僅規劃/只讀 · 尚未切執行模型',orchColdStartNote:'切模型冷快取 {n} 次',orchColdStartLabel:'切模型冷快取',orchColdStartTip:'切至執行模型後首步快取讀為 0（不同模型不共用 KV 快取，需重新計算上下文）',cacheMissSurgeLabel:'大額冷快取',cacheMissSurgeTip:'單次請求快取讀為 0 且未快取輸入 ≥ 100K 的次數與累計量（常見於壓縮、切模型或快取過期後重算）',reqCountShort:'{n} 次請求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 專案 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 指令 · {runs} 次',insightsUnitSessions:'{n} 工作階段',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
@@ -337,10 +340,12 @@ module.exports = function createDashboardI18n(initialLanguage) {
   const USAGE_SCOPES=['local','account'];
   const QUOTA_DISPLAYS=['both','auto','compact'];
   const HOST_UI_LOCALIZATIONS=[false,true];
+  const INLINE_CACHE_HITS=[false,true];
   function normalizeSpeedStyle(value){return SPEED_STYLES.includes(value)?value:'minimal';}
   function normalizeUsageScope(value){return USAGE_SCOPES.includes(value)?value:'local';}
   function normalizeQuotaDisplay(value){return QUOTA_DISPLAYS.includes(value)?value:'both';}
   function normalizeHostUiLocalization(value){return value===true;}
+  function normalizeInlineCacheHit(value){return value!==false;}
   function connectSpeedStyle(options){
     const ctrl=connectChoicePreference({key:'speedStyle',allowed:SPEED_STYLES,fallback:'minimal',...options});
     return {sync:ctrl.sync,choose:ctrl.choose,get style(){return ctrl.value;},get error(){return ctrl.error;},dispose:ctrl.dispose};
@@ -356,6 +361,10 @@ module.exports = function createDashboardI18n(initialLanguage) {
   function connectHostUiLocalization(options){
     const ctrl=connectChoicePreference({key:'hostUiLocalization',allowed:HOST_UI_LOCALIZATIONS,fallback:false,...options});
     return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value===true;},get error(){return ctrl.error;},dispose:ctrl.dispose};
+  }
+  function connectInlineCacheHit(options){
+    const ctrl=connectChoicePreference({key:'inlineCacheHit',allowed:INLINE_CACHE_HITS,fallback:true,...options});
+    return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value!==false;},get error(){return ctrl.error;},dispose:ctrl.dispose};
   }
   const BAR_CARDS=['speed','cache','quota','context'];
   const CONTEXT_CHIP_MODES=['rounds','label','compact'];
@@ -619,5 +628,5 @@ module.exports = function createDashboardI18n(initialLanguage) {
     if(mode==='compact'&&show){const other=show==='5h'?wv:fv;if(other!==null&&other<=0.25)dot=other<=0.10?'danger':'warn';}
     return {five,week,min,show,arcValue,level,dot};
   }
-  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
+  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeInlineCacheHit,connectInlineCacheHit,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
 };
