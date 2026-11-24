@@ -16,6 +16,13 @@
 | [antigravity-cn-community/Antigravity-Chinese-Localization](https://github.com/antigravity-cn-community/Antigravity-Chinese-Localization) | Antigravity 一键深度汉化包（MIT） | **宿主汉化补充来源**（合并设置、账号与远程短语） |
 | [ruxiayu/antigravity-zh-cn](https://github.com/ruxiayu/antigravity-zh-cn) | Antigravity 简体中文动态 DOM 引擎（MIT） | **宿主汉化机制与限定词来源**（`scoped` 词表 + 分裂节点匹配） |
 | [farion1231/cc-switch](https://github.com/farion1231/cc-switch) | 跨工具 AI CLI / 桌面配置与请求日志助手（Tauri） | **统计口径对照标杆**（对齐 `agy` 缓存命中率定义与列表呈现） |
+| [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism) | Zero-ASAR CDP 多模块融合套件（GPL-3.0-only） | **同路线参考项目**（CDP Channel 4、多插件自动礼让与上游整合） |
+| [0DNANCY/agy-claude-style](https://github.com/0DNANCY/agy-claude-style) | Antigravity 主题与交互增强（MIT） | **界面与动效参考**（配色、弹簧动画、WebGL2 波纹、像素宠物与打包器） |
+| [LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider](https://github.com/LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider) | 模型菜单推理等级滑块（MIT） | **交互组件参考**（推理等级滑块与智能共存让位） |
+| [Nwflower/dsh-claude-style](https://github.com/Nwflower/dsh-claude-style) | DSH 极简主题样式 | **DSH 视觉参考**（Studio 极简排版、输入框边框与暖白浅色配色） |
+| [Microqian2th/dsh-codex-effort-slider](https://github.com/Microqian2th/dsh-codex-effort-slider) | DSH 推理等级滑块 | **DSH 交互参考**（轨道刻度分档、迟滞吸附与阻尼运动曲线） |
+| [mobius/dsh-performance-slider](https://github.com/mobius/dsh-performance-slider) | DSH 性能档位滑块 | **DSH 交互参考**（性能档位滑块交互与实时反馈设计） |
+| [claudenoshujin/claude-web](https://github.com/claudenoshujin/claude-web) | Web 端桌面宠物交互（by lulu） | **交互参考**（桌面宠物堆叠交互设计） |
 
 ## 分项笔记
 
@@ -66,6 +73,24 @@ CDP 实时注入的 Codex 风格主题 + 1,900 条汉化 + 轻量会话统计，
 
 - **同一 Antigravity 缓存命中率口径**：对齐 `input_token_semantics = 2`（`input_tokens` 仅统计新增未缓存输入、与 `cache_read_input_tokens` 互斥，`cache_creation_tokens = 0`），双方公式均为 `cache_read / (input + cache_creation + cache_read)`，实机同会话与同日聚合误差 `< 0.02%`。
 - **明细展示与告警清洗**：参考其请求日志并列「新增输入 / 输出 / 缓存命中」的直观阅读结构，为「按模型用量」表新增 **缓存命中率** 列（`9690577`），并在浮卡与侧栏蓝色胶囊添加显式 **`缓存命中率：` / `Cache hit rate:`** 前缀标识（`958e842`），同时消除 `sidecars/panel/usage.mjs` 对完整非 allowlist 模型记录误标 `partial: true` 的假警告。
+
+### RMvdesi/obsidian-prism 及其上游生态
+
+`obsidian-prism` 采用 Zero-ASAR 纯 CDP Channel 4 按需通道，整合了本仓上游 `ATtacK030130/antigrative-dashboard`（`v0.9.1`，置于 `vendor/pulse-dashboard/`）、`yiheng8023/antigravity-chinese`（`v3.3.19`，置于 `vendor/host-i18n/` 并新增四层未知插件通用自动礼让、防死循环熔断与 `WeakMap` 无损还原）以及下列 UI 与交互组件（完整第三方声明见其 [THIRD_PARTY_NOTICES.md](https://github.com/RMvdesi/obsidian-prism/blob/main/THIRD_PARTY_NOTICES.md)）：
+
+- **[0DNANCY/agy-claude-style](https://github.com/0DNANCY/agy-claude-style)**（MIT）：基础配色框架、弹簧动画底座、WebGL2 地平线/字符波纹矩阵、像素宠物底座与打包器雏形。
+- **[LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider](https://github.com/LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider)**（MIT）：模型菜单推理等级滑块与智能共存让位。
+- **[claudenoshujin/claude-web](https://github.com/claudenoshujin/claude-web)**（by lulu）：桌面宠物堆叠交互设计参考（`obsidian-prism` 中物理逻辑为净室独立实现）。
+
+**参考点与协议边界**：其「CDP Channel 4 按需通道」与「四层未知插件通用自动礼让」机制可与本仓多插件共存架构互相对照；`obsidian-prism` 主仓采用 **GPL-3.0-only**，本仓为 MIT 协议，不直接合入其 GPL 代码，仅参考思路或回溯对应 MIT 上游原仓。
+
+### DSH 生态：样式与滑块交互补充
+
+除 `bowenliang123/dsh-context` 外，DSH 生态中以下组件可作为前端质感与滑块交互的独立参考：
+
+- **[Nwflower/dsh-claude-style](https://github.com/Nwflower/dsh-claude-style)**：Studio 极简排版、输入框边框结构与暖白浅色配色参考。
+- **[Microqian2th/dsh-codex-effort-slider](https://github.com/Microqian2th/dsh-codex-effort-slider)**：轨道刻度分档、迟滞吸附与阻尼运动曲线参考。
+- **[mobius/dsh-performance-slider](https://github.com/mobius/dsh-performance-slider)**：性能档位滑块交互与实时反馈设计参考。
 
 ## 维护说明
 
