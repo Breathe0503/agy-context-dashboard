@@ -235,10 +235,11 @@ First installation, plugin code updates, and uninstall require a full app restar
 
 ### Remote SSH Window Support
 
-In Antigravity Desktop 2.33+ Remote SSH windows, conversations execute on the remote headless host (`antigravity-hub-server`) while the Electron UI renders locally. The plugin supports both modes out of the box:
+In Antigravity Desktop 2.33+ Remote SSH windows, conversations execute on the remote headless host (`antigravity-hub-server`) while the Electron UI renders locally. The plugin provides **zero-config live sync, automatic graceful fallback, and optional loopback forwarding**:
 
-- **Graceful fallback (zero config)**: Remote SSH windows are detected automatically. When no remote bridge is configured or the tunnel is unreachable, the inline bar hides unavailable local speed / token / context placeholders, keeps the **shared account quota** visible, migrates host localization and language controls to the quota popover, and directs you to the right sidebar panel for full remote session stats.
-- **Optional loopback forwarding (full remote metrics in the inline bar)**: Strictly loopback-only (`127.0.0.1`) across Windows, macOS, and Linux:
+- **Zero-config live metrics (default)**: Automatically detects Remote SSH windows and projects sanitized numeric/timing/context telemetry directly from the window's built-in Connect-RPC client (stripping all prompt and message text in-renderer). Live `tok/s`, tokens, cache hit rate, 8-category context composition, and shared quota appear without installing anything on the remote host or editing SSH configs.
+- **Automatic graceful fallback**: If remote trajectory telemetry is unavailable, the inline bar hides unavailable local speed / token / context placeholders, keeps the **shared account quota** visible, migrates host localization and language controls to the quota popover, and directs you to the right sidebar panel. On remote headless Linux hosts themselves, the sidecar also detects `remote-hub` environments automatically and skips futile desktop debug-port polling.
+- **Optional loopback forwarding (advanced bridge)**: Strictly loopback-only (`127.0.0.1`) across Windows, macOS, and Linux:
   1. **Remote Linux host**: Install in panel-only mode with an optional loopback bridge port (binds strictly to remote `127.0.0.1`):
      ```bash
      python3 manage.py install --panel-only --remote-bridge-port 17891
@@ -255,7 +256,7 @@ In Antigravity Desktop 2.33+ Remote SSH windows, conversations execute on the re
      python3 manage.py set-remote-endpoint user@your-host 17891
      # Remove mapping: python3 manage.py remove-remote-endpoint user@your-host
      ```
-  After reconnecting the SSH window, the composer bar displays live remote `tok/s`, tokens, cache, and context usage with an `SSH · <host>` badge in the context card, and seamlessly falls back to shared-quota mode whenever the tunnel is down.
+  When connected, the context card displays an `SSH · <host>` badge, and falls back to renderer RPC or shared-quota mode whenever the tunnel is down.
 
 The stable internal plugin ID remains `antigravity-pulse` for compatibility with earlier installations. The public project name is **Antigrative Dashboard**.
 

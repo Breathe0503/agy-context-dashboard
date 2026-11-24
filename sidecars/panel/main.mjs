@@ -11,7 +11,7 @@ import { trajectoryMetrics } from './metrics.mjs';
 import { compositionMetrics } from './composition.mjs';
 import { loadSidecarSdk } from './sdk.mjs';
 import { RuntimeUi, makeRendererSource } from '../../compat/runtime-ui.mjs';
-import { agentExecutables, platformPaths } from '../../compat/platform.mjs';
+import { agentExecutables, isRemoteHeadlessHost, platformPaths } from '../../compat/platform.mjs';
 import { inspectHostArchive, inspectDesktopLaunch, ensureDesktopLaunchConfig } from '../../compat/launch-config.mjs';
 import { PreferencesStore } from '../../compat/preferences.mjs';
 import { SidecarOwner } from '../../compat/sidecar-owner.mjs';
@@ -242,8 +242,17 @@ const integration = new RuntimeUi({
   onTargets: () => { missingPortTicks = 0; },
   diagnoseError: async error => {
     if (error?.code !== 'ENOENT') { missingPortTicks = 0; return null; }
+    const hostResources = resolveHostResources();
+    if (isRemoteHeadlessHost({ server: store.client?.server, hasLocalHostApp: Boolean(hostResources) })) {
+      missingPortTicks = 0;
+      return {
+        state: 'unavailable',
+        reason: 'remote-hub',
+        message: 'Running in a remote SSH/WSL hub; the inline composer widget requires a local desktop renderer, while the side panel remains available.',
+      };
+    }
     missingPortTicks++;
-    const host = await inspectHostArchive(resolveHostResources());
+    const host = await inspectHostArchive(hostResources);
     const launch = await syncLaunchConfig();
     if (host.requiresDebugFlag || (missingPortTicks >= 2 && store.serverPid)) {
       const configured = Boolean(launch?.configured);
@@ -281,7 +290,9 @@ const relaunchHost = async reason => {
 if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   const { SidecarApp, Response } = await loadSidecarSdk();
   if(!await ownership.claim())process.exit(0);
-  void syncLaunchConfig(true).catch(() => {});
+  if (!isRemoteHeadlessHost({ server: store.client?.server, hasLocalHostApp: Boolean(resolveHostResources()) })) {
+    void syncLaunchConfig(true).catch(() => {});
+  }
   const app = new SidecarApp();
   for (const [path, [file, type]] of Object.entries(staticFiles)) app.api(path, () => new Response(path==='/'?panelPageSource():readFileSync(join(HERE, file), 'utf8'), { contentType: type,headers:{'Cache-Control':'no-store'} }), 'GET');
   app.page('/app.js',()=>new Response(panelAppSource(),{contentType:'application/javascript',headers:{'Cache-Control':'no-store'}}));

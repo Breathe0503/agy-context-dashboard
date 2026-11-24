@@ -32,7 +32,7 @@ async function entryFixture(host,url,selection=false){
     'sdk.mjs':{loadSidecarSdk:async()=>({SidecarApp:App,Response:FakeResponse})},
     'runtime-ui.mjs':{RuntimeUi:Ui,makeRendererSource:()=>''},
     'discovery.mjs':{},
-    'platform.mjs':{agentExecutables:()=>[],platformPaths:()=>({data:'fixture',settings:'settings.json'})},
+    'platform.mjs':{agentExecutables:()=>[],isRemoteHeadlessHost:()=>false,platformPaths:()=>({data:'fixture',settings:'settings.json'})},
     'launch-config.mjs':{ensureDesktopLaunchConfig:async()=>({configured:false,supported:false,entrypoints:[]}),inspectDesktopLaunch:async()=>({configured:false,supported:false,entrypoints:[]}),inspectHostArchive:async()=>({version:'2.33.0',requiresDebugFlag:true})},
     'preferences.mjs':{PreferencesStore:class{async snapshot(){return state.prefs;}async set(v){state.prefs={...state.prefs,...v};return state.prefs;}}},
     'debug-relaunch.mjs':{scheduleHostRelaunch:async input=>{state.relaunchCalls.push(input);return {scheduled:true,reason:input.reason};}},

@@ -227,10 +227,11 @@ python manage.py install --with-launcher
 
 ### Remote SSH 远程窗口支持
 
-在 Antigravity Desktop 2.33+ 的 Remote SSH 窗口中，对话运行在远程无头服务器（`antigravity-hub-server`），而桌面界面渲染在本机客户端。本插件同时支持两种模式：
+在 Antigravity Desktop 2.33+ 的 Remote SSH 窗口中，对话运行在远程无头服务器（`antigravity-hub-server`），而桌面界面渲染在本机客户端。本插件现已支持**开箱即用零配置直连 + 自动降级 + 可选回环桥接**：
 
-- **默认优雅降级（零配置）**：自动识别 Remote SSH 窗口；未配置远程转发或隧道不可达时，底栏自动隐藏无法从本机获取的速度 / Token / 上下文占位图标，仅保留**共享账号额度**并将宿主汉化与语言设置迁移至额度浮卡，同时提示在右侧辅助栏查看远程会话详情。
-- **可选回环转发（底栏同步完整远程数据）**：所有通信严格限定在 `127.0.0.1` 回环内，支持 Windows / macOS / Linux：
+- **零配置直连实时数据（默认）**：自动识别 Remote SSH 窗口并直接通过当前窗口内置的 Connect-RPC 客户端读取远程会话数值指标（在渲染层剥离全部正文内容），无需在远程安装插件或修改 SSH 配置即可显示远程 `tok/s`、Token、缓存、8 分类上下文与共享账号额度。
+- **自动优雅降级**：当远程轨迹暂不可达时，底栏自动隐藏无法从本机获取的速度 / Token / 上下文占位图标，仅保留**共享账号额度**并将宿主汉化与语言设置迁移至额度浮卡，同时提示在右侧辅助栏查看远程会话详情；在无头远程 Linux 宿主上运行插件时亦会自动识别 `remote-hub` 环境并跳过本地调试端口探测。
+- **可选回环转发（高级兜底通道）**：如需将远端侧栏统计直接跨 SSH 隧道转发至本地，所有通信严格限定在 `127.0.0.1` 回环内，支持 Windows / macOS / Linux：
   1. **远程 Linux 端**：安装纯侧栏模式并开启回环桥接端口（仅监听远程 `127.0.0.1`）：
      ```bash
      python3 manage.py install --panel-only --remote-bridge-port 17891
@@ -247,7 +248,7 @@ python manage.py install --with-launcher
      python3 manage.py set-remote-endpoint user@your-host 17891
      # 移除映射：python3 manage.py remove-remote-endpoint user@your-host
      ```
-  重新连接 SSH 窗口后，远程窗口输入框底栏即可实时展示远程会话的 `tok/s`、Token、缓存与上下文占比，并在上下文卡顶部显示 `SSH · <host>` 标识；隧道断开时自动无损回退到共享额度降级模式。
+  连通后，上下文卡顶部显示 `SSH · <host>` 标识；隧道断开时自动尝试渲染层直连或无损回退到共享额度降级模式。
 
 ## 上下文窗口
 

@@ -446,10 +446,12 @@ export class RuntimeUi {
         if(v&&v.length<=240&&!/[;{}<>\\/\n\r\0]|url\s*\(|var\s*\(|expression\s*\(|javascript:|@import/i.test(v))this.rendererTheme[k]=v;
       }
       const mounted=[...this.sessions.values()].some(c=>c.mounted);
+      this.nextTickAt=0;
       await this.setHealth(mounted ? 'mounted' : this.sessions.size ? 'waiting-for-composer' : 'waiting',
         mounted ? 'Dashboard attached to the conversation composer' : this.sessions.size ? 'Renderer connected; waiting for a conversation composer if needed' : 'Waiting for the app renderer');
     } catch (error) {
       const missingDebugPort = error?.code === 'ENOENT';
+      let state = 'reconnecting';
       let message = missingDebugPort
         ? 'Antigravity debug port unavailable; relaunch with remote debugging enabled or use the side panel.'
         : 'Inline connection unavailable; the side panel remains available. Retrying automatically.';
@@ -458,13 +460,15 @@ export class RuntimeUi {
         try {
           const detail = await this.diagnoseError(error);
           if (detail && typeof detail === 'object') {
+            if (typeof detail.state === 'string' && detail.state) state = detail.state;
             if (typeof detail.message === 'string' && detail.message) message = detail.message;
             extra = detail;
           }
         } catch {}
       }
-      await this.setHealth('reconnecting', message, extra);
-      if ((missingDebugPort || extra?.reason === 'missing-debug-port' || extra?.reason === 'debug-port-disabled') && !this.stopping && await this.owns()) {
+      this.nextTickAt = state === 'unavailable' ? Date.now() + Math.max(this.interval, 60000) : 0;
+      await this.setHealth(state, message, extra);
+      if ((missingDebugPort || extra?.reason === 'missing-debug-port' || extra?.reason === 'debug-port-disabled') && state !== 'unavailable' && !this.stopping && await this.owns()) {
         try { await this.onMissingDebugPort?.(extra); } catch { /* Missing-port callback must not crash collection. */ }
       }
     }
@@ -489,8 +493,8 @@ export class RuntimeUi {
     this.sessions.clear();this.rendererTheme={};
   }
   start() {
-    if (this.running) return; this.running = true; this.stopping = false;
-    void this.tick(); this.timer = setInterval(() => { void this.tick(); }, this.interval); this.timer.unref?.();
+    if (this.running) return; this.running = true; this.stopping = false; this.nextTickAt = 0;
+    void this.tick(); this.timer = setInterval(() => { if (this.nextTickAt && Date.now() < this.nextTickAt) return; void this.tick(); }, this.interval); this.timer.unref?.();
   }
   async stop() { this.running = false; this.stopping = true; clearInterval(this.timer); await this.detachAll(); }
 }
