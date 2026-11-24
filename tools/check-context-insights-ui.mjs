@@ -345,10 +345,14 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/insights') {
     const status = url.searchParams.get('status') || 'all';
     const sort = url.searchParams.get('sort') || 'recent';
-    calls.insights.push({ status, sort });
-    const filtered = status === 'archived' ? insightsPayload.sessions.filter(s => s.archived) : insightsPayload.sessions;
+    const date = url.searchParams.get('date') || '';
+    calls.insights.push({ status, sort, date });
+    let filtered = status === 'archived' ? insightsPayload.sessions.filter(s => s.archived) : insightsPayload.sessions;
+    if (date) filtered = filtered.filter(s => Array.isArray(s.activeDates) && s.activeDates.includes(date));
+    const total = sort === 'cost' && !date ? 201 : filtered.length;
+    const rows = sort === 'cost' && !date ? filtered.slice(0, 1) : filtered;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ ...insightsPayload, sessions: filtered, totalMatchingSessions: filtered.length }));
+    res.end(JSON.stringify({ ...insightsPayload, sessions: rows, totalMatchingSessions: total }));
     return;
   }
   res.writeHead(404); res.end();
@@ -545,7 +549,7 @@ try {
       maxDiff,
       minW,
       meta: document.getElementById('insights-heatmap-meta')?.textContent || '',
-      months: [...document.querySelectorAll('#insights-heatmap-months span')].map(s => s.textContent),
+      months: [...document.querySelectorAll('#insights-heatmap-months span')].map(s => [s.textContent, s.style.gridColumn]),
       weekdays: [...document.querySelectorAll('#insights-heatmap-weekdays span')].map(s => s.textContent).filter(Boolean),
     };
   });
@@ -555,6 +559,7 @@ try {
   assert.match(hmGeometry.meta, /Streak 3d/);
   assert.match(hmGeometry.meta, /180K tok/);
   assert.ok(hmGeometry.months.length >= 2);
+  assert.equal(hmGeometry.months.find(([m]) => m === 'Sep')?.[1], '5');
   assert.deepEqual(hmGeometry.weekdays, ['M', 'W', 'F']);
 
   const targetCell = page.locator('#insights-heatmap-grid button.heatmap-cell[data-date="2026-11-22"]');
@@ -562,6 +567,26 @@ try {
   await page.locator('#insights-heatmap-tip').waitFor({ state: 'visible' });
   assert.match(await page.locator('#insights-heatmap-tip').textContent(), /2026-11-22.*180K tok/);
   await page.mouse.move(10, 10);
+  await targetCell.focus();
+  await page.locator('#insights-heatmap-tip').waitFor({ state: 'visible' });
+  await page.setViewportSize({ width: 280, height: 700 });
+  await page.waitForFunction(() => {
+    const tip = document.getElementById('insights-heatmap-tip');
+    if (!tip || tip.hidden) return true;
+    const r = tip.getBoundingClientRect();
+    return r.left >= 8 && r.right <= window.innerWidth;
+  }, undefined, { timeout: 2000 });
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await targetCell.focus();
+  await page.locator('#insights-heatmap-tip').waitFor({ state: 'visible' });
+  const tipBoxNarrow = await page.locator('#insights-heatmap-tip').evaluate(e => {
+    const r = e.getBoundingClientRect();
+    return { hidden: e.hidden, left: r.left, right: r.right, iw: window.innerWidth };
+  });
+  assert.equal(tipBoxNarrow.hidden, false);
+  assert.ok(tipBoxNarrow.left >= 8 && tipBoxNarrow.right <= tipBoxNarrow.iw, `Tooltip must stay in viewport: ${JSON.stringify(tipBoxNarrow)}`);
+  await page.setViewportSize({ width: 460, height: 700 });
+  await page.evaluate(() => document.activeElement?.blur?.());
   await targetCell.click();
   assert.equal(await targetCell.getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#insights-date-filter').isVisible(), true);
@@ -569,6 +594,19 @@ try {
   assert.match(await page.locator('#insights-sessions-list .session-row').first().textContent(), /Session Alpha/);
   await page.locator('#insights-date-filter').click();
   assert.equal(await page.locator('#insights-date-filter').isVisible(), false);
+  assert.equal(await page.locator('#insights-sessions-list .session-row').count(), 2);
+
+  // Verify pre-truncation (>200) date filter re-queries server with date parameter
+  await page.locator('#insights-sort').selectOption('cost');
+  await page.locator('#insights-sessions-title').filter({ hasText: '201' }).waitFor();
+  assert.equal(await page.locator('#insights-sessions-list .session-row').count(), 1);
+  await page.locator('#insights-heatmap-grid button.heatmap-cell[data-date="2026-11-20"]').click();
+  await page.locator('#insights-sessions-list .session-row').filter({ hasText: 'Session Beta' }).waitFor();
+  assert.equal(calls.insights.at(-1)?.date, '2026-11-20');
+  await page.locator('#insights-date-filter').click();
+  await page.locator('#insights-sessions-title').filter({ hasText: '201' }).waitFor();
+  await page.locator('#insights-sort').selectOption('recent');
+  await page.locator('#insights-sessions-title').filter({ hasText: 'Sessions (2)' }).waitFor();
   assert.equal(await page.locator('#insights-sessions-list .session-row').count(), 2);
 
   await page.locator('#insights-status-filter').selectOption('archived');

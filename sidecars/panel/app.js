@@ -36,7 +36,7 @@ const expandedDrilldownGroups=new Set(['Rules']);
 const expandedDrilldownMore=new Set();
 const expandedMcpServers=new Set();
 let auditOpen=false,auditTab='files',auditStepFilter='all',auditData=null,auditConvId=null,auditLoading=false,auditError=null,highlightedStepIndex=null;
-let insightsData=null,insightsLoading=false,insightsError=null,heatmapMetric='sessions',selectedHeatmapDate=null,insightsSearchTimer=null;
+let insightsData=null,insightsLoading=false,insightsError=null,heatmapMetric='sessions',selectedHeatmapDate=null,insightsLoadedDate=null,insightsSearchTimer=null;
 let refreshRequest=null,manualRequest=null;
 let relaunchBusy=false,relaunchStatusKey='',autoRelaunchState={busy:false,error:false,revision:-1,value:true};
 const host = window.sidecar;
@@ -897,16 +897,21 @@ async function loadInsights(force = false) {
   insightsLoading = true; insightsError = null;
   renderInsightsView();
   try {
+    const requestedDate = selectedHeatmapDate || '';
     const params = new URLSearchParams();
     if (force) params.set('force', '1');
     const statusEl = $('insights-status-filter'), sortEl = $('insights-sort'), searchEl = $('insights-search');
     if (statusEl?.value) params.set('status', statusEl.value);
     if (sortEl?.value) params.set('sort', sortEl.value);
     if (searchEl?.value?.trim()) params.set('query', searchEl.value.trim());
+    if (requestedDate) params.set('date', requestedDate);
     const res = await transportFetch(`/api/insights?${params}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(t('panelUnavailable'));
     const value = await res.json();
-    if (epoch === insightsEpoch) insightsData = value;
+    if (epoch === insightsEpoch) {
+      insightsData = value;
+      insightsLoadedDate = requestedDate || null;
+    }
   } catch (err) {
     if (epoch === insightsEpoch) insightsError = err?.message || t('panelUnavailable');
   } finally {
@@ -960,23 +965,20 @@ function parseIsoDay(dateStr) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-let heatmapTipScrollTop = 0;
+let heatmapTipScrollTop = 0, activeHeatmapTipCell = null;
 
 function hideHeatmapTip() {
+  activeHeatmapTipCell = null;
   const tip = $('insights-heatmap-tip');
   if (tip) tip.hidden = true;
 }
 
-function showHeatmapTip(cell, item) {
+function positionHeatmapTip(cell) {
   const tip = $('insights-heatmap-tip');
-  if (!tip || !cell || !item) return;
-  heatmapTipScrollTop = $('insights-view')?.scrollTop ?? 0;
-  tip.textContent = t('insightsHeatmapTip', {
-    date: item.date,
-    sessions: smallCount(item.sessions || 0),
-    tokens: compact(item.tokens || 0),
-  });
-  tip.hidden = false;
+  if (!tip || tip.hidden || !cell?.isConnected || panelView !== 'insights') {
+    hideHeatmapTip();
+    return;
+  }
   const rect = cell.getBoundingClientRect();
   const rTip = tip.getBoundingClientRect();
   const left = Math.max(8, Math.min(window.innerWidth - rTip.width - 8, rect.left + rect.width / 2 - rTip.width / 2));
@@ -984,6 +986,31 @@ function showHeatmapTip(cell, item) {
   const top = above >= 8 ? above : Math.min(window.innerHeight - rTip.height - 8, rect.bottom + 6);
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
+}
+
+function showHeatmapTip(cell, item) {
+  const tip = $('insights-heatmap-tip');
+  if (!tip || !cell || !item) return;
+  activeHeatmapTipCell = cell;
+  heatmapTipScrollTop = $('insights-view')?.scrollTop ?? 0;
+  tip.textContent = t('insightsHeatmapTip', {
+    date: item.date,
+    sessions: smallCount(item.sessions || 0),
+    tokens: compact(item.tokens || 0),
+  });
+  tip.hidden = false;
+  positionHeatmapTip(cell);
+}
+
+function toggleHeatmapDate(nextDate) {
+  selectedHeatmapDate = selectedHeatmapDate === nextDate ? null : nextDate;
+  const total = insightsData?.totalMatchingSessions ?? 0;
+  const loaded = Array.isArray(insightsData?.sessions) ? insightsData.sessions.length : 0;
+  if (insightsLoadedDate || total > loaded) {
+    void loadInsights(false);
+  } else {
+    renderInsightsView();
+  }
 }
 
 function isMonotonicHeatmap(heat) {
@@ -1051,16 +1078,20 @@ function renderInsightsHeatmap(heat) {
       const zhLang = language.language === 'zh-CN' || language.language === 'zh-TW';
       let lastMonth = -1, lastCol = -3;
       for (let c = 0; c < colsCount; c++) {
-        const idx = Math.max(0, c * 7 - firstDow);
-        const item = heat[idx];
-        const parsed = parseIsoDay(item?.date);
-        if (!parsed) continue;
-        const m = parsed.getUTCMonth() + 1;
-        if (m !== lastMonth) {
-          lastMonth = m;
+        let colMonth = -1;
+        for (let r = 0; r < 7; r++) {
+          const item = heat[c * 7 + r - firstDow];
+          const parsed = parseIsoDay(item?.date);
+          if (!parsed) continue;
+          const m = parsed.getUTCMonth() + 1;
+          if (parsed.getUTCDate() === 1) { colMonth = m; break; }
+          if (colMonth === -1) colMonth = m;
+        }
+        if (colMonth !== -1 && colMonth !== lastMonth) {
+          lastMonth = colMonth;
           if (c - lastCol >= 2 && (colsCount < 4 || c <= colsCount - 2)) {
             const sp = document.createElement('span');
-            sp.textContent = zhLang ? `${m}月` : MONTHS_EN[m - 1];
+            sp.textContent = zhLang ? `${colMonth}月` : MONTHS_EN[colMonth - 1];
             sp.style.gridColumn = String(c + 1);
             sp.style.gridRow = '1';
             labels.push(sp);
@@ -1104,10 +1135,7 @@ function renderInsightsHeatmap(heat) {
       cell.addEventListener('pointerleave', hideHeatmapTip);
       cell.addEventListener('focus', () => showHeatmapTip(cell, d));
       cell.addEventListener('blur', hideHeatmapTip);
-      cell.addEventListener('click', () => {
-        selectedHeatmapDate = selectedHeatmapDate === d.date ? null : d.date;
-        renderInsightsView();
-      });
+      cell.addEventListener('click', () => toggleHeatmapDate(d.date));
       col.append(cell);
     }
     cols.push(col);
@@ -1292,9 +1320,7 @@ function renderInsightsView() {
   // Sessions list
   const allSessions = Array.isArray(insightsData.sessions) ? insightsData.sessions : [];
   const sessions = selectedHeatmapDate
-    ? allSessions.filter(s => (Array.isArray(s.activeDates) && s.activeDates.includes(selectedHeatmapDate))
-        || s.date === selectedHeatmapDate
-        || (typeof s.modifiedAt === 'string' && s.modifiedAt.slice(0, 10) === selectedHeatmapDate))
+    ? allSessions.filter(s => Array.isArray(s.activeDates) && s.activeDates.includes(selectedHeatmapDate))
     : allSessions;
   const dateFilterBtn = $('insights-date-filter');
   if (dateFilterBtn) {
@@ -2108,8 +2134,11 @@ $('insights-search')?.addEventListener('input',()=>{
 });
 $('heatmap-metric-sessions')?.addEventListener('click',()=>{heatmapMetric='sessions';renderInsightsView();});
 $('heatmap-metric-tokens')?.addEventListener('click',()=>{heatmapMetric='tokens';renderInsightsView();});
-$('insights-date-filter')?.addEventListener('click',()=>{selectedHeatmapDate=null;renderInsightsView();});
+$('insights-date-filter')?.addEventListener('click',()=>{toggleHeatmapDate(null);});
 $('insights-view')?.addEventListener('scroll',()=>{const cur=$('insights-view')?.scrollTop??0;if(Math.abs(cur-heatmapTipScrollTop)>=2)hideHeatmapTip();},{passive:true});
+const syncHeatmapTipPosition=()=>{if(activeHeatmapTipCell)positionHeatmapTip(activeHeatmapTipCell);};
+window.addEventListener('resize',syncHeatmapTipPosition);
+if(typeof ResizeObserver==='function'&&$('insights-heatmap-grid'))new ResizeObserver(syncHeatmapTipPosition).observe($('insights-heatmap-grid'));
 
 $('quota-group').addEventListener('change', event => { selectedGroup = event.target.value === autoGroupId ? null : event.target.value; render(); });
 $('refresh-button').addEventListener('click', refreshManually);

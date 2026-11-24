@@ -128,7 +128,7 @@ button,select{font:inherit}button{cursor:pointer}button:focus-visible,select:foc
 .heatmap-swatch[data-level="2"]{background:color-mix(in srgb,var(--pulse-accent) 52%,var(--pulse-control));border-color:transparent}
 .heatmap-swatch[data-level="3"]{background:color-mix(in srgb,var(--pulse-accent) 76%,var(--pulse-control));border-color:transparent}
 .heatmap-swatch[data-level="4"]{background:var(--pulse-accent);border-color:transparent}
-.heatmap-tip{position:fixed;z-index:40;pointer-events:none;padding:5px 8px;border:1px solid var(--pulse-border);border-radius:6px;background:var(--pulse-menu);color:var(--pulse-foreground);box-shadow:0 6px 18px var(--pulse-shadow);font-size:10px;line-height:1.35;white-space:nowrap;font-variant-numeric:tabular-nums}
+.heatmap-tip{position:fixed;z-index:40;pointer-events:none;max-width:calc(100vw - 16px);overflow:hidden;text-overflow:ellipsis;padding:5px 8px;border:1px solid var(--pulse-border);border-radius:6px;background:var(--pulse-menu);color:var(--pulse-foreground);box-shadow:0 6px 18px var(--pulse-shadow);font-size:10px;line-height:1.35;white-space:nowrap;font-variant-numeric:tabular-nums}
 .heatmap-tip[hidden]{display:none}
 .insights-dist-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 @container ag-panel (max-width:340px){.insights-dist-grid{grid-template-columns:minmax(0,1fr)}}
