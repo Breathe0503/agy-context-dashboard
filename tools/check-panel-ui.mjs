@@ -63,7 +63,7 @@ try{
   assert.equal(await view.locator('#panel-name').getAttribute('title'),'Antigrative Dashboard v'+releaseVersion);
   await view.locator('#strip-context').filter({hasText:'20%'}).waitFor();
   assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
-  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 turns · 1 steps');
+  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 turns · 1 steps ▾');
   assert.match(await view.locator('#context-rounds-pill').getAttribute('title'),/1 user turns · 1 trajectory steps/);
   assert.ok((await view.locator('#context-tab').getAttribute('title')||'').includes('1 turns'));
   assert.equal(await view.locator('#context-provider-limit,#context-compaction-limit,#context-host-limit,#context-note,#transcript-details').count(),0,'Compact context omits duplicate capacities and diagnostic prose');
@@ -94,7 +94,7 @@ try{
   }
   await view.locator('#language-toggle').click();await view.locator('[data-language-menu] [data-language="zh-CN"]').click();await view.locator('#language-toggle').filter({hasText:'中'}).waitFor();
   assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
-  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 轮 · 1 步');
+  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 轮 · 1 步 ▾');
   assert.match(await view.locator('#context-rounds-pill').getAttribute('title'),/1 轮用户输入 · 1 个轨迹步骤/);
   assert.equal(await view.locator('#strip-context').textContent(),'20%');
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速度','缓存','上下文']);
@@ -104,7 +104,7 @@ try{
   await view.locator('#language-toggle').filter({hasText:'繁'}).waitFor();
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速率','快取','上下文']);
   assert.deepEqual(await frame(),initialFrame);assert.equal(await view.locator('#context-tokens').textContent(),'20K / 100K toks');
-  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 輪 · 1 步');
+  assert.equal(await view.locator('#context-rounds-pill').textContent(),'1 輪 · 1 步 ▾');
   assert.match(await view.locator('#context-rounds-pill').getAttribute('title'),/1 輪使用者輸入 · 1 個軌跡步驟/);
   await view.locator('#language-toggle').click();await page.keyboard.press('Escape');
   assert.equal(await view.locator('[data-language-menu]').evaluate(e=>e.matches(':popover-open')),false);

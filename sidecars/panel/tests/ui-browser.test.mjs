@@ -633,14 +633,22 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await waitUntil(`() => (document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('week-usage').getAttribute('title') || '').includes('129.9M toks (約 216.2M 滿額)')`, 'zh-TW quota window label');
   const inlineRoundsTw = await evalJs(`() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.getElementById('context-rounds-pill')?.click();
+    const drawerOpen = sr.getElementById('context-steps-drawer')?.hidden === false;
+    const chipCount = sr.querySelectorAll('#context-steps-drawer .steps-chip').length;
+    sr.getElementById('context-rounds-pill')?.click();
+    const drawerClosed = sr.getElementById('context-steps-drawer')?.hidden === true;
     return {
       chip: sr.getElementById('context-rounds')?.textContent,
       pill: sr.getElementById('context-rounds-pill')?.textContent,
       pillTitle: sr.getElementById('context-rounds-pill')?.getAttribute('title'),
       chipTitle: sr.querySelector('[data-card="context"]')?.getAttribute('title'),
+      drawerOpen,
+      chipCount,
+      drawerClosed,
     };
   }`);
-  assert.deepEqual(inlineRoundsTw, { chip: '· 1輪', pill: '1 輪 · 1 步', pillTitle: '1 輪使用者輸入 · 1 個軌跡步驟（含模型回覆、工具呼叫、命令與壓縮等）', chipTitle: 'Ctx 20% (100K / 512K) · 1 輪' });
+  assert.deepEqual(inlineRoundsTw, { chip: '· 1輪', pill: '1 輪 · 1 步 ▾', pillTitle: '1 輪使用者輸入 · 1 個軌跡步驟（含模型回覆、工具呼叫、命令與壓縮等） · 點擊展開或收起步數構成', chipTitle: 'Ctx 20% (100K / 512K) · 1 輪', drawerOpen: true, chipCount: 1, drawerClosed: true });
   await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('card-language-zh').click()`);
   await waitUntil(`() => (document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('week-usage').getAttribute('title') || '').includes('129.9M toks (约 216.2M 满额)')`, 'restore zh-CN');
 
@@ -696,7 +704,7 @@ test('font sync, scope switching and quota window reference render end-to-end in
   assert.equal(panelCheck.sameRow, true, 'panel compact usage hint sits inline right of forecast text');
   assert.equal(panelCheck.contextFillBg, 'rgb(118, 136, 178)');
   assert.equal(panelCheck.fiveFillBg, 'rgb(126, 165, 255)');
-  assert.equal(panelCheck.roundsPill, '1 轮 · 1 步');
+  assert.equal(panelCheck.roundsPill, '1 轮 · 1 步 ▾');
   assert.match(panelCheck.roundsPillTitle || '', /1 轮用户输入 · 1 个轨迹步骤/);
   assert.ok((panelCheck.contextTabTitle || '').includes('1 轮'));
   assert.equal(panelCheck.fits, true, `context-card should fit cleanly inside 580px frame: ${panelCheck.scrollH} vs ${panelCheck.clientH}`);

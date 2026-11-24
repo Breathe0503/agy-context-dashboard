@@ -101,7 +101,8 @@
       <article class="detail-card" id="context-card" role="tabpanel" tabindex="0" aria-labelledby="context-tab" hidden>
         <div class="card-heading"><span><svg class="icon"><use href="#gauge"/></svg><span data-i18n="context">Context window</span></span><span class="context-heading-right"><button class="mini-pill-btn" id="context-audit-toggle" type="button" aria-expanded="false" data-i18n="auditButton" hidden>Audit</button><span class="card-tag" id="context-model">—</span></span></div>
         <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span id="context-tokens">—</span></span></div>
-        <div class="context-submeta-row" id="context-submeta-row" hidden><span class="context-rounds-pill" id="context-rounds-pill" hidden></span><span class="context-compaction-pill" id="context-compaction-pill" hidden></span><span class="context-bloat-pill" id="context-bloat-pill" hidden></span></div>
+        <div class="context-submeta-row" id="context-submeta-row" hidden><button type="button" class="context-rounds-pill" id="context-rounds-pill" aria-expanded="false" aria-controls="context-steps-drawer" hidden></button><span class="context-compaction-pill" id="context-compaction-pill" hidden></span><span class="context-bloat-pill" id="context-bloat-pill" hidden></span></div>
+        <div class="steps-drawer" id="context-steps-drawer" hidden></div>
         <div class="quota-track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
         <section class="context-composition" id="panel-context-composition" hidden>
           <div class="composition-head">

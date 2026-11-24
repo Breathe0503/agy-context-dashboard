@@ -41,6 +41,7 @@ module.exports = function installAgPulseInlineWidget() {
     write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onQuotaDisplayChanged();},
   });
   let compositionView=localGet('ag-pulse-composition-view')==='bar'?'bar':'list';
+  let stepsDrawerOpen=false;
   const setCompositionView=next=>{
     const normalized=next==='bar'?'bar':'list';
     if(compositionView===normalized)return;
@@ -1056,7 +1057,8 @@ module.exports = function installAgPulseInlineWidget() {
       #usage-entry{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-top:9px;margin-top:10px;border-top:1px solid var(--pulse-separator)}#usage-entry[hidden]{display:none}
       .usage-summary{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 auto}.usage-summary>div{min-width:0}.usage-label{font-size:11px;line-height:1.25;color:var(--pulse-muted);white-space:nowrap}.usage-val{display:flex;align-items:baseline;gap:2px;white-space:nowrap;line-height:1.3}.usage-summary strong{font-size:13px;font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums}.usage-unit{font-size:11px;color:var(--pulse-muted)}
       #open-usage{display:inline-flex;align-items:center;gap:4px;flex:none;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--pulse-accent);font:inherit;font-size:11px;font-weight:550;white-space:nowrap;transition:background-color 120ms ease,transform 120ms ease}#open-usage:hover{background:var(--pulse-hover)}#open-usage:active{transform:scale(.98)}#open-usage svg{width:12px;height:12px;flex:none}
-      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 8px;min-width:0}.context-hero-meta{display:inline-flex;align-items:baseline;justify-content:flex-end;flex-wrap:wrap;gap:4px 6px;min-width:0;max-width:100%;margin-left:auto}.context-submeta-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;margin-top:4px;min-width:0}.context-submeta-row[hidden]{display:none}.context-rounds-pill,.context-compaction-pill,.context-bloat-pill{padding:1px 6px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds-pill{color:var(--pulse-foreground);font-weight:550}.context-bloat-pill{color:var(--pulse-warning);background:color-mix(in srgb,var(--pulse-warning) 14%,transparent);font-weight:600}.context-bloat-pill[data-critical=true]{color:var(--pulse-danger);background:color-mix(in srgb,var(--pulse-danger) 14%,transparent)}.context-rounds-pill[hidden],.context-compaction-pill[hidden],.context-bloat-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .heading.context-hero{padding-bottom:6px;margin-bottom:6px;border-bottom:0}.context-hero-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 8px;min-width:0}.context-hero-meta{display:inline-flex;align-items:baseline;justify-content:flex-end;flex-wrap:wrap;gap:4px 6px;min-width:0;max-width:100%;margin-left:auto}.context-submeta-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;margin-top:4px;min-width:0}.context-submeta-row[hidden]{display:none}.context-rounds-pill,.context-compaction-pill,.context-bloat-pill{padding:1px 6px;border-radius:4px;background:var(--pulse-control);font-size:10px;color:var(--pulse-label);font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds-pill{border:1px solid color-mix(in srgb,var(--pulse-accent) 36%,transparent);color:var(--pulse-foreground);font-weight:550;line-height:14px;cursor:pointer}.context-rounds-pill:hover{background:var(--pulse-hover)}.context-rounds-pill[aria-expanded=true]{border-color:var(--pulse-accent);background:color-mix(in srgb,var(--pulse-accent) 14%,transparent)}.context-rounds-pill:disabled{border-color:transparent;cursor:default}.context-bloat-pill{color:var(--pulse-warning);background:color-mix(in srgb,var(--pulse-warning) 14%,transparent);font-weight:600}.context-bloat-pill[data-critical=true]{color:var(--pulse-danger);background:color-mix(in srgb,var(--pulse-danger) 14%,transparent)}.context-rounds-pill[hidden],.context-compaction-pill[hidden],.context-bloat-pill[hidden]{display:none}#context-summary{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto}#context-tokens{font-size:11px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+      .steps-drawer{margin-top:6px;padding:7px 8px;border:1px solid var(--pulse-separator);border-radius:7px;background:var(--pulse-background);display:grid;gap:6px;font-size:10px}.steps-drawer[hidden]{display:none}.steps-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:6px;color:var(--pulse-label);font-weight:600;font-variant-numeric:tabular-nums}.steps-drawer-sub{font-weight:400;color:var(--pulse-muted)}.steps-bar{display:flex;gap:1px;height:5px;border-radius:999px;overflow:hidden;background:var(--pulse-track)}.steps-bar i{display:block;height:100%;min-width:0}.steps-chips{display:flex;flex-wrap:wrap;gap:4px}.steps-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;background:var(--pulse-control);color:var(--pulse-label);font-variant-numeric:tabular-nums}.steps-chip strong{color:var(--pulse-foreground);font-weight:600}.steps-dot{width:6px;height:6px;border-radius:50%;flex:none}.steps-seg-tool{background:var(--pulse-muted)}.steps-seg-planner{background:var(--pulse-accent)}.steps-seg-user{background:var(--pulse-success)}.steps-seg-compaction{background:var(--pulse-warning)}.steps-seg-other{background:color-mix(in srgb,var(--pulse-ring) 65%,transparent)}
       .breakdown-details{margin-top:8px;padding-top:7px;border-top:1px solid var(--pulse-separator);font-size:11px;min-width:0}.breakdown-details[hidden]{display:none}.breakdown-details>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--pulse-label);font-weight:500;list-style:none;min-width:0}.breakdown-details>summary>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.breakdown-details>summary::-webkit-details-marker{display:none}.breakdown-meta{font-variant-numeric:tabular-nums;color:var(--pulse-muted);font-weight:500;font-size:10px;white-space:nowrap;flex:0 0 auto}.breakdown-body{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin-top:7px;font-variant-numeric:tabular-nums;min-width:0}.breakdown-chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.breakdown-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:5px;background:var(--pulse-control);color:var(--pulse-label);font-size:10px}.breakdown-chip strong{color:var(--pulse-foreground);font-weight:600}.breakdown-section{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;min-width:0}.breakdown-head{font-size:10px;color:var(--pulse-muted);font-weight:600}.breakdown-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35;min-width:0}.breakdown-row-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--pulse-label)}.breakdown-row-val{flex:0 0 auto;color:var(--pulse-foreground);white-space:nowrap;font-variant-numeric:tabular-nums}.breakdown-row-warn{color:var(--pulse-warning);font-weight:550}.breakdown-row-warn[data-critical=true]{color:var(--pulse-danger)}
       .context-composition{margin-top:8px}.context-composition[hidden]{display:none}.composition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;font-weight:500;color:var(--pulse-label)}.composition-title-wrap{display:inline-flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}.composition-title-wrap .tag{font-weight:400;font-size:10px;color:var(--pulse-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
       .composition-toggle{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:var(--pulse-control);flex:none}.composition-toggle-btn{border:0;background:none;font:inherit;font-size:10px;padding:2px 6px;margin:0;border-radius:4px;color:var(--pulse-muted);line-height:14px;cursor:pointer;transition:background-color 140ms ease,color 140ms ease}.composition-toggle-btn:hover{color:var(--pulse-hover-text);background:var(--pulse-hover)}.composition-toggle-btn[aria-pressed=true]{color:var(--pulse-foreground);background:var(--pulse-hover);box-shadow:0 1px 2px var(--pulse-shadow)}
@@ -1130,7 +1132,8 @@ module.exports = function installAgPulseInlineWidget() {
     </section><section class="card context-card" id="context-card" role="region" data-i18n-aria="context" hidden>
       <div class="heading context-hero"><span class="hero-label">${svg('context')}<span data-i18n="context">Context window</span></span><span class="tag" id="context-model">—</span></div>
       <div class="context-hero-row"><strong id="context-summary">—</strong><span class="context-hero-meta"><span id="context-tokens">—</span></span></div>
-      <div class="context-submeta-row" id="context-submeta-row" hidden><span class="tag context-rounds-pill" id="context-rounds-pill" hidden></span><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span class="tag context-bloat-pill" id="context-bloat-pill" hidden></span></div>
+      <div class="context-submeta-row" id="context-submeta-row" hidden><button type="button" class="tag context-rounds-pill" id="context-rounds-pill" aria-expanded="false" aria-controls="context-steps-drawer" hidden></button><span class="tag context-compaction-pill" id="context-compaction-pill" hidden></span><span class="tag context-bloat-pill" id="context-bloat-pill" hidden></span></div>
+      <div class="steps-drawer" id="context-steps-drawer" hidden></div>
       <div class="track" role="progressbar" data-i18n-aria="context" id="context-track"><i id="context-fill"></i></div>
       <section class="context-composition" id="context-composition" hidden><div class="composition-meter" id="composition-meter" aria-hidden="true"></div><div class="composition-head"><span class="composition-title-wrap"><span data-i18n="compositionTitle">Context composition</span><span class="tag" id="composition-source"></span></span><div class="composition-toggle" role="group" data-i18n-aria="compositionViewToggle"><button type="button" class="composition-toggle-btn" data-composition-view="list" data-i18n="compositionViewList">List</button><button type="button" class="composition-toggle-btn" data-composition-view="bar" data-i18n="compositionViewBar">Bar</button></div></div><div class="composition-list" id="composition-list"></div><div class="composition-legend" id="composition-legend" hidden></div></section>
       <div class="context-cache-row" id="context-cache-row" hidden><span data-i18n="avgCacheHitRate">Avg cache hit rate</span><strong id="context-cache-rate">—</strong></div>
@@ -1192,6 +1195,7 @@ module.exports = function installAgPulseInlineWidget() {
     for(const button of root.querySelectorAll('[data-quota-display-choice]'))button.addEventListener('click',()=>void quotaDisplay.choose(button.dataset.quotaDisplayChoice));
     for(const button of root.querySelectorAll('[data-host-i18n-choice]'))button.addEventListener('click',()=>void hostUiLocalization.choose(button.dataset.hostI18nChoice==='true'));
     for(const button of root.querySelectorAll('[data-composition-view]'))button.addEventListener('click',()=>setCompositionView(button.dataset.compositionView));
+    $('context-rounds-pill')?.addEventListener('click',()=>{if(data?.speed?.stepBreakdown){stepsDrawerOpen=!stepsDrawerOpen;render();position();}});
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
       setMarkup(section,'<div class="usage-summary"><div><div class="usage-label" id="usage-today-label"></div><div class="usage-val"><strong id="usage-today"></strong><span class="usage-unit" id="usage-today-unit">toks</span></div></div><div><div class="usage-label" id="usage-month-label"></div><div class="usage-val"><strong id="usage-month"></strong><span class="usage-unit" id="usage-month-unit">toks</span></div></div></div><button type="button" id="open-usage"><span id="usage-open-label"></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button>');$('cache-card').append(section);
@@ -1284,13 +1288,25 @@ module.exports = function installAgPulseInlineWidget() {
     const transcript=speed?.transcriptStats;
     const roundCount=Number.isSafeInteger(speed?.rounds)&&speed.rounds>0?speed.rounds:null;
     const stepCount=Number.isSafeInteger(speed?.steps)&&speed.steps>=0?speed.steps:null;
-    const roundsPill=$('context-rounds-pill');
+    const roundsPill=$('context-rounds-pill'),stepsDrawer=$('context-steps-drawer');
+    const sb=speed?.stepBreakdown;
+    const stepBuckets=sb?[['tool','stepBucketTool'],['planner','stepBucketPlanner'],['user','stepBucketUser'],['compaction','stepBucketCompaction'],['other','stepBucketOther']].map(([key,lblKey])=>({key,label:t(lblKey),count:Number.isSafeInteger(sb[key])&&sb[key]>0?sb[key]:0})).filter(b=>b.count>0):[];
+    const sbTotal=stepBuckets.reduce((sum,b)=>sum+b.count,0);
+    const canExpandSteps=roundCount!==null&&sbTotal>0;
+    if(!canExpandSteps)stepsDrawerOpen=false;
     if(roundsPill){
       hidden(roundsPill,roundCount===null);
       if(roundCount!==null){
-        text('context-rounds-pill',stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)}));
-        attribute(roundsPill,'title',stepCount!==null?t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)}));
-      }else attribute(roundsPill,'title',null);
+        const baseText=stepCount!==null?t('contextTurnsSteps',{rounds:count(roundCount),steps:count(stepCount)}):t('contextTurnsCount',{n:count(roundCount)});
+        text('context-rounds-pill',canExpandSteps?`${baseText} ${stepsDrawerOpen?'▴':'▾'}`:baseText);
+        if(roundsPill.disabled!==!canExpandSteps)roundsPill.disabled=!canExpandSteps;
+        attribute(roundsPill,'aria-expanded',String(canExpandSteps&&stepsDrawerOpen));
+        attribute(roundsPill,'title',stepCount!==null?`${t('contextTurnsTitle',{rounds:count(roundCount),steps:count(stepCount)})}${canExpandSteps?` · ${t('stepBreakdownHint')}`:''}`:t('contextTurnsCount',{n:count(roundCount)}));
+      }else{
+        if(!roundsPill.disabled)roundsPill.disabled=true;
+        attribute(roundsPill,'aria-expanded','false');
+        attribute(roundsPill,'title',null);
+      }
     }
     const compactions=transcript&&['ready','partial'].includes(transcript.status)&&typeof transcript.compactionMarkers==='number'?transcript.compactionMarkers:null;
     const compactionPill=$('context-compaction-pill');
@@ -1323,6 +1339,34 @@ module.exports = function installAgPulseInlineWidget() {
       }else attribute(bloatPill,'data-critical',null);
     }
     hidden($('context-submeta-row'),roundCount===null&&!(compactions!==null&&compactions>0)&&!hasBloat);
+    if(stepsDrawer){
+      const showDrawer=canExpandSteps&&stepsDrawerOpen;
+      hidden(stepsDrawer,!showDrawer);
+      if(showDrawer){
+        const drawerSig=JSON.stringify([language.language,roundCount,sbTotal,stepBuckets]);
+        if(stepsDrawer.dataset.signature!==drawerSig){
+          stepsDrawer.dataset.signature=drawerSig;
+          const head=mkEl('div','steps-drawer-head');
+          head.append(mkEl('span','',t('stepBreakdownTitle',{n:count(sbTotal)})),mkEl('span','steps-drawer-sub',t('contextTurnsCount',{n:count(roundCount)})));
+          const bar=mkEl('div','steps-bar');
+          const chips=mkEl('div','steps-chips');
+          for(const b of stepBuckets){
+            const pct=((b.count/sbTotal)*100).toFixed(1);
+            const seg=mkEl('i',`steps-seg-${b.key}`);
+            seg.style.width=`${pct}%`;
+            attribute(seg,'title',`${b.label}: ${count(b.count)} (${pct}%)`);
+            bar.append(seg);
+            const chip=mkEl('span','steps-chip');
+            attribute(chip,'title',seg.title);
+            chip.append(mkEl('i',`steps-dot steps-seg-${b.key}`),mkEl('span','',b.label),mkEl('strong','',count(b.count)));
+            chips.append(chip);
+          }
+          stepsDrawer.replaceChildren(head,bar,chips);
+        }
+      }else if(stepsDrawer.dataset.signature){
+        delete stepsDrawer.dataset.signature;stepsDrawer.replaceChildren();
+      }
+    }
     const ctxBreakdown=$('context-breakdown');
     if(ctxBreakdown){
       const hasSteps=Boolean(transcript&&['ready','partial'].includes(transcript.status)&&transcript.matchedSteps>0);

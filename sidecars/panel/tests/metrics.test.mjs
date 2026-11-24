@@ -136,3 +136,19 @@ test('two-phase orchestrator breakdown separates planning and executor burn and 
   assert.equal(data.toolSummary.totalCalls,2);
   assert.equal(data.toolSummary.tools[0].name,'mcp_read');assert.equal(data.toolSummary.tools[0].argTokens,100);assert.equal(data.toolSummary.tools[0].source,'mcp');
 });
+test('trajectoryMetrics partitions steps into non-overlapping stepBreakdown buckets', () => {
+  const data = trajectoryMetrics({trajectory:{cascadeId:'11111111-1111-1111-1111-111111111111',
+    steps:[
+      {type:'CORTEX_STEP_TYPE_USER_INPUT'},
+      {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE'},
+      {type:'CORTEX_STEP_TYPE_RUN_COMMAND'},
+      {type:'CORTEX_STEP_TYPE_GENERIC',metadata:{toolCall:{name:'grep_search',argumentsJson:'{}'}}},
+      {type:'CORTEX_STEP_TYPE_COMPACTION'},
+      {type:'CORTEX_STEP_TYPE_CHECKPOINT'},
+      {type:'CORTEX_STEP_TYPE_SYSTEM_MESSAGE'},
+    ],
+    generatorMetadata:[]}});
+  assert.equal(data.rounds, 1);
+  assert.equal(data.steps, 7);
+  assert.deepEqual(data.stepBreakdown, { user: 1, planner: 1, tool: 2, compaction: 2, other: 1 });
+});
