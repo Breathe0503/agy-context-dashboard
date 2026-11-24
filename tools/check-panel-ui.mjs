@@ -72,6 +72,7 @@ try{
   assert.ok(await view.locator('#strip-tps').evaluate(e=>parseFloat(getComputedStyle(e).fontSize))>=18);
   assert.equal(await view.locator('#strip-cache').textContent(),'75.0%');assert.equal(await view.locator('#strip-quota').textContent(),'80.0%');assert.equal(await view.locator('#strip-quota-unit').textContent(),'5h');assert.match(await view.locator('#strip-quota-sub').textContent()||'',/^Wk 75% · (?:1h0m|59m)$/);assert.equal(await view.locator('#strip-context').textContent(),'20%');
   assert.equal(await view.locator('#cache-rate').textContent(),'75.0%');
+  assert.equal(await view.locator('#cache-card .hero-label').textContent(),'Token · Cache');
   assert.equal(await view.locator('#cache-card .rate-pill').textContent(),'Cache hit rate:75.0%');
   assert.equal(await view.locator('#five-balance').textContent(),'80.0%');assert.equal(await view.locator('#week-balance').textContent(),'75.0%');
   assert.equal(await view.locator('#context-card #five-details,#context-card #week-details,#context-card #panel-active-group,#context-card #panel-quota-siblings,#host-i18n-row').count(),0,'Context card must exclude quota and duplicate host-i18n controls');
@@ -107,6 +108,7 @@ try{
   assert.match(await view.locator('#context-rounds-pill').getAttribute('title'),/1 轮用户输入 · 1 个轨迹步骤/);
   assert.equal(await view.locator('#strip-context').textContent(),'20%');
   assert.deepEqual(await view.locator('.metric-label span').allTextContents(),['速度','Token · 缓存','额度','上下文']);
+  assert.equal(await view.locator('#cache-card .hero-label').textContent(),'Token · 缓存');
   assert.equal(await view.locator('#cache-card .rate-pill').textContent(),'缓存命中率：75.0%');
   assert.deepEqual(await frame(),initialFrame,'Language switches must not resize the frame');
   await view.locator('#language-toggle').click();await page.keyboard.press('End');await page.keyboard.press('Enter');
