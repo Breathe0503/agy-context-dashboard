@@ -31,7 +31,7 @@ let inspectedConversationId=null,lastContextDetailAt=0;
 let refreshEpoch=0,inFlightRefreshEpoch=-1,inFlightNeedDetail=false,inFlightUsageSync=false,queuedRefresh=false,queuedRefreshForce=false,queuedRefreshUsageSync=false;
 let insightsEpoch=0,queuedInsights=false,queuedInsightsForce=false;
 let auditEpoch=0,scopeRequestEpoch=0,didInitialUsageSync=false,didSyncUsageScope=false,usageGuideDismissed=false;
-let compositionView='bar',trendMode='total',tokenBaseExpanded=false,stepsDrawerOpen=false,swarmRosterExpanded=false;
+let compositionView='bar',trendMode='total',tokenBaseExpanded=false,stepsDrawerOpen=false,swarmRosterFilter='active';
 const expandedDrilldownGroups=new Set(['Rules']);
 const expandedMcpServers=new Set();
 let auditOpen=false,auditTab='files',auditStepFilter='all',auditData=null,auditConvId=null,auditLoading=false,auditError=null,highlightedStepIndex=null;
@@ -112,7 +112,7 @@ function activeConversationId(){
 }
 function setInspectedConversation(id){
   inspectedConversationId=id||null;
-  swarmRosterExpanded=false;
+  swarmRosterFilter='active';
   auditOpen=false;auditData=null;auditConvId=null;auditError=null;highlightedStepIndex=null;
   renderAuditSection();
   lastContextDetailAt=0;
@@ -1454,7 +1454,7 @@ function render() {
     const showOrch=Boolean(taskUsage||sessionModels.length>1||surges>0||roleMeta?.isSubagent||roleMeta?.isSidecar);
     hidden('orchestration-breakdown',!showOrch);
     if(showOrch){
-      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,taskUsage?.isSwarm||false,taskUsage?.swarmTitle||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta,swarmRosterExpanded]);
+      const orchSig=JSON.stringify([language.language,models,taskUsage?.poolBreakdown||null,taskUsage?.roleBreakdown||null,taskUsage?.agents||null,taskUsage?.isSwarm||false,taskUsage?.swarmTitle||null,surges,speed?.cacheMissSurgeTokens||0,roleMeta,swarmRosterFilter]);
       if(orchEl.dataset.signature!==orchSig){
         orchEl.dataset.signature=orchSig;
         const summaryLabel=taskUsage?.isSwarm?(taskUsage.swarmTitle?`Swarm · ${taskUsage.swarmTitle}`:t('swarmDetails')):t('multiAgentDetails');
@@ -1516,23 +1516,49 @@ function render() {
         const agList=Array.isArray(taskUsage?.agents)?taskUsage.agents:[];
         if(agList.length>1||(taskUsage?.isSwarm&&agList.length>0)){
           const sec=mkEl('div','breakdown-section');
-          if(taskUsage?.isSwarm)sec.append(mkEl('div','breakdown-head',t('swarmRoster')));
-          const visibleAgents=swarmRosterExpanded?agList:agList.slice(0,6);
+          const activeAgents=agList.filter(a=>!a.killed),endedAgents=agList.filter(a=>a.killed);
+          const hasBoth=activeAgents.length>0&&endedAgents.length>0;
+          const effFilter=hasBoth?swarmRosterFilter:(activeAgents.length>0?'active':'ended');
+          const visibleAgents=effFilter==='active'?activeAgents:effFilter==='ended'?endedAgents:[...activeAgents,...endedAgents];
+          if(taskUsage?.isSwarm||hasBoth){
+            const head=mkEl('div','roster-head');
+            head.append(taskUsage?.isSwarm?mkEl('div','breakdown-head',t('swarmRoster')):mkEl('span'));
+            if(hasBoth){
+              const bar=mkEl('div','segmented-options roster-filter');bar.id='orch-roster-filter';bar.setAttribute('role','group');
+              for(const [k,labelKey,n] of [['active','swarmStatusActive',activeAgents.length],['ended','swarmStatusKilled',endedAgents.length],['all','swarmStatusAll',agList.length]]){
+                const b=mkEl('button','segmented-button',`${t(labelKey)} ${smallCount(n)}`);
+                b.type='button';b.dataset.rosterFilter=k;b.setAttribute('aria-pressed',String(effFilter===k));
+                b.addEventListener('click',()=>{swarmRosterFilter=k;render();});
+                bar.append(b);
+              }
+              head.append(bar);
+            }
+            sec.append(head);
+          }
+          const maxActive=Math.max(1,...activeAgents.map(a=>a.tokens||0));
+          const list=mkEl('div','roster-list');
+          const shortName=l=>String(l||'').replace(/^(?:Worker|Monitor|Sidecar)\s*\((.+)\)$/,'$1');
           for(const a of visibleAgents){
+            const item=mkEl('div',a.killed?'roster-item is-ended':'roster-item');
             const wsTag=a.workspaceMode&&a.workspaceMode!=='inherit'?` [${a.workspaceMode}]`:'';
             const killedTag=a.killed?` · ${t('swarmStatusKilled')}`:'';
-            const rowLabel=`${a.label}${wsTag}${killedTag} · ${a.model}`;
-            const row=mkRow(rowLabel,`${compact(a.tokens)} · ${t('reqCountShort',{n:smallCount(a.requests)})}`);
-            setTip(row,rowLabel);
-            if(a.killed)row.classList.add('is-killed');
-            sec.append(row);
+            const tokText=compact(a.tokens),reqText=t('reqCountShort',{n:smallCount(a.requests)});
+            setTip(item,`${a.label}${wsTag}${killedTag} · ${a.model} — ${tokText} · ${reqText}`);
+            const top=mkEl('div','roster-top'),left=mkEl('span','roster-left');
+            left.append(mkEl('span','roster-dot'),mkEl('span','roster-name',shortName(a.label)));
+            if(a.workspaceMode&&a.workspaceMode!=='inherit')left.append(mkEl('span','roster-ws',a.workspaceMode));
+            top.append(left,mkEl('span','roster-tok',tokText));
+            const sub=mkEl('div','roster-sub');
+            sub.append(mkEl('span','roster-model',a.model),mkEl('span','roster-req',reqText));
+            item.append(top,sub);
+            if(!a.killed&&(a.tokens||0)>0){
+              const bar=mkEl('div','roster-bar'),fill=mkEl('i');
+              fill.style.width=`${Math.max(4,Math.round((a.tokens/maxActive)*100))}%`;
+              bar.append(fill);item.append(bar);
+            }
+            list.append(item);
           }
-          if(agList.length>6){
-            const btn=mkEl('button','mini-pill-btn orch-expand-btn',swarmRosterExpanded?t('swarmShowLess'):t('swarmShowAll',{n:count(agList.length)}));
-            btn.type='button';btn.id='orch-agents-expand';btn.setAttribute('aria-expanded',String(swarmRosterExpanded));
-            btn.addEventListener('click',()=>{swarmRosterExpanded=!swarmRosterExpanded;render();});
-            sec.append(btn);
-          }
+          sec.append(list);
           nodes.push(sec);
         }
         $('orch-body').replaceChildren(...nodes);

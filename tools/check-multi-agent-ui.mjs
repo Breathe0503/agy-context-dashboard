@@ -181,7 +181,7 @@ try {
   const assertNoClipping = async (container, bodyLocator) => {
     const metrics = await bodyLocator.evaluate((body, boxEl) => {
       const boxRect = boxEl.getBoundingClientRect();
-      const rows = [...body.querySelectorAll('.breakdown-row')].map(r => {
+      const breakdownRows = [...body.querySelectorAll('.breakdown-row')].map(r => {
         const name = r.querySelector('.breakdown-row-name');
         const val = r.querySelector('.breakdown-row-val');
         const valRect = val?.getBoundingClientRect();
@@ -192,6 +192,20 @@ try {
           valRight: valRect ? valRect.right : 0,
         };
       });
+      const rosterRows = [...body.querySelectorAll('.roster-item')].map(r => {
+        const name = r.querySelector('.roster-name');
+        const tok = r.querySelector('.roster-tok');
+        const req = r.querySelector('.roster-req');
+        const tokRect = tok?.getBoundingClientRect();
+        const reqRect = req?.getBoundingClientRect();
+        return {
+          nameText: name?.textContent || '',
+          valText: tok?.textContent || '',
+          ellipsized: Boolean(name && name.scrollWidth > name.clientWidth),
+          valRight: Math.max(tokRect ? tokRect.right : 0, reqRect ? reqRect.right : 0),
+        };
+      });
+      const rows = [...breakdownRows, ...rosterRows];
       return {
         boxWidth: Math.round(boxRect.width),
         boxRight: boxRect.right,
@@ -428,23 +442,32 @@ try {
     assert.equal(await s.locator('#orch-summary-label').textContent(), 'Swarm · Issue 57 Team');
     await s.locator('#orchestration-breakdown summary').click();
 
-    const expandBtn = s.locator('#orch-agents-expand');
-    await expandBtn.waitFor({ state: 'visible' });
-    assert.equal(await expandBtn.textContent(), lang === 'en' ? 'Show all 8' : '展开全部 8 个');
-    const rosterRowsBefore = await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count();
-    assert.equal(rosterRowsBefore, 6);
-    const collapsedText = await s.locator('#orch-body').textContent();
-    assert.ok(!collapsedText.includes('monitor-watch'), 'Collapsed roster must hide 8th member');
-    assert.ok(collapsedText.includes('[share]'), collapsedText);
-    assert.ok(collapsedText.includes('[branch]'), collapsedText);
-    assert.ok(collapsedText.includes(lang === 'en' ? 'ended' : '已结束'), collapsedText);
+    const filterBar = s.locator('#orch-roster-filter');
+    await filterBar.waitFor({ state: 'visible' });
+    const activeBtn = filterBar.locator('[data-roster-filter="active"]');
+    const endedBtn = filterBar.locator('[data-roster-filter="ended"]');
+    const allBtn = filterBar.locator('[data-roster-filter="all"]');
+    assert.equal(await activeBtn.textContent(), lang === 'en' ? 'Active 6' : '活跃 6');
+    assert.equal(await endedBtn.textContent(), lang === 'en' ? 'Ended 2' : '已结束 2');
+    assert.equal(await allBtn.textContent(), lang === 'en' ? 'All 8' : '全部 8');
+    assert.equal(await activeBtn.getAttribute('aria-pressed'), 'true');
+    assert.equal(await s.locator('#orch-body .roster-item').count(), 6);
+    const activeText = await s.locator('#orch-body .roster-list').textContent();
+    assert.ok(activeText.includes('monitor-watch'), 'Active filter must keep monitor-watch visible');
+    assert.ok(activeText.includes('share') && activeText.includes('branch'), activeText);
+    assert.ok(!activeText.includes('verifier-1') && !activeText.includes('scout-docs'), 'Active filter must hide ended members');
 
-    await expandBtn.click();
-    assert.equal(await expandBtn.textContent(), lang === 'en' ? 'Collapse' : '收起');
-    const rosterRowsAfter = await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count();
-    assert.equal(rosterRowsAfter, 8);
-    const expandedText = await s.locator('#orch-body').textContent();
-    assert.ok(expandedText.includes('tester-e2e') && expandedText.includes('monitor-watch'), expandedText);
+    await endedBtn.click();
+    assert.equal(await endedBtn.getAttribute('aria-pressed'), 'true');
+    assert.equal(await s.locator('#orch-body .roster-item.is-ended').count(), 2);
+    const endedText = await s.locator('#orch-body .roster-list').textContent();
+    assert.ok(endedText.includes('verifier-1') && endedText.includes('scout-docs'), endedText);
+
+    await allBtn.click();
+    assert.equal(await allBtn.getAttribute('aria-pressed'), 'true');
+    assert.equal(await s.locator('#orch-body .roster-item').count(), 8);
+    const allText = await s.locator('#orch-body .roster-list').textContent();
+    assert.ok(allText.includes('tester-e2e') && allText.includes('monitor-watch') && allText.includes('verifier-1'), allText);
 
     if (lang === 'en') {
       const swarmIdleChanges = await p.evaluate(async () => {
@@ -456,11 +479,11 @@ try {
         obs.disconnect();
         return changes;
       });
-      assert.deepEqual(swarmIdleChanges, [], 'Swarm expanded roster must not mutate on idle polling');
+      assert.deepEqual(swarmIdleChanges, [], 'Swarm filtered roster must not mutate on idle polling');
     }
 
-    await expandBtn.click();
-    assert.equal(await s.locator('#orch-body .breakdown-section').last().locator('.breakdown-row').count(), 6);
+    await activeBtn.click();
+    assert.equal(await s.locator('#orch-body .roster-item').count(), 6);
     await p.close();
   }
 
@@ -472,7 +495,7 @@ try {
   await narrowSwarmStrip.locator('[data-card=cache]').click();
   await narrowSwarmStrip.locator('#orchestration-breakdown summary').click();
   await assertNoClipping(narrowSwarmStrip.locator('#cache-card'), narrowSwarmStrip.locator('#orch-body'));
-  await narrowSwarmStrip.locator('#orch-agents-expand').click();
+  await narrowSwarmStrip.locator('#orch-roster-filter [data-roster-filter="all"]').click();
   const narrowSwarmMetrics = await assertNoClipping(narrowSwarmStrip.locator('#cache-card'), narrowSwarmStrip.locator('#orch-body'));
   assert.equal(narrowSwarmMetrics.boxWidth, 270);
   await narrowSwarm.close();

@@ -224,3 +224,22 @@ dl{margin:0}.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr
 .breakdown-row-warn[data-critical=true]{color:var(--pulse-danger)}
 .breakdown-row.is-killed .breakdown-row-name{opacity:.7}
 .orch-expand-btn{justify-self:start;margin-top:2px}
+.roster-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 6px;margin-bottom:2px;min-width:0}
+.roster-filter .segmented-button{font-size:10px;line-height:14px;padding:2px 6px}
+.roster-list{display:grid;gap:6px;max-height:210px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--pulse-border) transparent;padding-right:2px;min-width:0}
+.roster-item{display:grid;gap:2px;padding-bottom:5px;border-bottom:1px solid var(--pulse-separator);min-width:0}
+.roster-item:last-child{border-bottom:0;padding-bottom:0}
+.roster-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;line-height:15px;min-width:0}
+.roster-left{display:inline-flex;align-items:center;gap:5px;min-width:0;flex:1 1 auto}
+.roster-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--pulse-success)}
+.roster-item.is-ended .roster-dot{background:var(--pulse-dot);opacity:.75}
+.roster-name{font-weight:600;color:var(--pulse-foreground);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roster-item.is-ended .roster-name{color:var(--pulse-label);font-weight:500}
+.roster-ws{font-size:9px;line-height:12px;padding:0 4px;border-radius:3px;background:var(--pulse-control);color:var(--pulse-muted);flex:none;white-space:nowrap}
+.roster-tok{font-weight:600;color:var(--pulse-foreground);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.roster-item.is-ended .roster-tok{color:var(--pulse-label);font-weight:500}
+.roster-sub{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-left:11px;font-size:10px;line-height:13px;color:var(--pulse-muted);font-variant-numeric:tabular-nums;min-width:0}
+.roster-model{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roster-req{flex:none;white-space:nowrap}
+.roster-bar{height:2px;margin-left:11px;margin-top:2px;border-radius:999px;background:var(--pulse-track);overflow:hidden}
+.roster-bar>i{display:block;height:100%;border-radius:999px;background:var(--pulse-accent)}
