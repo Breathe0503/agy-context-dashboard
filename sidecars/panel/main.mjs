@@ -217,7 +217,7 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
   app.run();
   integration.start();
   const passiveUpdateBoot=setTimeout(()=>{if(owns()&&typeof updater?.checkPassive==='function')void updater.checkPassive().catch(()=>{});},4000);passiveUpdateBoot.unref?.();
-  const passiveUpdateTimer=setInterval(()=>{if(owns()&&typeof updater?.checkPassive==='function')void updater.checkPassive().catch(()=>{});},6*60*60*1000);passiveUpdateTimer.unref?.();
+  const passiveUpdateTimer=setInterval(()=>{if(owns()&&typeof updater?.checkPassive==='function')void updater.checkPassive().catch(()=>{});},5*60*1000);passiveUpdateTimer.unref?.();
   const shutdown=async()=>{
     clearTimeout(passiveUpdateBoot);clearInterval(passiveUpdateTimer);
     auditService.dispose();insightsScanner.dispose();usage.dispose();store.dispose();

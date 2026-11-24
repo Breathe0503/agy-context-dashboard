@@ -1574,10 +1574,13 @@ module.exports = function installAgPulseInlineWidget() {
         delete ctxBreakdown.dataset.signature;$('ctx-breakdown-body').replaceChildren();
       }
     }
+    const newerVer=(a,b)=>{const p=s=>/^(\d+)\.(\d+)\.(\d+)$/.exec(String(s||''));const x=p(a),y=p(b);if(!x||!y)return false;for(let i=1;i<=3;i++){const d=Number(x[i])-Number(y[i]);if(d)return d>0;}return false;};
     const updateMenuState=updateMenu?.getState?.();
-    const updateSuppressed=['current','installed','reloading'].includes(updateMenuState?.state);
-    const hasUpdate=!updateSuppressed&&Boolean(updateMenuState?.state==='available'||data?.update?.available);
-    const updateVer=(updateMenuState?.state==='available'?updateMenuState.latestVersion:data?.update?.latestVersion)||null;
+    const passiveAvail=Boolean(data?.update?.available),passiveVer=data?.update?.latestVersion||null;
+    const suppressedByCurrent=updateMenuState?.state==='current'&&(!passiveAvail||!newerVer(passiveVer,updateMenuState?.latestVersion||updateMenuState?.currentVersion));
+    const updateSuppressed=suppressedByCurrent||['installed','reloading'].includes(updateMenuState?.state);
+    const hasUpdate=!updateSuppressed&&Boolean(updateMenuState?.state==='available'||passiveAvail);
+    const updateVer=(updateMenuState?.state==='available'?updateMenuState.latestVersion:passiveVer)||null;
     updateMenu?.syncHint?.({available:hasUpdate,latestVersion:updateVer});
     const ctxChip=root.querySelector('[data-card="context"]');
     if(ctxChip){
