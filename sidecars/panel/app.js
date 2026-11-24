@@ -393,8 +393,9 @@ function splitDrilldownPath(display) {
 }
 
 function renderDrilldownBudgetCard(label, used, max) {
-  const pct = max > 0 ? Math.round((used / max) * 100) : 0;
-  const levelClass = pct >= 90 ? 'is-danger' : '';
+  const ratio = max > 0 ? used / max : 0;
+  const pct = Math.round(ratio * 100);
+  const levelClass = ratio >= 0.9 ? 'is-danger' : '';
   const card = document.createElement('div');
   card.className = 'drilldown-budget-card';
   const top = document.createElement('div');
@@ -453,14 +454,15 @@ function renderTokenBaseDrilldown(customization) {
   if (!available) return;
 
   text('token-base-toggle-label', t('tokenBaseDrilldown'));
-  const budgetPct = customization.budget ? Math.round((customization.tokens / customization.budget) * 100) : null;
+  const budgetRatio = customization.budget ? customization.tokens / customization.budget : null;
+  const budgetPct = budgetRatio !== null ? Math.round(budgetRatio * 100) : null;
   const summary = customization.budget
     ? `${compact(customization.tokens)} / ${compact(customization.budget)} · ${budgetPct}%`
     : `${compact(customization.tokens)} ${tokUnit(customization.tokens)}`;
   text('token-base-toggle-summary', summary);
   const summaryEl = $('token-base-toggle-summary');
   if (summaryEl) {
-    const level = budgetPct !== null && budgetPct >= 90 ? 'danger' : null;
+    const level = budgetRatio !== null && budgetRatio >= 0.9 ? 'danger' : null;
     setAttr(summaryEl, 'data-level', level);
   }
   setAttr(toggle, 'aria-expanded', String(tokenBaseExpanded));
@@ -471,6 +473,9 @@ function renderTokenBaseDrilldown(customization) {
   if (tree.dataset.signature === sig) return;
   tree.dataset.signature = sig;
 
+  const focusKey = document.activeElement?.closest?.('#token-base-tree')
+    ? document.activeElement.dataset.focusKey || null
+    : null;
   const nodes = [];
   if (customization.budget || customization.rulesBudget) {
     const budgets = document.createElement('div');
@@ -490,6 +495,7 @@ function renderTokenBaseDrilldown(customization) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'drilldown-group-btn';
+    btn.dataset.focusKey = `grp:${grp.name}`;
     btn.setAttribute('aria-expanded', String(isOpen));
     const grpTitle = t(DRILLDOWN_GROUP_KEYS[grp.id] || grp.name);
     const children = Array.isArray(grp.children) ? grp.children : [];
@@ -529,6 +535,7 @@ function renderTokenBaseDrilldown(customization) {
           const srvBtn = document.createElement('button');
           srvBtn.type = 'button';
           srvBtn.className = 'drilldown-group-btn';
+          srvBtn.dataset.focusKey = `mcp:${grp.name}:${child.name}`;
           srvBtn.setAttribute('aria-expanded', String(srvOpen));
           const sLeft = document.createElement('span');
           sLeft.className = 'drilldown-group-left';
@@ -558,6 +565,7 @@ function renderTokenBaseDrilldown(customization) {
         const moreBtn = document.createElement('button');
         moreBtn.type = 'button';
         moreBtn.className = 'drilldown-more-btn';
+        moreBtn.dataset.focusKey = `more:${grp.name}`;
         moreBtn.textContent = showAll ? t('drilldownShowLess') : t('drilldownShowMore', { n: smallCount(children.length - DRILLDOWN_CAP) });
         moreBtn.addEventListener('click', () => {
           if (expandedDrilldownMore.has(grp.name)) expandedDrilldownMore.delete(grp.name);
@@ -571,6 +579,14 @@ function renderTokenBaseDrilldown(customization) {
     nodes.push(box);
   }
   tree.replaceChildren(...nodes);
+  if (focusKey) {
+    for (const button of tree.querySelectorAll('button[data-focus-key]')) {
+      if (button.dataset.focusKey === focusKey) {
+        button.focus({ preventScroll: true });
+        break;
+      }
+    }
+  }
 }
 
 function renderContextComposition(composition) {

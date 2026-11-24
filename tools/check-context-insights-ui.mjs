@@ -262,7 +262,7 @@ window.agPulseHost={
 
 let forceDegradedCidB = false;
 let omitUsage = false;
-let forceTightBudget = false;
+let tightBudgetTokens = null;
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -316,7 +316,7 @@ const server = createServer(async (req, res) => {
     }
     let speed = sessions[cid] || sessions[cidA];
     if (contextDetail) {
-      const tb = forceTightBudget ? { ...tokenBase, totalTokens: 18600 } : tokenBase;
+      const tb = tightBudgetTokens !== null ? { ...tokenBase, totalTokens: tightBudgetTokens } : tokenBase;
       speed = { ...speed, contextComposition: attachHostContextUsage(attachTokenBase(speed.contextComposition, tb), hostUsage) };
     }
     res.setHeader('Content-Type', 'application/json');
@@ -386,9 +386,21 @@ try {
   await page.locator('#token-base-tree').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#token-base-toggle-label').textContent(), 'Rules & skills config');
   assert.equal(await page.locator('#token-base-toggle-summary').getAttribute('data-level'), null);
-  assert.equal(await page.locator('#token-base-tree .is-warn').count(), 0);
-  assert.equal(await page.locator('#token-base-tree .is-heavy').count(), 0);
   assert.equal(await page.locator('#token-base-tree .is-danger').count(), 0);
+  const normalTone = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--pulse-accent)';
+    document.body.append(probe);
+    const accent = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      accent,
+      summary: getComputedStyle(document.getElementById('token-base-toggle-summary')).color,
+      budget: getComputedStyle(document.querySelector('#token-base-tree .drilldown-budget-pct')).color,
+    };
+  });
+  assert.equal(normalTone.summary, normalTone.accent);
+  assert.equal(normalTone.budget, normalTone.accent);
   assert.equal(await page.locator('#token-base-tree .drilldown-budget-card').count(), 2);
   const firstRule = await page.locator('#token-base-tree .drilldown-item').first().evaluate(el => ({
     name: el.querySelector('.drilldown-item-name')?.textContent,
@@ -400,9 +412,11 @@ try {
   const skillsBlock = page.locator('#token-base-tree .drilldown-group').filter({ hasText: 'Skills' });
   assert.equal(await skillsBlock.locator('.drilldown-item').count(), 6);
   assert.equal(await skillsBlock.locator('.drilldown-more-btn').textContent(), 'Show 2 more');
-  await skillsBlock.locator('.drilldown-more-btn').click();
+  await skillsBlock.locator('.drilldown-more-btn').focus();
+  await page.keyboard.press('Enter');
   assert.equal(await skillsBlock.locator('.drilldown-item').count(), 8);
   assert.equal(await skillsBlock.locator('.drilldown-more-btn').textContent(), 'Show less');
+  assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('drilldown-more-btn')), true);
   await skillsBlock.locator('.drilldown-more-btn').click();
   assert.equal(await skillsBlock.locator('.drilldown-item').count(), 6);
   await page.locator('.drilldown-group-btn', { hasText: 'MCP tools' }).click();
@@ -682,8 +696,20 @@ try {
   await coldPage.waitForFunction(() => (document.querySelector('#usage-embed > div')?.shadowRoot?.querySelectorAll('#plot .bar-column')?.length || 0) > 0);
   await coldPage.close();
 
-  // 9. Tight config budget (>= 90%) turns summary pill and budget bar danger red
-  forceTightBudget = true;
+  // 9. Exact 90% threshold: 89.5% (17900/20000) stays blue, >= 90% (18600/20000) turns danger red
+  tightBudgetTokens = 17900;
+  const boundaryPage = await browser.newPage({ viewport: { width: 410, height: 680 } });
+  boundaryPage.on('pageerror', err => errors.push(err.message));
+  await boundaryPage.goto(base + '/');
+  await boundaryPage.locator('#context-tab').click();
+  await boundaryPage.locator('#token-base-toggle').waitFor({ state: 'visible' });
+  await boundaryPage.locator('#token-base-toggle').click();
+  await boundaryPage.locator('#token-base-tree').waitFor({ state: 'visible' });
+  assert.equal(await boundaryPage.locator('#token-base-toggle-summary').getAttribute('data-level'), null);
+  assert.equal(await boundaryPage.locator('#token-base-tree .is-danger').count(), 0);
+  await boundaryPage.close();
+
+  tightBudgetTokens = 18600;
   const tightPage = await browser.newPage({ viewport: { width: 410, height: 680 } });
   tightPage.on('pageerror', err => errors.push(err.message));
   await tightPage.goto(base + '/');
@@ -694,7 +720,7 @@ try {
   assert.equal(await tightPage.locator('#token-base-toggle-summary').getAttribute('data-level'), 'danger');
   assert.equal(await tightPage.locator('#token-base-tree .drilldown-budget-pct.is-danger').count(), 1);
   assert.equal(await tightPage.locator('#token-base-tree .drilldown-budget-track i.is-danger').count(), 1);
-  forceTightBudget = false;
+  tightBudgetTokens = null;
   await tightPage.close();
 
   assert.deepEqual(errors, [], 'Trusted Types CSP must produce zero page errors');
