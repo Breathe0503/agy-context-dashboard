@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { platformPaths } from './platform.mjs';
 import { createHash } from 'node:crypto';
-import { sanitizeRemoteHost } from './remote-ssh.mjs';
+import { sanitizeRemoteHost, buildRendererTrajectoryProbe } from './remote-ssh.mjs';
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -294,7 +294,17 @@ export class RuntimeUi {
     connection.inflight++;
     try {
       let result = {};
-      if (input.type === 'metrics') result = await this.enabled() ? await this.snapshot(validatedInput(input.input)) : { ...offline('Antigrative Dashboard 已停用'), enabled: false };
+      if (input.type === 'metrics') {
+        if (await this.enabled()) {
+          const metricsInput = validatedInput(input.input);
+          if (metricsInput.remoteHost && metricsInput.conversationId) {
+            metricsInput.fetchRemoteTrajectory = cid => this.fetchRendererTrajectory(connection, cid, p.executionContextId);
+          }
+          result = await this.snapshot(metricsInput);
+        } else {
+          result = { ...offline('Antigrative Dashboard 已停用'), enabled: false };
+        }
+      }
       else if(input.type==='update'&&this.updater){
         if(!await this.enabled())throw Error('Plugin disabled');
         result=await this.updater.request(input.input);
@@ -323,6 +333,21 @@ export class RuntimeUi {
     } finally { connection.inflight--; }
   }
   rendererGuard(expression){return this.owner?'if(window.__agPulseRuntimeOwner==='+JSON.stringify(this.owner)+'){'+expression+'}':expression;}
+  async fetchRendererTrajectory(connection, conversationId, contextId = undefined) {
+    if (!connection || connection.closed || connection.revoked || !conversationId) return null;
+    try {
+      const res = await connection.command('Runtime.evaluate', {
+        expression: buildRendererTrajectoryProbe(conversationId),
+        awaitPromise: true,
+        returnByValue: true,
+        ...(contextId === undefined ? {} : { contextId }),
+      });
+      if (res?.exceptionDetails) return null;
+      return res?.result?.value || null;
+    } catch {
+      return null;
+    }
+  }
   async attach(target) {
     let connection;
     connection = this.connect(target.webSocketDebuggerUrl, { onEvent: message => { void this.event(connection, message); } });

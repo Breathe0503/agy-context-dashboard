@@ -2,8 +2,29 @@ import { createServer, request } from 'node:http';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
 const HOST_CHARS = /^[A-Za-z0-9._:@\[\]-]+$/;
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_REMOTE_HOST_LEN = 160;
 const MAX_REMOTE_RESPONSE_BYTES = 1048576;
+
+export function createUnreachableTracker({ cooldownMs = 12000, now = Date.now } = {}) {
+  const failedAt = new Map();
+  return {
+    isCoolingDown(key) {
+      if (!key) return false;
+      const at = failedAt.get(key);
+      if (at === undefined) return false;
+      if (now() - at < cooldownMs) return true;
+      failedAt.delete(key);
+      return false;
+    },
+    markFailed(key) {
+      if (key) failedAt.set(key, now());
+    },
+    markOk(key) {
+      if (key) failedAt.delete(key);
+    },
+  };
+}
 
 export function sanitizeRemoteHost(value) {
   if (typeof value !== 'string') return null;
@@ -164,6 +185,7 @@ export function mergeRemoteMetrics({
   localBase = null,
   remoteHost,
   liveComposerModel = null,
+  transport = null,
   preferences,
   theme,
   orchestratorSettings,
@@ -188,7 +210,7 @@ export function mergeRemoteMetrics({
     orchestratorSettings,
     integration,
     update,
-    remoteSession: { host, mode: 'connected' },
+    remoteSession: { host, mode: 'connected', ...(transport ? { transport } : {}) },
   };
 }
 
@@ -222,7 +244,242 @@ export function buildRemoteFallbackMetrics({
   };
 }
 
-export function startRemoteBridgeServer({ port, metrics, sessionAudit, sessionInsights, health = null, onError = null } = {}) {
+const STEP_TYPE_NAMES = {
+  4: 'CORTEX_STEP_TYPE_RUN_COMMAND',
+  14: 'CORTEX_STEP_TYPE_USER_INPUT',
+  15: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+  30: 'CORTEX_STEP_TYPE_CHECKPOINT',
+  33: 'CORTEX_STEP_TYPE_CONTEXT_COMPACTION',
+};
+const STEP_STATUS_NAMES = {
+  1: 'CORTEX_STEP_STATUS_PENDING',
+  2: 'CORTEX_STEP_STATUS_RUNNING',
+  3: 'CORTEX_STEP_STATUS_DONE',
+  6: 'CORTEX_STEP_STATUS_CANCELED',
+  7: 'CORTEX_STEP_STATUS_ERROR',
+  8: 'CORTEX_STEP_STATUS_GENERATING',
+};
+const RUN_STATUS_NAMES = {
+  1: 'CASCADE_RUN_STATUS_IDLE',
+  2: 'CASCADE_RUN_STATUS_RUNNING',
+  3: 'CASCADE_RUN_STATUS_CANCELLED',
+};
+
+export function buildRendererTrajectoryProbe(cascadeId) {
+  const cid = typeof cascadeId === 'string' ? cascadeId.trim() : '';
+  if (!GUID_RE.test(cid)) throw new Error('Invalid conversation ID');
+  return `(async (cid) => {
+    const g = typeof globalThis !== 'undefined' ? globalThis : window;
+    const isLs = v => Boolean(v && typeof v === 'object' && typeof v.getUserStatus === 'function' && typeof v.getCascadeTrajectory === 'function');
+    const findLs = () => {
+      try {
+        const ref = g.__agPulseRemoteLsRef;
+        const cached = ref && (typeof ref.deref === 'function' ? ref.deref() : ref);
+        if (isLs(cached)) return cached;
+      } catch {}
+      const root = document.getElementById('root') || document.body;
+      if (!root) return null;
+      const fk = Object.keys(root).find(k => k.startsWith('__reactContainer$') || k.startsWith('__reactFiber$'));
+      if (!fk || !root[fk]) return null;
+      const q = [root[fk]], seen = new Set();
+      let visited = 0;
+      while (q.length && visited < 6000) {
+        const f = q.shift();
+        if (!f || seen.has(f)) continue;
+        seen.add(f);
+        visited++;
+        const v = f.memoizedProps && f.memoizedProps.value;
+        if (isLs(v)) {
+          try { g.__agPulseRemoteLsRef = typeof WeakRef === 'function' ? new WeakRef(v) : v; } catch {}
+          return v;
+        }
+        if (f.child) q.push(f.child);
+        if (f.sibling) q.push(f.sibling);
+      }
+      return null;
+    };
+    const ls = findLs();
+    if (!ls) return null;
+    let res;
+    try { res = await ls.getCascadeTrajectory({ cascadeId: cid }); } catch { return null; }
+    const traj = res && res.trajectory;
+    if (!traj || typeof traj !== 'object') return null;
+    const toIso = v => {
+      if (v === undefined || v === null || v === '') return undefined;
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'bigint') {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n <= 0) return undefined;
+        const d = new Date(n > 1e11 ? n : n * 1000);
+        return Number.isFinite(d.getTime()) ? d.toISOString() : undefined;
+      }
+      if (typeof v === 'object' && v.seconds !== undefined) {
+        const ms = Number(v.seconds) * 1000 + Math.floor(Number(v.nanos ?? 0) / 1e6);
+        const d = new Date(ms);
+        return Number.isFinite(d.getTime()) ? d.toISOString() : undefined;
+      }
+      return undefined;
+    };
+    const toDur = v => {
+      if (v === undefined || v === null) return undefined;
+      if (typeof v === 'number' || typeof v === 'string') return v;
+      if (typeof v === 'bigint') return Number(v);
+      if (typeof v === 'object' && (v.seconds !== undefined || v.nanos !== undefined)) {
+        return { seconds: Number(v.seconds ?? 0), nanos: Number(v.nanos ?? 0) };
+      }
+      return undefined;
+    };
+    const toIntStr = v => (v === undefined || v === null ? undefined : String(v));
+    const mapUsage = u => u && typeof u === 'object' ? {
+      model: u.model !== undefined ? Number(u.model) : undefined,
+      inputTokens: toIntStr(u.inputTokens),
+      outputTokens: toIntStr(u.outputTokens),
+      thinkingOutputTokens: toIntStr(u.thinkingOutputTokens),
+      responseOutputTokens: toIntStr(u.responseOutputTokens),
+      cacheReadTokens: toIntStr(u.cacheReadTokens),
+      cacheWriteTokens: toIntStr(u.cacheWriteTokens),
+      apiProvider: u.apiProvider,
+      responseId: typeof u.responseId === 'string' && u.responseId ? u.responseId : undefined,
+      messageId: typeof u.messageId === 'string' && u.messageId ? u.messageId : undefined,
+    } : undefined;
+    const mapGroups = groups => Array.isArray(groups) ? groups.slice(0, 16).map(gr => ({
+      name: typeof gr?.name === 'string' ? gr.name.slice(0, 64) : '',
+      type: typeof gr?.type === 'string' ? gr.type.slice(0, 48) : '',
+      source: typeof gr?.source === 'string' ? gr.source.slice(0, 48) : '',
+      numTokens: Number(gr?.numTokens ?? gr?.tokens ?? 0),
+    })) : undefined;
+    const steps = Array.isArray(traj.steps) ? traj.steps.map(s => {
+      const m = s?.metadata || {};
+      const pr = s?.plannerResponse;
+      return {
+        type: s?.type,
+        status: s?.status,
+        metadata: {
+          createdAt: toIso(m.createdAt),
+          startedAt: toIso(m.startedAt),
+          completedAt: toIso(m.completedAt),
+          viewableAt: toIso(m.viewableAt),
+          finishedGeneratingAt: toIso(m.finishedGeneratingAt),
+          ...(m.toolCall?.name ? { toolCall: { name: String(m.toolCall.name).slice(0, 80) } } : {}),
+          ...(m.toolSource !== undefined ? { toolSource: String(m.toolSource) } : {}),
+          ...(m.modelUsage ? { modelUsage: mapUsage(m.modelUsage) } : {}),
+        },
+        ...(pr ? {
+          plannerResponse: {
+            ...(Array.isArray(pr.toolCalls) ? { toolCalls: pr.toolCalls.map(() => ({})) } : {}),
+            ...(typeof pr.response === 'string' && pr.response.trim() ? { response: '_' } : {}),
+          },
+        } : {}),
+      };
+    }) : [];
+    const generatorMetadata = Array.isArray(traj.generatorMetadata) ? traj.generatorMetadata.map(gm => {
+      const cm = gm?.metadata?.case === 'chatModel' ? gm.metadata.value : (gm?.chatModel || gm?.metadata?.value);
+      if (!cm || typeof cm !== 'object') return null;
+      const cwm = cm.chatStartMetadata?.contextWindowMetadata;
+      const custom = cm.customMetadata || {};
+      const modelId = (typeof custom.model_enum === 'string' && custom.model_enum)
+        || (typeof cm.responseModel === 'string' && cm.responseModel)
+        || (typeof cm.modelDisplayName === 'string' && cm.modelDisplayName)
+        || (cm.model !== undefined ? String(cm.model) : '');
+      const retryInfos = Array.isArray(cm.retryInfos)
+        ? cm.retryInfos.filter(r => r?.usage).map(r => ({ usage: mapUsage(r.usage) }))
+        : undefined;
+      return {
+        stepIndices: Array.isArray(gm.stepIndices) ? gm.stepIndices.map(Number).filter(Number.isInteger) : [],
+        chatModel: {
+          model: modelId,
+          responseModel: typeof cm.responseModel === 'string' ? cm.responseModel : undefined,
+          modelDisplayName: typeof cm.modelDisplayName === 'string' ? cm.modelDisplayName : undefined,
+          timeToFirstToken: toDur(cm.timeToFirstToken),
+          streamingDuration: toDur(cm.streamingDuration),
+          usage: mapUsage(cm.usage),
+          ...(retryInfos && retryInfos.length ? { retryInfos } : {}),
+          ...(cm.chatStartMetadata ? {
+            chatStartMetadata: {
+              createdAt: toIso(cm.chatStartMetadata.createdAt),
+              ...(cwm ? {
+                contextWindowMetadata: {
+                  estimatedTokensUsed: Number(cwm.estimatedTokensUsed ?? 0),
+                  maxContextTokens: Number(cwm.maxContextTokens ?? 0),
+                  ...(cwm.tokenBreakdown?.groups ? { tokenBreakdown: { groups: mapGroups(cwm.tokenBreakdown.groups) } } : {}),
+                },
+              } : {}),
+            },
+          } : {}),
+        },
+      };
+    }).filter(Boolean) : [];
+    return {
+      status: res.status,
+      numTotalSteps: Number(res.numTotalSteps ?? steps.length),
+      numTotalGeneratorMetadata: Number(res.numTotalGeneratorMetadata ?? generatorMetadata.length),
+      trajectory: {
+        cascadeId: cid.toLowerCase(),
+        steps,
+        generatorMetadata,
+      },
+    };
+  })(${JSON.stringify(cid)})`;
+}
+
+function normalizeProvider(rawProvider, meta = {}) {
+  if (typeof rawProvider === 'string' && /GOOGLE_GEMINI|OPENAI|ANTHROPIC/i.test(rawProvider)) return rawProvider;
+  const hint = `${meta.modelDisplayName || ''} ${meta.responseModel || ''} ${meta.model || ''}`.toLowerCase();
+  if (/\bclaude\b|anthropic|\bsonnet\b|\bopus\b|\bhaiku\b/.test(hint)) return 'API_PROVIDER_ANTHROPIC';
+  if (/\bgpt\b|openai|\bo[134]\b/.test(hint)) return 'API_PROVIDER_OPENAI';
+  if (/\bgemini\b|neon|carbon|argon|hydrogen|orchestrator/.test(hint) || Number(rawProvider) === 24) {
+    return 'API_PROVIDER_GOOGLE_GEMINI';
+  }
+  return typeof rawProvider === 'string' ? rawProvider : '';
+}
+
+export function normalizeRendererTrajectory(projected, cascadeId = null) {
+  if (!projected || typeof projected !== 'object' || !projected.trajectory) return null;
+  const traj = projected.trajectory;
+  const steps = Array.isArray(traj.steps) ? traj.steps.map(s => ({
+    ...s,
+    type: typeof s?.type === 'number' ? (STEP_TYPE_NAMES[s.type] || `CORTEX_STEP_TYPE_${s.type}`) : s?.type,
+    status: typeof s?.status === 'number' ? (STEP_STATUS_NAMES[s.status] || `CORTEX_STEP_STATUS_${s.status}`) : s?.status,
+  })) : [];
+  let hostUsage = null;
+  const generatorMetadata = Array.isArray(traj.generatorMetadata) ? traj.generatorMetadata.map(gm => {
+    const cm = gm?.chatModel;
+    if (!cm || typeof cm !== 'object') return gm;
+    const usage = cm.usage ? { ...cm.usage, apiProvider: normalizeProvider(cm.usage.apiProvider, cm) } : undefined;
+    const cwm = cm.chatStartMetadata?.contextWindowMetadata;
+    if (cwm && Array.isArray(cwm.tokenBreakdown?.groups) && cwm.tokenBreakdown.groups.length && cwm.maxContextTokens > 0) {
+      hostUsage = {
+        estimatedTokensUsed: cwm.estimatedTokensUsed,
+        maxContextTokens: cwm.maxContextTokens,
+        tokenGroups: cwm.tokenBreakdown.groups,
+      };
+    }
+    return {
+      ...gm,
+      chatModel: {
+        ...cm,
+        ...(usage ? { usage } : {}),
+      },
+    };
+  }) : [];
+  const rawStatus = projected.status;
+  const status = typeof rawStatus === 'number'
+    ? (RUN_STATUS_NAMES[rawStatus] || `CASCADE_RUN_STATUS_${rawStatus}`)
+    : (typeof rawStatus === 'string' ? rawStatus : null);
+  return {
+    status,
+    numTotalSteps: Number.isSafeInteger(projected.numTotalSteps) ? projected.numTotalSteps : steps.length,
+    numTotalGeneratorMetadata: Number.isSafeInteger(projected.numTotalGeneratorMetadata) ? projected.numTotalGeneratorMetadata : generatorMetadata.length,
+    trajectory: {
+      cascadeId: String(traj.cascadeId || cascadeId || '').toLowerCase(),
+      steps,
+      generatorMetadata,
+    },
+    ...(hostUsage ? { hostUsage } : {}),
+  };
+}
+
+export function startRemoteBridgeServer({ port, metrics, health = null, onError = null } = {}) {
   const validPort = validateBridgePort(port);
   if (!validPort) return null;
   const server = createServer(async (req, res) => {
@@ -255,8 +512,10 @@ export function startRemoteBridgeServer({ port, metrics, sessionAudit, sessionIn
     if (url.pathname === '/api/metrics' && typeof metrics === 'function') {
       try {
         const scopeParam = url.searchParams.get('usageScope');
+        const rawCid = url.searchParams.get('conversationId');
+        const conversationId = typeof rawCid === 'string' && GUID_RE.test(rawCid) ? rawCid : null;
         const payload = await metrics({
-          conversationId: url.searchParams.get('conversationId') || null,
+          conversationId,
           selectLatest: false,
           force: url.searchParams.get('force') === '1',
           quotaRefresh: url.searchParams.get('quotaRefresh') === '1',
@@ -270,36 +529,6 @@ export function startRemoteBridgeServer({ port, metrics, sessionAudit, sessionIn
       } catch {
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end('{"error":"Remote metrics temporarily unavailable"}');
-      }
-      return;
-    }
-    if (url.pathname === '/api/session-audit' && typeof sessionAudit === 'function') {
-      try {
-        const payload = await sessionAudit({
-          conversationId: url.searchParams.get('conversationId') || null,
-          force: url.searchParams.get('force') === '1',
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(payload));
-      } catch {
-        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end('{"error":"Remote audit temporarily unavailable"}');
-      }
-      return;
-    }
-    if (url.pathname === '/api/insights' && typeof sessionInsights === 'function') {
-      try {
-        const payload = await sessionInsights({
-          force: url.searchParams.get('force') === '1',
-          status: url.searchParams.get('status') || 'all',
-          sort: url.searchParams.get('sort') || 'recent',
-          query: url.searchParams.get('query') || '',
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(payload));
-      } catch {
-        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end('{"error":"Remote insights temporarily unavailable"}');
       }
       return;
     }

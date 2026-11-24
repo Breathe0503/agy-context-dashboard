@@ -7,6 +7,8 @@ import { MetricsStore } from './store.mjs';
 import { DesktopUsage } from './usage.mjs';
 import { SessionAuditService } from './audit.mjs';
 import { InsightsScanner } from './insights.mjs';
+import { trajectoryMetrics } from './metrics.mjs';
+import { compositionMetrics } from './composition.mjs';
 import { loadSidecarSdk } from './sdk.mjs';
 import { RuntimeUi, makeRendererSource } from '../../compat/runtime-ui.mjs';
 import { agentExecutables, platformPaths } from '../../compat/platform.mjs';
@@ -26,6 +28,8 @@ import {
   buildRemoteFallbackMetrics,
   validateBridgePort,
   startRemoteBridgeServer,
+  createUnreachableTracker,
+  normalizeRendererTrajectory,
 } from '../../compat/remote-ssh.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +55,7 @@ store.onBackgroundResult=(scope,id,file,options)=>usage.ingestDisk(scope,id,file
 const preferences=new PreferencesStore();
 const updater=new AppUpdater({pluginDir:join(HERE,'..','..'),dataDir:paths.data});
 let liveComposerModel = null;
+const remoteBackoff = createUnreachableTracker();
 const metrics = async input => {
   if(ownership&&!await ownership.isOwner())throw Error('Sidecar ownership changed');
   runtimeSettings();
@@ -71,9 +76,10 @@ const metrics = async input => {
   if (remoteHost) {
     const settings = runtimeSettings();
     const resolved = resolveRemoteEndpoint(remoteHost, settings);
-    if (resolved) {
+    if (resolved && (input?.force === true || !remoteBackoff.isCoolingDown(resolved.endpoint.origin))) {
       const remoteRes = await fetchRemoteMetrics(resolved.endpoint, input);
       if (remoteRes.ok) {
+        remoteBackoff.markOk(resolved.endpoint.origin);
         let localBase = null;
         if (!Array.isArray(remoteRes.data?.groups) || !remoteRes.data.groups.length) {
           localBase = await store.snapshot({ conversationId: null, force: false, selectLatest: false, orchestratorSettings }).catch(() => null);
@@ -83,6 +89,7 @@ const metrics = async input => {
           localBase,
           remoteHost,
           liveComposerModel,
+          transport: 'loopback-bridge',
           preferences: prefs,
           theme,
           orchestratorSettings,
@@ -90,23 +97,45 @@ const metrics = async input => {
           update,
         });
       }
-      const localBase = await store.snapshot({ conversationId: null, force: input?.force === true, quotaRefresh: input?.quotaRefresh === true, selectLatest: false, orchestratorSettings }).catch(() => null);
-      return buildRemoteFallbackMetrics({
-        localBase,
-        remoteHost,
-        reason: 'unreachable',
-        preferences: prefs,
-        theme,
-        orchestratorSettings,
-        integration: integration.health,
-        update,
-      });
+      remoteBackoff.markFailed(resolved.endpoint.origin);
+    }
+    if (typeof input?.fetchRemoteTrajectory === 'function' && input?.conversationId) {
+      const projected = await input.fetchRemoteTrajectory(input.conversationId).catch(() => null);
+      const normalized = normalizeRendererTrajectory(projected, input.conversationId);
+      if (normalized) {
+        const speed = trajectoryMetrics(normalized, null, { orchestratorSettings });
+        if (speed && (speed.requests > 0 || speed.steps > 0 || speed.context)) {
+          if (speed.context) {
+            const comp = compositionMetrics({
+              context: speed.context,
+              steps: normalized.trajectory.steps,
+              generators: normalized.trajectory.generatorMetadata,
+              hostUsage: normalized.hostUsage || null,
+            });
+            if (comp) speed.contextComposition = comp;
+          }
+          speed.conversationId = input.conversationId.toLowerCase();
+          const localBase = await store.snapshot({ conversationId: null, force: input?.force === true, quotaRefresh: input?.quotaRefresh === true, selectLatest: false, orchestratorSettings }).catch(() => null);
+          return mergeRemoteMetrics({
+            remoteData: { connection: 'live', groups: [], speed },
+            localBase,
+            remoteHost,
+            liveComposerModel,
+            transport: 'renderer-rpc',
+            preferences: prefs,
+            theme,
+            orchestratorSettings,
+            integration: integration.health,
+            update,
+          });
+        }
+      }
     }
     const localBase = await store.snapshot({ conversationId: null, force: input?.force === true, quotaRefresh: input?.quotaRefresh === true, selectLatest: false, orchestratorSettings }).catch(() => null);
     return buildRemoteFallbackMetrics({
       localBase,
       remoteHost,
-      reason: 'unconfigured',
+      reason: resolved ? 'unreachable' : 'unconfigured',
       preferences: prefs,
       theme,
       orchestratorSettings,
@@ -277,8 +306,6 @@ if (process.env.ANTIGRAVITY_SIDECAR_WEB_PORT) {
     ? startRemoteBridgeServer({
         port: bridgePort,
         metrics,
-        sessionAudit,
-        sessionInsights,
         health: () => ({ ok: true, mode: 'sidecar-bridge', port: bridgePort }),
       })
     : null;

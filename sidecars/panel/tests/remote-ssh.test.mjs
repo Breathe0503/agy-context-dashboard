@@ -11,8 +11,13 @@ import {
   mergeRemoteMetrics,
   buildRemoteFallbackMetrics,
   startRemoteBridgeServer,
+  createUnreachableTracker,
+  buildRendererTrajectoryProbe,
+  normalizeRendererTrajectory,
 } from '../../../compat/remote-ssh.mjs';
 import { validatedInput } from '../../../compat/runtime-ui.mjs';
+import { trajectoryMetrics } from '../metrics.mjs';
+import { compositionMetrics } from '../composition.mjs';
 
 const require = createRequire(import.meta.url);
 const createDashboardI18n = require('../../../compat/i18n.cjs');
@@ -126,6 +131,30 @@ test('startRemoteBridgeServer serves loopback metrics and rejects non-loopback H
   // Unreachable port fails cleanly
   const fail = await fetchRemoteMetrics('http://127.0.0.1:18944', {}, { timeoutMs: 400 });
   assert.equal(fail.ok, false);
+
+  // Removed audit/insights routes must return 404
+  for (const blockedPath of ['/api/session-audit', '/api/insights']) {
+    const status = await new Promise((resolve, reject) => {
+      const req = request({ hostname: '127.0.0.1', port: 18943, path: blockedPath, headers: { Host: '127.0.0.1:18943' } }, res => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', reject);
+      req.end();
+    });
+    assert.equal(status, 404);
+  }
+
+  // Non-GUID conversationId is sanitized to null
+  await new Promise((resolve, reject) => {
+    const req = request({ hostname: '127.0.0.1', port: 18943, path: '/api/metrics?conversationId=not-a-guid', headers: { Host: '127.0.0.1:18943' } }, res => {
+      res.resume();
+      res.on('end', resolve);
+    });
+    req.on('error', reject);
+    req.end();
+  });
+  assert.equal(received.at(-1).conversationId, null);
 });
 
 test('mergeRemoteMetrics and buildRemoteFallbackMetrics preserve local prefs and prevent local session bleed', () => {
@@ -186,4 +215,94 @@ test('validatedInput whitelists sanitized remoteHost and i18n provides trilingua
       assert.ok(rendered.includes('dev@198.51.100.10'));
     }
   }
+});
+
+test('createUnreachableTracker cools down failed endpoints and resets on success', () => {
+  let now = 1000;
+  const tracker = createUnreachableTracker({ cooldownMs: 12000, now: () => now });
+  assert.equal(tracker.isCoolingDown('http://127.0.0.1:17891'), false);
+  tracker.markFailed('http://127.0.0.1:17891');
+  assert.equal(tracker.isCoolingDown('http://127.0.0.1:17891'), true);
+  now += 11999;
+  assert.equal(tracker.isCoolingDown('http://127.0.0.1:17891'), true);
+  now += 1;
+  assert.equal(tracker.isCoolingDown('http://127.0.0.1:17891'), false);
+  tracker.markFailed('http://127.0.0.1:17891');
+  tracker.markOk('http://127.0.0.1:17891');
+  assert.equal(tracker.isCoolingDown('http://127.0.0.1:17891'), false);
+});
+
+test('buildRendererTrajectoryProbe and normalizeRendererTrajectory feed trajectoryMetrics and compositionMetrics cleanly', () => {
+  const cid = '1e8fa1e7-789e-4e17-b6dd-4ed830009334';
+  const expr = buildRendererTrajectoryProbe(cid);
+  assert.ok(expr.includes(cid));
+  assert.throws(() => buildRendererTrajectoryProbe('not-a-guid'));
+
+  const projected = {
+    status: 1,
+    numTotalSteps: 2,
+    numTotalGeneratorMetadata: 1,
+    trajectory: {
+      cascadeId: cid,
+      steps: [
+        { type: 14, status: 3, metadata: { createdAt: '2026-11-24T16:19:38.302Z' } },
+        { type: 15, status: 3, metadata: { createdAt: '2026-11-24T16:19:38.326Z', completedAt: '2026-11-24T16:19:41.181Z' }, plannerResponse: { response: '_' } },
+      ],
+      generatorMetadata: [
+        {
+          stepIndices: [1],
+          chatModel: {
+            model: 'MODEL_PLACEHOLDER_M526',
+            responseModel: 'gemini-4-hydrogen',
+            modelDisplayName: 'Gemini 4 Hydrogen (Medium)',
+            timeToFirstToken: { seconds: 2, nanos: 795301168 },
+            streamingDuration: { seconds: 1, nanos: 200000000 },
+            usage: {
+              model: 1526,
+              inputTokens: '14470',
+              outputTokens: '120',
+              thinkingOutputTokens: '60',
+              responseOutputTokens: '60',
+              cacheReadTokens: '0',
+              cacheWriteTokens: '0',
+              apiProvider: 24,
+              responseId: 'resp-1',
+            },
+            chatStartMetadata: {
+              contextWindowMetadata: {
+                estimatedTokensUsed: 21109,
+                maxContextTokens: 512000,
+                tokenBreakdown: {
+                  groups: [
+                    { name: 'System Prompt', type: '', source: '', numTokens: 6061 },
+                    { name: 'Tools', type: '', source: '', numTokens: 9435 },
+                    { name: 'Chat Messages', type: '', source: '', numTokens: 147 },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  const normalized = normalizeRendererTrajectory(projected, cid);
+  assert.equal(normalized.status, 'CASCADE_RUN_STATUS_IDLE');
+  const speed = trajectoryMetrics(normalized);
+  assert.equal(speed.conversationId, cid);
+  assert.equal(speed.requests, 1);
+  assert.equal(speed.rounds, 1);
+  assert.equal(speed.tokens.totalTokens, 14590);
+  assert.ok(speed.tps > 90 && speed.tps < 110);
+  assert.equal(speed.context.usedTokens, 21109);
+  assert.equal(speed.context.maxTokens, 512000);
+  const comp = compositionMetrics({
+    context: speed.context,
+    steps: normalized.trajectory.steps,
+    generators: normalized.trajectory.generatorMetadata,
+    hostUsage: normalized.hostUsage,
+  });
+  assert.equal(comp.source, 'host-token-groups');
+  assert.equal(comp.hostGroups.length, 3);
 });
