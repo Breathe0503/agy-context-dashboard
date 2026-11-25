@@ -69,5 +69,5 @@ python -m unittest discover -s tests -v
 
 我们重视每一种形式的贡献（代码、高质量 Bug 反馈、功能创意、文档与翻译）：
 
-- **README 贡献者墙**：采用 [All Contributors](https://allcontributors.org/) 规范记录所有代码、Issue 与文档贡献者；维护者会在 Issue/PR 评论中通过 `@all-contributors` 或更新 `.all-contributorsrc` 将你加入首页致谢墙。
+- **首次互动欢迎**：首次提交 Issue 或 PR 时，仓库会自动回复欢迎与协作指引。
 - **Release 鸣谢**：每次发布版本时，GitHub Release Notes 会自动列出首次参与 PR 贡献的新晋贡献者（`New Contributors`）。
