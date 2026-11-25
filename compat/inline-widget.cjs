@@ -81,6 +81,13 @@ module.exports = function installAgPulseInlineWidget() {
     write:input=>window.agPulseHost.setPreferences(input),
     changed:()=>{for(const inst of instances)inst.onCacheHitToneChanged();},
   });
+  const storedCacheHitTiers=localGet('ag-pulse-cache-hit-tiers');
+  const cacheHitTiers=language.connectCacheHitTiers({
+    initial:storedCacheHitTiers==='true'?true:storedCacheHitTiers==='false'?false:null,
+    cache:value=>localSet('ag-pulse-cache-hit-tiers',value?'true':'false'),
+    write:input=>window.agPulseHost.setPreferences(input),
+    changed:()=>{for(const inst of instances)inst.onCacheHitTiersChanged();},
+  });
   const readBarPrefsCache=()=>{try{const raw=localGet('ag-pulse-bar-prefs');return raw?JSON.parse(raw):null;}catch{return null;}};
   const barPrefs=language.connectBarPreferences({
     initial:readBarPrefsCache(),cache:value=>localSet('ag-pulse-bar-prefs',JSON.stringify(value)),
@@ -105,7 +112,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!disposed&&epoch===hostI18nEpoch&&hostUiLocalization.enabled)hostI18n.setEnabled(true);
   }
   if(hostUiLocalization.enabled)void syncHostUiLocalizationState();
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);barPrefs.sync(value);stripMode.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
   window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);}};
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
@@ -594,8 +601,8 @@ module.exports = function installAgPulseInlineWidget() {
     for(const e of root.querySelectorAll('[data-i18n-aria]:not([data-card=cache]):not([data-card=quota])'))attribute(e,'aria-label',t(e.dataset.i18nAria));
     for(const e of root.querySelectorAll('[data-i18n-aria][title]:not([data-card])'))attribute(e,'title',t(e.dataset.i18nAria));
     for(const button of root.querySelectorAll('[data-language-choice]')){attribute(button,'aria-pressed',button.dataset.languageChoice===language.language);attribute(button,'data-save-failed',preferences.error);attribute(button,'title',preferences.error?t('languageSaveFailed'):(button.getAttribute('aria-label')||button.textContent));}
-    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
-    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
+    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
+    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
     const toggleBtn=$('strip-toggle');
     if(toggleBtn){
       const minimal=stripMode.mode==='minimal',labelText=t(minimal?'stripExpand':'stripCollapse'),failed=stripMode.error;
@@ -618,6 +625,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(hostLabelEl)attribute(hostLabelEl,'title',hostI18nHint);
     for(const button of root.querySelectorAll('[data-host-i18n-choice]')){const value=button.dataset.hostI18nChoice==='true',active=hostUiLocalization.enabled===value,failed=hostUiLocalization.error&&active,labelText=t(value?'hostUiLocalizationOn':'hostUiLocalizationOff');attribute(button,'aria-label',`${t('hostUiLocalization')}: ${labelText}`);attribute(button,'title',failed?`${hostI18nHint} · ${t('hostUiLocalizationSaveFailed')}`:hostI18nHint);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-inline-cache-hit-choice]')){const value=button.dataset.inlineCacheHitChoice==='true',active=inlineCacheHit.enabled===value,failed=inlineCacheHit.error&&active,labelText=t(value?'inlineCacheHitOn':'inlineCacheHitOff');attribute(button,'aria-label',`${t('inlineCacheHit')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('inlineCacheHitSaveFailed')}`:labelText);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
+    for(const button of root.querySelectorAll('[data-cache-hit-tiers-choice]')){const value=button.dataset.cacheHitTiersChoice==='true',active=cacheHitTiers.enabled===value,failed=cacheHitTiers.error&&active,labelText=t(value?'cacheHitTiersAuto':'cacheHitTiersFixed');attribute(button,'aria-label',`${t('cacheHitTiersLabel')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('cacheHitTiersSaveFailed')}`:(value?t('cacheHitTiersHint'):labelText));attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-theme-mode-choice]')){const value=button.dataset.themeModeChoice,active=themeModePref.value===value,failed=themeModePref.error&&active;attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);attribute(button,'title',failed?t('themeModeSaveFailed'):null);}
     const curColors=barColorsPref.colors;
     for(const button of root.querySelectorAll('[data-bar-color-default]')){const slot=button.dataset.barColorDefault,active=!curColors[slot];attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',barColorsPref.error);attribute(button,'title',barColorsPref.error?t('barColorsSaveFailed'):null);}
@@ -1276,7 +1284,7 @@ module.exports = function installAgPulseInlineWidget() {
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
       [data-card=context][data-ctx-mode=rounds][data-has-rounds=true] .context-label,[data-card=context][data-ctx-mode=compact] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
       :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
-      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600;color:var(--pulse-bar-cacheHit,var(--pulse-accent))}.cache-hit[hidden]{display:none}:host([data-cache-hit-tone=semantic]) .cache-hit{color:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}:host(:not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
+      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600;--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-accent));color:var(--pulse-hit-high)}.cache-hit[hidden]{display:none}:host([data-cache-hit-tone=semantic]) .cache-hit{--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=high]{color:var(--pulse-bar-cacheHitHigh,var(--pulse-hit-high))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=mid]{color:var(--pulse-bar-cacheHitMid,color-mix(in srgb,var(--pulse-hit-high) 62%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=low]{color:var(--pulse-bar-cacheHitLow,color-mix(in srgb,var(--pulse-hit-high) 28%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=cold]{color:var(--pulse-bar-cacheHitCold,var(--pulse-muted))}:host(:not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
       :host(.icons-only) .bar{gap:2px}:host([data-scope=main].icons-only){flex-shrink:0}:host(.icons-only:not(.minimal)) .strip-toggle{display:none}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
@@ -1490,6 +1498,7 @@ module.exports = function installAgPulseInlineWidget() {
       void themeModePref.choose('auto');
       void barColorsPref.reset();
       void cacheHitTone.choose('accent');
+      void cacheHitTiers.choose(false);
       void inlineCacheHit.choose(true);
       void quotaDisplay.choose('both');
       void speedStyle.choose('minimal');
@@ -1507,6 +1516,7 @@ module.exports = function installAgPulseInlineWidget() {
     themeController.setThemeMode?.(themeModePref.value);
     themeController.setBarColors?.(barColorsPref.colors);
     attribute(node,'data-cache-hit-tone',cacheHitTone.value);
+    attribute(node,'data-cache-hit-tiers',cacheHitTiers.enabled?'true':'false');
     report('mounted',{editorFound:true,composerFound:true});
     observeComposer();
     for(const chip of root.querySelectorAll('[data-card]')){
@@ -1653,7 +1663,7 @@ module.exports = function installAgPulseInlineWidget() {
     const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden),ctxMode=barPrefs.contextChipMode;
     const activeScheme=node?.dataset.pulseTheme==='light'?'light':'dark';
     const colors=barColorsPref.colors;
-    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,inlineCacheHit.enabled,inlineCacheHit.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,preferences.error]);
+    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,cacheHitTiers.enabled,cacheHitTiers.error,inlineCacheHit.enabled,inlineCacheHit.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,preferences.error]);
     if(lastSettingsSig===sig)return;
     lastSettingsSig=sig;
     const mk=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
@@ -1682,39 +1692,57 @@ module.exports = function installAgPulseInlineWidget() {
       ['token','barColorToken','#7c3aed'],
       ['quota','barColorQuota','#0284c7'],
       ['context','barColorContext','#315fc4'],
-      ['cacheHit','barColorCacheHit','#315fc4'],
+      ...(cacheHitTiers.enabled?[]:[['cacheHit','barColorCacheHit','#315fc4']]),
     ];
     const presetSwatches=['#315fc4','#0284c7','#7c3aed','#16a34a','#d97706','#d97757'];
-    const colorList=mk('div','bar-color-list');
-    for(const [slot,labelKey,fallbackHex] of colorSlots){
-      const current=colors[slot]||null;
-      const row=mk('div','bar-color-row');row.dataset.barColorRow=slot;
-      const ctrls=mk('div','bar-color-ctrls');
-      const defBtn=mk('button','bar-color-default',t('barColorDefault'));
-      defBtn.type='button';defBtn.dataset.barColorDefault=slot;defBtn.setAttribute('aria-pressed',String(!current));
-      defBtn.addEventListener('click',()=>void barColorsPref.setColor(slot,null));
-      ctrls.append(defBtn);
-      for(const hex of presetSwatches){
-        const dot=mk('button','color-dot');dot.type='button';
-        dot.dataset.barColorSlot=slot;dot.dataset.barColorPreset=hex;
-        dot.style.background=hex;
-        dot.setAttribute('aria-label',`${t(labelKey)} ${hex}`);
-        dot.setAttribute('aria-pressed',String(current===hex));
-        dot.addEventListener('click',()=>void barColorsPref.setColor(slot,hex));
-        ctrls.append(dot);
+    const buildColorList=slots=>{
+      const list=mk('div','bar-color-list');
+      for(const [slot,labelKey,fallbackHex] of slots){
+        const current=colors[slot]||null;
+        const row=mk('div','bar-color-row');row.dataset.barColorRow=slot;
+        const ctrls=mk('div','bar-color-ctrls');
+        const defBtn=mk('button','bar-color-default',t('barColorDefault'));
+        defBtn.type='button';defBtn.dataset.barColorDefault=slot;defBtn.setAttribute('aria-pressed',String(!current));
+        defBtn.addEventListener('click',()=>void barColorsPref.setColor(slot,null));
+        ctrls.append(defBtn);
+        for(const hex of presetSwatches){
+          const dot=mk('button','color-dot');dot.type='button';
+          dot.dataset.barColorSlot=slot;dot.dataset.barColorPreset=hex;
+          dot.style.background=hex;
+          dot.setAttribute('aria-label',`${t(labelKey)} ${hex}`);
+          dot.setAttribute('aria-pressed',String(current===hex));
+          dot.addEventListener('click',()=>void barColorsPref.setColor(slot,hex));
+          ctrls.append(dot);
+        }
+        const picker=mk('input','color-picker-input');picker.type='color';
+        picker.dataset.barColorPicker=slot;
+        picker.value=current||fallbackHex;
+        picker.setAttribute('aria-label',`${t('barColorPick')} ${t(labelKey)}`);
+        picker.title=t('barColorPick');
+        picker.addEventListener('input',()=>themeController?.setBarColors?.({...barColorsPref.colors,[slot]:picker.value}));
+        picker.addEventListener('change',()=>void barColorsPref.setColor(slot,picker.value));
+        ctrls.append(picker);
+        row.append(mk('span','bar-color-label',t(labelKey)),ctrls);
+        list.append(row);
       }
-      const picker=mk('input','color-picker-input');picker.type='color';
-      picker.dataset.barColorPicker=slot;
-      picker.value=current||fallbackHex;
-      picker.setAttribute('aria-label',`${t('barColorPick')} ${t(labelKey)}`);
-      picker.title=t('barColorPick');
-      picker.addEventListener('input',()=>themeController?.setBarColors?.({...barColorsPref.colors,[slot]:picker.value}));
-      picker.addEventListener('change',()=>void barColorsPref.setColor(slot,picker.value));
-      ctrls.append(picker);
-      row.append(mk('span','bar-color-label',t(labelKey)),ctrls);
-      colorList.append(row);
+      return list;
+    };
+    const colorList=buildColorList(colorSlots);
+    const tierModeRow=mk('div','settings-tone-row');
+    tierModeRow.append(mk('span','',t('cacheHitTiersLabel')),segGroup('cacheHitTiersLabel',[
+      {label:t('cacheHitTiersFixed'),attrs:{'data-cache-hit-tiers-choice':'false'},active:!cacheHitTiers.enabled,onClick:()=>void cacheHitTiers.choose(false)},
+      {label:t('cacheHitTiersAuto'),attrs:{'data-cache-hit-tiers-choice':'true'},active:cacheHitTiers.enabled,onClick:()=>void cacheHitTiers.choose(true)},
+    ]));
+    const themeChildren=[themeHead,colorList,tierModeRow];
+    if(cacheHitTiers.enabled){
+      themeChildren.push(buildColorList([
+        ['cacheHitHigh','barColorCacheHitHigh','#16a34a'],
+        ['cacheHitMid','barColorCacheHitMid','#315fc4'],
+        ['cacheHitLow','barColorCacheHitLow','#d97706'],
+        ['cacheHitCold','barColorCacheHitCold','#64748b'],
+      ]));
     }
-    secTheme.append(themeHead,colorList);
+    secTheme.append(...themeChildren);
 
     // 2. Bar Modules & Display
     const cols=mk('div','settings-cols');
@@ -2085,8 +2113,11 @@ module.exports = function installAgPulseInlineWidget() {
     }
     attribute(node,'data-inline-cache-hit',inlineCacheHit.enabled?'true':'false');
     const hitText=pct(cache?.hitRate);
+    const hitRateNum=typeof cache?.hitRate==='number'&&Number.isFinite(cache.hitRate)?cache.hitRate:null;
+    const hitTone=hitRateNum===null?null:hitRateNum>=0.9?'high':hitRateNum>=0.8?'mid':hitRateNum>=0.7?'low':'cold';
     text('cache-total',hasTotal?`${compact(tokens.totalTokens)} tok`:'— tok');
     text('cache-hit',hitText!=='—'?hitText:'');
+    attribute($('cache-hit'),'data-tone',cacheHitTiers.enabled?hitTone:null);
     hidden($('cache-hit'),!inlineCacheHit.enabled||hitText==='—');
     text('cache-coverage',hasTotal?(tokens.totalTokens>=1e9?compactDetail(tokens.totalTokens):count(tokens.totalTokens)):'—');
     text('cache-coverage-unit',hasTotal?tokUnit(tokens.totalTokens):'toks');
@@ -2675,6 +2706,7 @@ module.exports = function installAgPulseInlineWidget() {
     onBarColorsChanged(){if(root){themeController?.setBarColors?.(barColorsPref.colors);localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
     onThemeModeChanged(){if(root){themeController?.setThemeMode?.(themeModePref.value);localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
     onCacheHitToneChanged(){if(root){attribute(node,'data-cache-hit-tone',cacheHitTone.value);localize();if(settingsOpen)renderSettingsModal();render();}},
+    onCacheHitTiersChanged(){if(root){attribute(node,'data-cache-hit-tiers',cacheHitTiers.enabled?'true':'false');localize();if(settingsOpen)renderSettingsModal();render();}},
     onBarPrefsChanged(){if(root){applyBarLayout();localize();if(settingsOpen)renderSettingsModal();render();fit();tick();position();}},
     onStripModeChanged(){if(root){if(stripMode.mode==='minimal'&&cardName&&cardName!=='context')hide();localize();densityProbe=null;if(!parked&&composer){fit();position();}}},
     onCompositionViewChanged(){if(root){clearTimeout(hoverTimer);hoverTimer=null;ignoreLeaveUntil=Date.now()+250;localize();render();position();}},

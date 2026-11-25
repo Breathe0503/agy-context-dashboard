@@ -311,7 +311,7 @@ export class RuntimeUi {
       }
       else if (input.type === 'preferences' && this.preferences) {
         const value=input.input;
-        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','quotaDisplay','usageScope','autoRelaunchDebug','hostUiLocalization','inlineCacheHit','barColors','themeMode','cacheHitTone','barOrder','barHidden','contextChipMode','stripMode'].includes(key)))throw new Error('Invalid preferences request');
+        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','quotaDisplay','usageScope','autoRelaunchDebug','hostUiLocalization','inlineCacheHit','barColors','themeMode','cacheHitTone','cacheHitTiers','barOrder','barHidden','contextChipMode','stripMode'].includes(key)))throw new Error('Invalid preferences request');
         result=Object.keys(value).length?await this.preferences.set(value):await this.preferences.get();
         if(Object.keys(value).length&&result&&!result.error)void this.pushPreferences(result,{exclude:connection});
       }
@@ -369,8 +369,10 @@ export class RuntimeUi {
       await connection.command('Runtime.enable');
       if(connection.ideWebview&&(connection.revoked||connection.closed))throw new Error('IDE Agent context changed during attachment');
       await connection.command('Runtime.addBinding', { name: this.binding });
-      const guardedSource = 'if (location.origin === ' + JSON.stringify(connection.origin) +
-        (connection.ideWebview?' && location.href === '+JSON.stringify(target.expectedUrl):'') + ') {' + this.sourceForTarget(target) + '}';
+      connection.target=target;
+      const rawSource=this.sourceForTarget(target);
+      connection.rawSource=rawSource;
+      const guardedSource=this.buildGuardedSource(connection,rawSource);
       connection.guardedSource = guardedSource;
       // Nested Agent documents receive no persistent preload. Every replacement
       // must pass IDE ownership/resource/frame validation again.
@@ -387,6 +389,10 @@ export class RuntimeUi {
       try{if(this.owner)await connection.command('Runtime.removeBinding',{name:this.binding});}catch{}
       connection.close();throw error;
     }
+  }
+  buildGuardedSource(connection, rawSource) {
+    return 'if (location.origin === ' + JSON.stringify(connection.origin) +
+      (connection.ideWebview?' && location.href === '+JSON.stringify(connection.target?.expectedUrl):'') + ') {' + rawSource + '}';
   }
   async tick() {
     if (this.busy || this.stopping) return;
@@ -427,9 +433,23 @@ export class RuntimeUi {
           connection.mounted = status?.mounted === true;
           if(!connection.ideWebview&&(status?.fontFamily||status?.monoFontFamily))sampledTheme={fontFamily:status.fontFamily||undefined,monoFontFamily:status.monoFontFamily||undefined};
           else if(!sampledTheme.fontFamily&&!sampledTheme.monoFontFamily&&(status?.fontFamily||status?.monoFontFamily))sampledTheme={fontFamily:status.fontFamily||undefined,monoFontFamily:status.monoFontFamily||undefined};
+          let hotUpdated=false;
+          const nextRaw=this.sourceForTarget(connection.target||{url:connection.origin});
+          if(nextRaw&&nextRaw!==connection.rawSource){
+            if(!await this.owns())break;
+            const nextGuarded=this.buildGuardedSource(connection,nextRaw);
+            if(!connection.ideWebview){
+              if(connection.script)try{await connection.command('Page.removeScriptToEvaluateOnNewDocument',{identifier:connection.script});}catch{}
+              connection.script=(await connection.command('Page.addScriptToEvaluateOnNewDocument',{source:nextGuarded})).identifier;
+            }
+            connection.rawSource=nextRaw;connection.guardedSource=nextGuarded;
+            const upgraded=await connection.command('Runtime.evaluate',{expression:nextGuarded});
+            if(upgraded.exceptionDetails)throw new Error('Widget hot-reload failed');
+            hotUpdated=true;
+          }
           // Startup can swap the document between discovery and first injection.
           // Reinstall missing hooks rather than waiting forever for a composer.
-          if (status && (!status.installed || !status.bridge)) {
+          if (!hotUpdated && status && (!status.installed || !status.bridge)) {
             if(!await this.owns())break;
             const recovery = await connection.command('Runtime.evaluate', { expression: connection.guardedSource });
             if (recovery.exceptionDetails) throw new Error('Widget recovery failed');
