@@ -49,7 +49,7 @@ export function validateContextChipMode(value) {
 function storedContextChipMode(value) {
   return CONTEXT_CHIP_MODES.includes(value)?value:undefined;
 }
-export const BAR_COLOR_KEYS=['speed','token','quota','context'];
+export const BAR_COLOR_KEYS=['speed','token','quota','context','cacheHit'];
 export const THEME_MODES=['auto','light','dark'];
 export const CACHE_HIT_TONES=['accent','semantic'];
 function normalizeHexColor(value) {

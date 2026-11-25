@@ -28,7 +28,7 @@ test('PreferencesStore persists barColors, themeMode, and cacheHitTone preferenc
   assert.equal(initial.barColors, undefined);
   assert.equal(initial.themeMode, undefined);
   assert.equal(initial.cacheHitTone, undefined);
-  assert.deepEqual(BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context']);
+  assert.deepEqual(BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit']);
 
   await store.set({ barColors: { speed: '#7C3AED', token: '#16a34a', context: null } });
   const reloaded = await new PreferencesStore({ file }).get();
@@ -91,10 +91,10 @@ test('i18n exposes trilingual barColors, themeMode & settings keys and connects 
     'pulseSettings', 'pulseSettingsTitle', 'pulseSettingsSubtitle',
     'settingsSectionTheme', 'settingsSectionBar', 'settingsSectionGeneral',
     'settingsMode', 'modeAuto', 'modeLight', 'modeDark', 'themeModeSaveFailed',
-    'barColorSpeed', 'barColorToken', 'barColorQuota', 'barColorContext',
+    'barColorSpeed', 'barColorToken', 'barColorQuota', 'barColorContext', 'barColorCacheHit',
     'barColorDefault', 'barColorPick', 'barColorsSaveFailed',
     'cacheHitToneLabel', 'cacheHitToneAccent', 'cacheHitToneSemantic',
-    'cacheHitToneHint', 'cacheHitToneSaveFailed', 'settingsBack', 'settingsClose',
+    'cacheHitToneSaveFailed', 'settingsBack', 'settingsClose',
   ];
   for (const locale of ['en', 'zh-CN', 'zh-TW']) {
     const i18n = createDashboardI18n(locale);
@@ -150,18 +150,20 @@ test('theme avoids outer skin presets and inline widget keeps transparent defaul
   const theme = createAgPulseTheme();
   assert.equal(theme.SKIN_PRESETS, undefined);
   assert.equal(theme.shadowCss().includes('--pulse-bar-'), false);
-  assert.deepEqual(theme.BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context']);
+  assert.deepEqual(theme.BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit']);
   assert.deepEqual(theme.normalizeBarColors({ speed: '#7C3AED', token: 'bad', extra: '#000000' }), { speed: '#7c3aed' });
   assert.equal(theme.normalizeThemeMode('light'), 'light');
   assert.equal(theme.normalizeThemeMode('bogus'), 'auto');
 
   const widgetSrc = await readFile(new URL('../../../compat/inline-widget.cjs', import.meta.url), 'utf8');
-  assert.ok(widgetSrc.includes('.cache-hit[data-tone=high]{color:var(--pulse-accent)}'));
-  assert.ok(widgetSrc.includes(':host([data-cache-hit-tone=semantic]) .cache-hit[data-tone=high]{color:var(--pulse-success,var(--pulse-accent))}'));
+  assert.ok(widgetSrc.includes('.cache-hit{font-variant-numeric:tabular-nums;font-weight:600;color:var(--pulse-bar-cacheHit,var(--pulse-accent))}'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tone=semantic]) .cache-hit{color:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}'));
+  assert.equal(widgetSrc.includes('data-tone='), false);
   assert.ok(widgetSrc.includes('--pulse-bar-speed'));
   assert.ok(widgetSrc.includes('--pulse-bar-token'));
   assert.ok(widgetSrc.includes('--pulse-bar-quota'));
   assert.ok(widgetSrc.includes('--pulse-bar-context'));
+  assert.ok(widgetSrc.includes('--pulse-bar-cacheHit'));
   assert.equal(widgetSrc.includes('data-pulse-bar-skinned'), false);
   assert.equal(widgetSrc.includes('SKIN_PRESETS'), false);
   assert.ok(widgetSrc.includes("settingsDialog.id='pulse-settings-dialog'"));
