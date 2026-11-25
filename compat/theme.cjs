@@ -1,7 +1,7 @@
 // Shared theme controller for the injected Shadow DOM and the SDK side panel.
 module.exports = function createAgPulseTheme() {
   const THEME_MODES = ['auto', 'light', 'dark'];
-  const BAR_COLOR_KEYS = ['speed', 'token', 'quota', 'context'];
+  const BAR_COLOR_KEYS = ['speed', 'token', 'quota', 'context', 'cacheHit'];
   function normalizeHexColor(value) {
     if (typeof value !== 'string') return null;
     const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());

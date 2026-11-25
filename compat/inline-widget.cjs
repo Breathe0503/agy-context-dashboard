@@ -618,7 +618,6 @@ module.exports = function installAgPulseInlineWidget() {
     if(hostLabelEl)attribute(hostLabelEl,'title',hostI18nHint);
     for(const button of root.querySelectorAll('[data-host-i18n-choice]')){const value=button.dataset.hostI18nChoice==='true',active=hostUiLocalization.enabled===value,failed=hostUiLocalization.error&&active,labelText=t(value?'hostUiLocalizationOn':'hostUiLocalizationOff');attribute(button,'aria-label',`${t('hostUiLocalization')}: ${labelText}`);attribute(button,'title',failed?`${hostI18nHint} · ${t('hostUiLocalizationSaveFailed')}`:hostI18nHint);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-inline-cache-hit-choice]')){const value=button.dataset.inlineCacheHitChoice==='true',active=inlineCacheHit.enabled===value,failed=inlineCacheHit.error&&active,labelText=t(value?'inlineCacheHitOn':'inlineCacheHitOff');attribute(button,'aria-label',`${t('inlineCacheHit')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('inlineCacheHitSaveFailed')}`:labelText);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
-    for(const button of root.querySelectorAll('[data-cache-hit-tone-choice]')){const value=button.dataset.cacheHitToneChoice,active=cacheHitTone.value===value,failed=cacheHitTone.error&&active,labelText=t(value==='semantic'?'cacheHitToneSemantic':'cacheHitToneAccent');attribute(button,'aria-label',`${t('cacheHitToneLabel')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('cacheHitToneSaveFailed')}`:t('cacheHitToneHint'));attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-theme-mode-choice]')){const value=button.dataset.themeModeChoice,active=themeModePref.value===value,failed=themeModePref.error&&active;attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);attribute(button,'title',failed?t('themeModeSaveFailed'):null);}
     const curColors=barColorsPref.colors;
     for(const button of root.querySelectorAll('[data-bar-color-default]')){const slot=button.dataset.barColorDefault,active=!curColors[slot];attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',barColorsPref.error);attribute(button,'title',barColorsPref.error?t('barColorsSaveFailed'):null);}
@@ -1277,7 +1276,7 @@ module.exports = function installAgPulseInlineWidget() {
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
       [data-card=context][data-ctx-mode=rounds][data-has-rounds=true] .context-label,[data-card=context][data-ctx-mode=compact] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
       :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
-      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600}.cache-hit[hidden]{display:none}.cache-hit[data-tone=high]{color:var(--pulse-accent)}:host([data-cache-hit-tone=semantic]) .cache-hit[data-tone=high]{color:var(--pulse-success,var(--pulse-accent))}.cache-hit[data-tone=mid]{color:var(--pulse-warning)}.cache-hit[data-tone=low]{color:var(--pulse-muted)}:host(:not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
+      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600;color:var(--pulse-bar-cacheHit,var(--pulse-accent))}.cache-hit[hidden]{display:none}:host([data-cache-hit-tone=semantic]) .cache-hit{color:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}:host(:not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
       :host(.icons-only) .bar{gap:2px}:host([data-scope=main].icons-only){flex-shrink:0}:host(.icons-only:not(.minimal)) .strip-toggle{display:none}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
@@ -1683,6 +1682,7 @@ module.exports = function installAgPulseInlineWidget() {
       ['token','barColorToken','#7c3aed'],
       ['quota','barColorQuota','#0284c7'],
       ['context','barColorContext','#315fc4'],
+      ['cacheHit','barColorCacheHit','#315fc4'],
     ];
     const presetSwatches=['#315fc4','#0284c7','#7c3aed','#16a34a','#d97706','#d97757'];
     const colorList=mk('div','bar-color-list');
@@ -1714,12 +1714,7 @@ module.exports = function installAgPulseInlineWidget() {
       row.append(mk('span','bar-color-label',t(labelKey)),ctrls);
       colorList.append(row);
     }
-    const toneRow=mk('div','settings-tone-row');
-    toneRow.append(mk('span','',t('cacheHitToneLabel')),segGroup('cacheHitToneLabel',[
-      {label:t('cacheHitToneAccent'),attrs:{'data-cache-hit-tone-choice':'accent'},active:cacheHitTone.value==='accent',onClick:()=>void cacheHitTone.choose('accent')},
-      {label:t('cacheHitToneSemantic'),attrs:{'data-cache-hit-tone-choice':'semantic'},active:cacheHitTone.value==='semantic',onClick:()=>void cacheHitTone.choose('semantic')},
-    ]));
-    secTheme.append(themeHead,colorList,toneRow,mk('p','settings-hint',t('cacheHitToneHint')));
+    secTheme.append(themeHead,colorList);
 
     // 2. Bar Modules & Display
     const cols=mk('div','settings-cols');
@@ -2090,11 +2085,8 @@ module.exports = function installAgPulseInlineWidget() {
     }
     attribute(node,'data-inline-cache-hit',inlineCacheHit.enabled?'true':'false');
     const hitText=pct(cache?.hitRate);
-    const hitRateNum=typeof cache?.hitRate==='number'&&Number.isFinite(cache.hitRate)?cache.hitRate:null;
-    const hitTone=hitRateNum===null?null:hitRateNum>=0.7?'high':hitRateNum>=0.3?'mid':'low';
     text('cache-total',hasTotal?`${compact(tokens.totalTokens)} tok`:'— tok');
     text('cache-hit',hitText!=='—'?hitText:'');
-    attribute($('cache-hit'),'data-tone',hitTone);
     hidden($('cache-hit'),!inlineCacheHit.enabled||hitText==='—');
     text('cache-coverage',hasTotal?(tokens.totalTokens>=1e9?compactDetail(tokens.totalTokens):count(tokens.totalTokens)):'—');
     text('cache-coverage-unit',hasTotal?tokUnit(tokens.totalTokens):'toks');

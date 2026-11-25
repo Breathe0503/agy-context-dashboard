@@ -112,12 +112,14 @@ try {
   await page.waitForFunction(() => getComputedStyle(document.getElementById('ag-pulse-status-bar')).getPropertyValue('--pulse-bar-token') !== '');
   await s.locator('[data-bar-color-slot=quota][data-bar-color-preset="#0284c7"]').click();
   await s.locator('[data-bar-color-slot=context][data-bar-color-preset="#16a34a"]').click();
+  await s.locator('[data-bar-color-slot=cacheHit][data-bar-color-preset="#16a34a"]').click();
   await page.waitForFunction(() => getComputedStyle(document.getElementById('ag-pulse-status-bar')).getPropertyValue('--pulse-bar-context') !== '');
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('ag-pulse-status-bar')).getPropertyValue('--pulse-bar-cacheHit') !== '');
   const customCtxRingBg = await s.locator('#context-ring').evaluate(el => getComputedStyle(el).backgroundImage);
   assert.match(customCtxRingBg, /^conic-gradient\(/);
   assert.notEqual(customCtxRingBg, initialCtxRingBg);
   await page.waitForTimeout(100);
-  assert.deepEqual(prefs.barColors, { speed: '#7c3aed', token: '#d97706', quota: '#0284c7', context: '#16a34a' });
+  assert.deepEqual(prefs.barColors, { speed: '#7c3aed', token: '#d97706', quota: '#0284c7', context: '#16a34a', cacheHit: '#16a34a' });
 
   await s.locator('[data-theme-mode-choice=dark]').click();
   assert.equal(await s.getAttribute('data-pulse-theme'), 'dark');
@@ -132,10 +134,7 @@ try {
   await page.waitForFunction(() => getComputedStyle(document.getElementById('ag-pulse-status-bar')).getPropertyValue('--pulse-bar-speed') === '');
   await page.waitForTimeout(80);
   assert.equal(prefs.barColors.speed, undefined);
-  await s.locator('[data-cache-hit-tone-choice=semantic]').click();
-  assert.equal(await s.getAttribute('data-cache-hit-tone'), 'semantic');
-  await page.waitForTimeout(80);
-  assert.equal(prefs.cacheHitTone, 'semantic');
+  assert.equal(s.locator('[data-cache-hit-tone-choice]').count ? await s.locator('[data-cache-hit-tone-choice]').count() : 0, 0);
 
   // Switch Context ring secondary label: rounds -> label -> compact -> rounds
   await s.locator('[data-ctx-chip-mode=label]').click();
