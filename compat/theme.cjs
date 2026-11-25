@@ -179,17 +179,18 @@ module.exports = function createAgPulseTheme() {
       return { values: { ...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,colorCss(value)])), shadow: dark ? 'rgba(0,0,0,.38)' : 'rgba(20,35,64,.14)' }, surfaces };
     }
     function surfaceColors(theme) {
+      const followHost=themeMode==='auto';
       const explicitBg=hostColor(['--background','--color-background']);
-      const hostMatchesExplicit=explicitBg&&((luminance(explicitBg)<.35)===(theme==='dark'));
-      let background=(hostMatchesExplicit?explicitBg:null)||rgb(hostTheme[theme]?.background);
+      const explicitMatches=Boolean(explicitBg&&((luminance(explicitBg)<.35)===(theme==='dark')));
+      let background=(explicitBg&&(followHost||explicitMatches)?explicitBg:null)||rgb(hostTheme[theme]?.background);
       if(!background&&embedded){
         for(let element=target.parentElement;element;element=element.parentElement){
           const candidate=rgb(getComputedStyle(element).backgroundColor);
-          if(candidate&&((luminance(candidate)<.35)===(theme==='dark'))){background=candidate;break;}
+          if(candidate&&(followHost||(luminance(candidate)<.35)===(theme==='dark'))){background=candidate;break;}
         }
       }
       if(!background)return {};
-      const hostMatchesTheme=Boolean(hostMatchesExplicit||(!explicitBg&&resolveHostScheme()===theme));
+      const hostMatchesTheme=followHost||explicitMatches||(!explicitBg&&resolveHostScheme()===theme);
       const dark=luminance(background)<.35,end=dark?[255,255,255]:[0,0,0];
       let card=(hostMatchesTheme?hostColor(['--popover','--card','--color-card']):null)||mix(background,end,dark?.05:.015);
       const commonContrast=bg=>Math.max(...[[255,255,255],[0,0,0]].map(fg=>Math.min(contrast(fg,background),contrast(fg,bg))));
@@ -230,7 +231,7 @@ module.exports = function createAgPulseTheme() {
     function update() {
       if (stopped) return;
       const theme=resolve();
-      const hostMatchesTheme=resolveHostScheme()===theme;
+      const hostMatchesTheme=themeMode==='auto'||resolveHostScheme()===theme;
       if (target.dataset.pulseTheme!==theme) target.dataset.pulseTheme=theme;
       if (target.dataset.pulseSkin) delete target.dataset.pulseSkin;
       if (target.dataset.pulseBarSkinned) delete target.dataset.pulseBarSkinned;
