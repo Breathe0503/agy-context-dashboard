@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/hero.png?v=0.9.8" width="100%" alt="Antigrative Dashboard v0.9.8: speed, cache, quota and context controls beside the input.">
+<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard v1.0.1: speed, cache, quota and context controls beside the input.">
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
@@ -41,29 +41,39 @@ Keep the summary visible. Hover or switch tabs for full details.
 
 ## Preview
 
-<img src="docs/assets/responsive.png?v=0.9.8" width="100%" alt="v0.9.8 four-icon compact layout in a narrow main chat and separate statistics beside a subagent input.">
+<img src="docs/assets/responsive.png?v=1.0.1" width="100%" alt="v1.0.1 four-icon compact layout in a narrow main chat and separate statistics beside a subagent input.">
 
 <table>
-<tr><th width="50%">Speed and cache pill (explicit hit rate)</th><th width="50%">Split quota pace & 8-category context breakdown</th></tr>
+<tr><th width="50%">Speed and cache pill (explicit hit rate & quick toggle)</th><th width="50%">Split quota pace & 8-category context breakdown</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/speed.png?v=0.9.8" width="100%" alt="Generation speed card: session decode, E2E speed, TTFT (P50 / Latest), peak decode"><br><img src="docs/assets/widget.png?v=0.9.8" width="100%" alt="Token usage and cache card with explicit Cache hit rate pill"></td>
-<td width="50%" valign="top"><img src="docs/assets/quota.png?v=0.9.8" width="100%" alt="Dedicated quota card: five-hour and weekly balances, countdowns and exhaustion forecast"><br><img src="docs/assets/context.png?v=0.9.8" width="100%" alt="Context window card: host 8-category composition, compaction trend, Host UI Chinese and language controls"></td>
+<td width="50%" valign="top"><img src="docs/assets/speed.png?v=1.0.1" width="100%" alt="Generation speed card: session decode, E2E speed, TTFT (P50 / Latest), peak decode"><br><img src="docs/assets/widget.png?v=1.0.1" width="100%" alt="Token usage and cache card with explicit Cache hit rate pill and inline bar toggle"></td>
+<td width="50%" valign="top"><img src="docs/assets/quota.png?v=1.0.1" width="100%" alt="Dedicated quota card: five-hour and weekly balances, countdowns and exhaustion forecast"><br><img src="docs/assets/context.png?v=1.0.1" width="100%" alt="Context window card: host 8-category composition, compaction trend, strip mode, and Settings entry"></td>
 </tr>
 </table>
 
 <table>
+<tr><th width="50%">v1.0.1 Non-modal Settings & Per-Item Color Picker</th><th width="50%">Light / Dark Theme & Custom Color Modes</th></tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/assets/settings-dialog.png?v=1.0.1" width="100%" alt="Non-modal Settings popover with light/dark mode, per-item colors, ordering, and visibility toggles"></td>
+<td width="50%" valign="top"><img src="docs/assets/theme-colors.png?v=1.0.1" width="100%" alt="Comparison of light default blue, light custom 4-item colors, and dark custom colors"></td>
+</tr>
+</table>
+
+<img src="docs/assets/density-modes.png?v=1.0.1" width="100%" alt="v1.0.1 three adaptive density tiers (Full, Compact-Text, Icons-Only) and persistent Minimal collapse">
+
+<table>
 <tr><th width="50%">Side Panel · Session view (4-tab navigation)</th><th width="50%">Side Panel · Global Insights view</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/panel-session.png?v=0.9.8" width="100%" alt="Side Panel four top-level tabs and Session token usage with USD cost estimate"></td>
-<td width="50%" valign="top"><img src="docs/assets/panel-insights.png?v=0.9.8" width="100%" alt="Global Insights tab: Prompt/Flow credits, total sessions, estimated cost, 7-day trend and activity heatmap"></td>
+<td width="50%" valign="top"><img src="docs/assets/panel-session.png?v=1.0.1" width="100%" alt="Side Panel four top-level tabs and Session token usage with USD cost estimate"></td>
+<td width="50%" valign="top"><img src="docs/assets/panel-insights.png?v=1.0.1" width="100%" alt="Global Insights tab: Prompt/Flow credits, total sessions, estimated cost, 7-day trend and activity heatmap"></td>
 </tr>
 </table>
 
 <table>
 <tr><th width="50%">Daily and weekly activity</th><th width="50%">Usage by model (with Cache hit column)</th></tr>
 <tr>
-<td width="50%"><img src="docs/assets/usage-overview.png?v=0.9.8" width="100%" alt="Token usage activity with daily and weekly contribution grids"></td>
-<td width="50%"><img src="docs/assets/usage-details.png?v=0.9.8" width="100%" alt="Model usage stacked chart, quota pool pills and model table with Cache hit column"></td>
+<td width="50%"><img src="docs/assets/usage-overview.png?v=1.0.1" width="100%" alt="Token usage activity with daily and weekly contribution grids"></td>
+<td width="50%"><img src="docs/assets/usage-details.png?v=1.0.1" width="100%" alt="Model usage stacked chart, quota pool pills and model table with Cache hit column"></td>
 </tr>
 </table>
 
