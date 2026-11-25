@@ -1,43 +1,29 @@
 <div align="center">
 
-<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard v1.0.1: speed, cache, quota and context controls beside the input.">
+<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input.">
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
 DSH-style Antigravity (`agy`) context composition, token throughput, cache hit rate, quota pace, and global insights dashboard beside the model selector and inside the Side Panel.<br>
 Keep the summary visible. Hover or switch tabs for full details.
 
-[![Version 1.0.1](https://img.shields.io/badge/version-1.0.1-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
+[![Version 1.0.2](https://img.shields.io/badge/version-1.0.2-91adff?style=flat-square&labelColor=252936)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/host-Windows%20%7C%20Linux%20%7C%20macOS-83d8b9?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
 [![Antigravity 2.21.1 / 2.33.0+ / 2.34.0+](https://img.shields.io/badge/Antigravity-2.21.1%20%2F%202.33.0%2B%20%2F%202.34.0%2B-c5a0ff?style=flat-square&labelColor=252936)](COMPATIBILITY.md)
-[![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#language)
+[![Languages](https://img.shields.io/badge/languages-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-f2b880?style=flat-square&labelColor=252936)](#architecture--metrics-docs)
 [![MIT](https://img.shields.io/badge/license-MIT-d4d9e6?style=flat-square&labelColor=252936)](LICENSE)
 
-[Preview](#preview) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-status-line) · [Install](#install) · [Enable or remove](#plug-and-unplug) · [Host UI Chinese & Acknowledgements](#host-ui-chinese-and-acknowledgements) · [Compatibility](#compatibility) · [FAQ](#faq) · [中文](README.md)
+[Preview](#preview) · [IDE](#antigravity-ide) · [CLI](#antigravity-cli-status-line) · [Install](#install) · [Enable or remove](#plug-and-unplug) · [Acknowledgements](#host-ui-chinese-and-acknowledgements) · [FAQ](#faq) · [中文](README.md)
 
 </div>
 
 > [!TIP]
-> **Chinese & One-Click Host UI Localization Supported**
->
-> - **One-click non-invasive Host UI Chinese (`汉` toggle)**: Click `汉` in the Side Panel header or enable **Host UI Chinese** in the Context card to translate the Antigravity Desktop host UI into Simplified Chinese live—no `app.asar` patching or restart needed, and turning it off restores exact upstream English ([details](#host-ui-chinese-and-acknowledgements)).
-> - **Dashboard UI in `English / 简体中文 / 繁體中文`**: Supported across the inline strip, hover cards, Side Panel, usage views, CLI status line, and standalone IDE, with persistent language selection.
+> - **3-Language UI + 1-Click Host UI Chinese**: Supports `English / 简体中文 / 繁體中文`. Click `汉` in the Side Panel header to translate the Antigravity Desktop UI live without patching `app.asar` (turning it off restores exact English).
+> - **`2.33.0+` / `2.34.0+` Auto-Compatibility**: Automatically handles `2.34.0+` daemon credentials and Windows/Linux shortcut debug flags, with default-on `autoRelaunchDebug` (20s startup window recovery) while keeping `app.asar` untouched.
 
-> [!IMPORTANT]
-> **Antigravity Desktop `2.33.0+` / `2.34.0+` Compatibility, Startup & Post-Update Auto-Injection Note (`v0.9.6`, [`#19`](https://github.com/wycocoyu/agy-context-dashboard/issues/19), [`#17`](https://github.com/wycocoyu/agy-context-dashboard/issues/17))**
->
-> - **`2.34.0+` CSRF credential migration (`v0.9.6`)**: Antigravity `2.34.0` removes `--csrf_token` from `language_server` command-line arguments and writes `{ pid, httpsPort, httpPort, lsVersion, csrfToken }` into `~/.gemini/<appDataDir>/daemon/*.json`. **`v0.9.6`** automatically falls back to PID-matched, live-port-verified daemon metadata while staying compatible with `<= 2.33.x`. If you saw `"Local metrics credentials are unavailable in this version"` after updating to `2.34.0`, update to `v0.9.6`.
-> - **Why `2.33.0+` drops the debugging port**: Starting in Antigravity `2.33.0`, `--remote-debugging-port` is CLI opt-in only and `<profile>/DevToolsActivePort` is deleted when absent; in-app updates (`quitAndInstall()`) also drop CLI flags on restart; and `app.asar` is sealed by `ElectronAsarIntegrity` and Hardened Runtime signing, so this plugin leaves `app.asar` untouched.
-> - **Dual recovery in `v0.9.5+` (shortcut self-healing + default-on `autoRelaunchDebug`)**: On Windows (`.lnk`) and Linux (`.desktop`), the dashboard syncs debug flags into user-owned desktop shortcuts automatically; on macOS Dock launches and after in-app `quitAndInstall()` restarts without flags, **`autoRelaunchDebug` stays enabled by default (opt-out)** and triggers only during the **first 20s of sidecar startup** (max 1 auto-relaunch per sidecar, guarded by a **60s sliding window allowing up to 2 distinct-PID relaunches at least 5s apart** plus same-PID dedupe).
-> - **Zero-relaunch launcher & opt-out control**: Use the generated debug launcher (`manage.py install --with-launcher`: `~/Applications/Antigravity (Debug).app` on macOS, `%LOCALAPPDATA%\AntigravityPulse\Launch Antigravity (Debug).cmd` on Windows, `~/.local/share/applications/antigravity-pulse-debug.desktop` on Linux) to start with zero extra restarts, or uncheck **Auto-relaunch when debug port is missing** in the official Side Panel (**+ → Extensions → Antigrative Dashboard**) to persist `autoRelaunchDebug: false`.
-
-**v1.0.1:** Per-item bar color customization, strip collapse & heatmap polish ([`#76`](https://github.com/wycocoyu/agy-context-dashboard/issues/76), [`#69`](https://github.com/wycocoyu/agy-context-dashboard/pull/69), [`#84`](https://github.com/wycocoyu/agy-context-dashboard/pull/84), [`#72`](https://github.com/wycocoyu/agy-context-dashboard/issues/72), [`#81`](https://github.com/wycocoyu/agy-context-dashboard/pull/81), [`#75`](https://github.com/wycocoyu/agy-context-dashboard/pull/75), [`#74`](https://github.com/wycocoyu/agy-context-dashboard/pull/74)) — keeps the default borderless bar and accent-blue high cache-hit rate while adding a non-modal Settings popover for light/dark mode and independent per-item color pickers (`Speed`, `Token`, `Quota`, `Context`), plus a synced inline cache-hit switch inside `Token · Cache`, model selector truncation guard with minimal collapse, square Insights/usage heatmaps, and Remote SSH support (see [Release v1.0.1](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v1.0.1)).
-
-**v1.0.0:** Major milestone release ([`#60`](https://github.com/wycocoyu/agy-context-dashboard/issues/60), [`#53`](https://github.com/wycocoyu/agy-context-dashboard/issues/53), [`#57`](https://github.com/wycocoyu/agy-context-dashboard/issues/57), [`#61`](https://github.com/wycocoyu/agy-context-dashboard/issues/61)) — adds customizable bottom status bar chips (visibility toggles, drag-and-drop/`↑`/`↓` reordering, 3-way Context label mode, and anti-lockout footer access), Context rounds & 5-bucket step breakdown drawer, Orchestrator Planner/Executor split with two-line Swarm roster filtering, and polished Day/Week/Month usage charts (see [Release v1.0.0](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v1.0.0)).
-
-**v0.9.9:** Maintenance fixes ([`#46`](https://github.com/wycocoyu/agy-context-dashboard/issues/46), [`#50`](https://github.com/wycocoyu/agy-context-dashboard/pull/50), [`#52`](https://github.com/wycocoyu/agy-context-dashboard/issues/52), [`#55`](https://github.com/wycocoyu/agy-context-dashboard/pull/55)): fall back past macOS GUI minimal `PATH` (`/usr/bin/python3` 3.9.6) to Homebrew (`python3` and `3.14`–`3.10`) and Python.org Framework binaries during in-app update checks, discover OneDrive / Registry-redirected Windows Desktop `.lnk` shortcuts, log relaunch worker outcomes, and apply a 10-minute auto-relaunch backoff after failures. Retains all `v0.9.8` context composition & global insights, `v0.9.7` update availability badges, `v0.9.6` `2.34.0+` daemon credentials, `v0.9.5` `autoRelaunchDebug`, `v0.9.2` debug launchers, `IDE 2.6.0`, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS `language_server.native` discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.9) · [Changelog](CHANGELOG.md).
-
-**v0.9.8:** Introduce the **context composition, session audit & global insights workspace** ([`#16`](https://github.com/wycocoyu/agy-context-dashboard/issues/16), [`#24`](https://github.com/wycocoyu/agy-context-dashboard/issues/24), [`#29`](https://github.com/wycocoyu/agy-context-dashboard/issues/29), [`#34`](https://github.com/wycocoyu/agy-context-dashboard/issues/34), [`#43`](https://github.com/wycocoyu/agy-context-dashboard/issues/43), [`#44`](https://github.com/wycocoyu/agy-context-dashboard/issues/44)): place **Daily/Weekly Activity** and **Usage by Model** first alongside **Session** and **Insights**, add dual-mode host context breakdown, compaction/checkpoint trends, Session Audit (`Files`, `Commands`, `Steps`), public-pricing USD cost estimates, `2.34.0` multi-agent quota rollups + `cacheMissSurges`, opt-in lossless host Simplified Chinese UI, a per-model **Cache hit** column, explicit localized `Cache hit rate:` / `缓存命中率：` hero pills, zero false partial/WAL-retry usage warnings, and 192 MiB ledger heap protection. Retains `v0.9.7` update availability badges, `v0.9.6` `2.34.0+` daemon credential compatibility, `v0.9.5` default-on `autoRelaunchDebug` recovery, `v0.9.2` debug launchers, `Gemini 4` / `GPT-6.1 Sol` / `Claude 4.5–5.5`, macOS `language_server.native` discovery, and `agy 1.5.x` CLI features. [Release notes](https://github.com/wycocoyu/agy-context-dashboard/releases/tag/v0.9.8) · [Changelog](CHANGELOG.md).
+**Recent highlights ([Full changelog →](CHANGELOG.md)):**
+- **v1.0.2**: Expand the full inline strip in empty conversations once quota loads; add release prep and contributor workflows.
+- **v1.0.1 / v1.0.0**: Per-item bar colors and light/dark Settings popover, model selector truncation guard with minimal collapse, Context rounds & 5-bucket step drawer, Orchestrator/Swarm split, square Insights heatmaps, and Remote SSH support.
 
 ## Preview
 
@@ -247,107 +233,38 @@ First installation, plugin code updates, and uninstall require a full app restar
 
 ### Remote SSH Window Support
 
-In Antigravity Desktop 2.33+ Remote SSH windows, conversations execute on the remote headless host (`antigravity-hub-server`) while the Electron UI renders locally. The plugin provides **zero-config live sync, automatic graceful fallback, and optional loopback forwarding**:
+Remote SSH windows read sanitized telemetry directly via the renderer's built-in Connect-RPC client with zero remote setup (gracefully falling back to shared quota when unavailable). Optional loopback forwarding is also available:
 
-- **Zero-config live metrics (default)**: Automatically detects Remote SSH windows and projects sanitized numeric/timing/context telemetry directly from the window's built-in Connect-RPC client (stripping all prompt and message text in-renderer). Live `tok/s`, tokens, cache hit rate, 8-category context composition, and shared quota appear without installing anything on the remote host or editing SSH configs.
-- **Automatic graceful fallback**: If remote trajectory telemetry is unavailable, the inline bar hides unavailable local speed / token / context placeholders, keeps the **shared account quota** visible, migrates host localization and language controls to the quota popover, and directs you to the right sidebar panel. On remote headless Linux hosts themselves, the sidecar also detects `remote-hub` environments automatically and skips futile desktop debug-port polling.
-- **Optional loopback forwarding (advanced bridge)**: Strictly loopback-only (`127.0.0.1`) across Windows, macOS, and Linux:
-  1. **Remote Linux host**: Install in panel-only mode with an optional loopback bridge port (binds strictly to remote `127.0.0.1`):
-     ```bash
-     python3 manage.py install --panel-only --remote-bridge-port 17891
-     # Or toggle anytime: python3 manage.py set-remote-bridge --port 17891 / --off
-     ```
-  2. **Local SSH config (`~/.ssh/config`)**: Forward the loopback port for your host:
-     ```sshconfig
-     Host <your-remote-host>
-       LocalForward 127.0.0.1:17891 127.0.0.1:17891
-       ExitOnForwardFailure no
-     ```
-  3. **Local desktop machine**: Map the SSH host label (or `*`) to the forwarded loopback port (use `python` on Windows):
-     ```bash
-     python3 manage.py set-remote-endpoint user@your-host 17891
-     # Remove mapping: python3 manage.py remove-remote-endpoint user@your-host
-     ```
-  When connected, the context card displays an `SSH · <host>` badge, and falls back to renderer RPC or shared-quota mode whenever the tunnel is down.
+<details><summary>Expand optional SSH loopback forwarding setup</summary>
 
-The stable internal plugin ID remains `antigravity-pulse` for compatibility with earlier installations. The public project name is **Antigrative Dashboard**.
+1. **Remote Linux host**: `python3 manage.py install --panel-only --remote-bridge-port 17891`
+2. **Local `~/.ssh/config`**: Add `LocalForward 127.0.0.1:17891 127.0.0.1:17891`
+3. **Local desktop**: `python3 manage.py set-remote-endpoint user@your-host 17891`
 
-## How the numbers work
+</details>
 
-| Metric | Definition |
-| --- | --- |
-| Conversation turns | Count of `USER_INPUT` steps across the full trajectory |
-| Trajectory steps | Total step records across the paginated trajectory (user inputs, model replies, tools, commands, compactions/checkpoints) |
-| Model requests | Deduplicated generator calls (a single turn with tool follow-ups triggers multiple requests and steps) |
-| Context window | Latest request-start `estimatedTokensUsed` / `maxContextTokens`; unknown capacity stays unavailable |
-| Cache hit | Cached-read tokens divided by uncached input + cache reads + cache writes; token-weighted across requests |
-| Token total | Normalized total input plus output tokens, including thinking output |
-| Session decode TPS | Sum of total output tokens (including thinking) from qualified requests divided by their total streaming duration |
-| Last-request TPS | Total output tokens divided by streaming duration for the latest qualified request; uncertain, short-window or missing timing stays unavailable |
-| E2E speed | Total output tokens divided by `(TTFT + streamingDuration)` across qualified requests; reported separately from pure decode TPS |
-| TTFT | Time to first streamed/thinking token (not first answer token); shown as session P50 median and latest request |
-| Model time | TTFT plus streaming duration across requests |
-| Tool time | Union of tool execution intervals; overlapping time counted once |
-| Five-hour / weekly remaining | Account-provided `remainingFraction`; not a currency balance |
-| Reset countdown | Account-provided `resetTime` minus the current time |
+## Architecture & Metrics Docs
 
-Request metrics update after requests finish, with a poll about every 2.2 seconds. This is not a per-token instantaneous speed meter. Quotas refresh every 60 seconds; countdowns tick every second.
-Antigravity normalizes `inputTokens` to uncached input even for Gemini; these are not upstream prompt-token counters. Cache writes are not hits. Compact cards show readable counters and use a dash for unavailable values. Calculation notes, request-coverage counts and inequality prefixes are kept out of the card. Internally, partial/unknown coverage remains tracked: readable sums may omit missing usage and are not a complete account bill; cache hit rate includes only validated input samples, and zero input has no ratio denominator.
-Total `outputTokens` (including thinking) pairs directly with `streamingDuration` because `streamingDuration` spans thinking and visible answer streaming together; if total output is omitted, calculation falls back to `thinkingOutputTokens + responseOutputTokens`, then `responseOutputTokens`. Requests without valid timing do not contribute to TPS. Missing or disconnected data is labeled accordingly.
+Only whitelisted numeric statistics and model/status summaries are stored (never prompts, replies, emails, or credentials):
 
-### Timing quality
-
-Very high TPS can occur when output arrives in a batch and the recorded stream lasts only milliseconds. A short receipt window may not represent actual model generation time. The plugin checks timing quality before adding a request to session TPS; it never imposes hardcoded speed ceilings (such as 250 or 600 tok/s) or invents a longer duration.
-
-- **Excluded from TPS:** invalid token scopes, conflicting duplicate request records, multiple differing attempt usages without matching timing, nonfinite rates, and any short-window or low-output sample with `streamingDuration < 1.0s` or `outputTokens < 30` (`short-window`).
-- **Additional diagnostics:** tool-only streams under 1 second with TTFT ≥ 2 seconds and TTFT ≥ 20× stream duration (`short-tool-window`), plus short outliers above `max(8 × median, median + 12 × MAD)` of at least five qualified same-model/provider/basis samples (`short-outlier`).
-- **Retained samples:** sustained high speeds (`streamingDuration >= 1.0s` and `outputTokens >= 30`) remain eligible and never hit artificial caps. Uncertain or short-window requests still contribute their reported token, cache, and TTFT values; excluding their rate does not delete the request.
-- **Display and saved data:** an uncertain latest request shows **Timing uncertain**, without substituting the preceding request's speed. If no samples qualify, TPS is unavailable. Old saved rates await recalculation from the complete local trajectory; token/cache/context data is retained. Reloading does not restore the old unvalidated TPS.
-
-These are conservative checks on host timing summaries, not proof of buffering. The current local API does not expose a chunk timeline, so missing server generation time cannot be reconstructed. The interface keeps the calculation basis concise; filtering rules are documented here. Desktop and standalone IDE share these rules. See [timing policy and limitations](docs/TPS.md), informed by DSH discussions [#7960](https://github.com/deepseek-ai/deepseek-harness/discussions/7960) and [#6129](https://github.com/deepseek-ai/deepseek-harness/discussions/6129).
-
-## Saved conversation statistics
-
-Context occupancy uses the current request's host-reported window. The compact context card shows occupancy, used/total tokens, sampled model and both quota windows with reset times. Duplicate capacity references, unknown compaction fields, diagnostic text estimates and calculation paragraphs stay out of the card. The collector still keeps separate sourced references and conservative optional transcript diagnostics; neither changes the host denominator or billed usage. See [context limits and sources](docs/CONTEXT_LIMITS.md).
-
-Completed-request TPS, cache counts and whitelisted context estimates are saved automatically in `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/data/history-v1/<account-hash>/<conversation-id>.json`. Reloading, restarting, updating or reinstalling the plugin preserves them. Empty or regressing backend data cannot erase a useful saved sample. Saved fallbacks show their saved time in the details. A real 0% cache hit remains 0%.
-
-Records contain whitelisted statistics and model/status only; no prompts, titles, emails or credentials. The current account must be authenticated before its saved files are loaded. Already missing timing cannot be reconstructed. To backfill all conversations still available from the local API and check restart restoration, run `node tools/check-live-history.mjs` with Antigravity open.
-
-## Long conversations
-
-Statistics use separate step and generator-metadata offset reads, with messages disabled for generator requests. Large text/tool payloads are streamed and discarded; updates re-read mutable tails instead of the entire conversation. The former 512 MiB response cap is removed, while projected statistics retain a measured engineering memory budget. See [collection policy, experiments and limits](docs/LONG_CONVERSATIONS.md).
-
-## Local Token usage
-
-Open the **Daily/Weekly** or **By model** top-level tab in the Side Panel, or open the cache/database icon and click **View token usage**. Today and this month share a two-column summary; Activity shows daily/weekly contribution grids; Usage details shows model stacks by day, week or month, quota pool rollup pills (`Gemini` / `Claude / 3p` / `Local`), and a per-model table adding **Cache hit** (`cachedTokens / totalInput`). Large JSON-only ledgers offload automatically to the disk worker under the 192 MiB sidecar heap cap, and false partial/WAL-retry warnings on empty metadata or SQLite WAL locks have been eliminated. Chart colors follow your actual theme and accent; K/M/B summaries use at most one decimal, while tables/tooltips retain full counts.
-
-The first-use introduction explains history import, coverage and privacy. **Got it** saves completion across restarts, language changes and theme changes. Closing the window without acknowledgment keeps the tip for next time; a failed save can be retried.
-
-Opening **View token usage** or clicking its top-right **Refresh usage** button requests historical synchronization. Ordinary polling, card refreshes and quota resets do not start a history scan. Each import consumes a stable, bounded queue in short slices; new top-level conversations wait for the next requested pass, and unreadable or over-budget records leave coverage partial. New completed requests from the current conversation are still recorded during normal polling. The local `usage-v1` ledger deduplicates requests per account and keeps only time, model, Token counters and hashed identifiers; no prompts, replies or credentials. Desktop and IDE have separate ledgers. Deleting a chat does not subtract usage already recorded. This is observed local usage, not a provider bill; missing/deleted historical data may leave gaps. Days/months use UTC+8 and weeks start Monday.
-
-Desktop: `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/data/usage-v1/` (the host may override the data directory). IDE: `User/globalStorage/you-should-know-me.antigrative-dashboard-ide/usage-v1/` under its profile. Stop the plugin before deleting its ledger; available conversations can be imported again by opening the usage window after restart. `history-v1` remains the separate latest-per-conversation statistics store. [Accounting, cleanup and limitations](docs/USAGE.md).
+| Topic | Summary | Doc |
+| --- | --- | --- |
+| Throughput & timing quality | Session/latest TPS, E2E, TTFT, and short-window filtering | [docs/TPS.md](docs/TPS.md) |
+| Context window | 8-category host composition, compaction trends, and capacity sources | [docs/CONTEXT_LIMITS.md](docs/CONTEXT_LIMITS.md) |
+| Long conversations | Offset pagination, payload skipping, and 192 MiB heap budget | [docs/LONG_CONVERSATIONS.md](docs/LONG_CONVERSATIONS.md) |
+| Local usage & persistence | `history-v1` / `usage-v1` ledger paths and cleanup | [docs/USAGE.md](docs/USAGE.md) |
+| Reliability & recovery | Debug-port self-healing, update rollback, and edge cases | [docs/ROBUSTNESS.md](docs/ROBUSTNESS.md) |
 
 ## Host UI Chinese and Acknowledgements
 
-The Side Panel `汉` toggle and the inline Context Card **Host UI Chinese** switch enable or disable live **Simplified Chinese localization for the Antigravity Desktop host UI** without patching `app.asar` or restarting the app (using CDP DOM matching + `WeakMap` original-text restoration so turning it off restores exact upstream English strings). Theme skins, font overrides, and sidebar layout rewrites are intentionally excluded, while inline model-selector anchors and user project names are protected from accidental translation.
+The Side Panel `汉` toggle and Context Card **Host UI Chinese** switch enable live Simplified Chinese translation for the Antigravity Desktop UI without patching `app.asar` (restoring exact English when turned off). The dictionary ([`compat/host-i18n-dict.json`](compat/host-i18n-dict.json)) adapts and merges audited entries from three **MIT-licensed** projects:
 
-The built-in dictionary ([`compat/host-i18n-dict.json`](compat/host-i18n-dict.json)) adapts and merges audited entries from three **MIT-licensed** open-source community localization projects:
-
-- [`yiheng8023/antigravity-chinese`](https://github.com/yiheng8023/antigravity-chinese) (MIT): Modular 2.34.0 core dictionary, dynamic regex patterns, and user-content boundaries
-- [`antigravity-cn-community/Antigravity-Chinese-Localization`](https://github.com/antigravity-cn-community/Antigravity-Chinese-Localization) (MIT): Desktop settings phrasing, remote sessions, and model/thinking effort badges
-- [`ruxiayu/antigravity-zh-cn`](https://github.com/ruxiayu/antigravity-zh-cn) (MIT): Context-scoped entries (`New`, `Low`/`Medium`/`High`) and split DOM text-node handling
+- [`yiheng8023/antigravity-chinese`](https://github.com/yiheng8023/antigravity-chinese) · [`antigravity-cn-community/Antigravity-Chinese-Localization`](https://github.com/antigravity-cn-community/Antigravity-Chinese-Localization) · [`ruxiayu/antigravity-zh-cn`](https://github.com/ruxiayu/antigravity-zh-cn)
 
 ## Compatibility
 
-Desktop verified on **Windows 11 / Antigravity App 2.21.1 and 2.22.0**, including real context readings and the combined hover card. A separate VSIX supports standalone Antigravity IDE 2.5.5 and 2.6.0 on Windows. Other editor extensions and DSH are unsupported. Linux/macOS have automated checks; full signed-in desktop/IDE GUI verification is still open. See COMPATIBILITY.md.
-Repository presentation is inspired by [DSH Rail Music](https://github.com/YOU-SHOULD-KNOW-ME/dsh-rail-music); installation APIs differ. `dsh plugin add` cannot install this project.
-
-[Full compatibility and recovery details →](COMPATIBILITY.md)
-
-### Language
-
-Open context details and choose **English / 简体中文 / 繁體中文** at the bottom. The first-use bilingual tip points to this setting. The desktop adapter saves an atomic user preference shared with its side panel; the IDE saves its own preference in extension global storage. Both survive restarts. This changes dashboard labels, not the host app or model name.
+- **Desktop App**: Verified on Windows 11 (`2.21.1`, `2.22.0`, `2.33.0+`, `2.34.0+`); Linux and macOS have automated checks and native path adapters ([Full compatibility →](COMPATIBILITY.md)).
+- **Standalone IDE**: Dedicated VSIX supports Antigravity IDE `2.5.5` / `2.6.0` (cannot be installed via `dsh plugin add`).
 
 ## FAQ
 
