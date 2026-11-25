@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/hero-zh.png?v=0.9.8" width="100%" alt="Antigrative Dashboard v0.9.8：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
+<img src="docs/assets/hero-zh.png?v=1.0.1" width="100%" alt="Antigrative Dashboard v1.0.1：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
 
 # AGY Context Dashboard (Antigrative Dashboard)
 
@@ -42,29 +42,39 @@
 
 ## 看看效果
 
-<img src="docs/assets/responsive-zh.png?v=0.9.8" width="100%" alt="v0.9.8 主对话窄窗口四图标布局，以及子代理输入框旁的独立统计。">
+<img src="docs/assets/responsive-zh.png?v=1.0.1" width="100%" alt="v1.0.1 主对话窄窗口四图标布局，以及子代理输入框旁的独立统计。">
 
 <table>
-<tr><th width="50%">生成速度与 Token 缓存（显式命中率标识）</th><th width="50%">独立额度预测与 8 分类上下文构成</th></tr>
+<tr><th width="50%">生成速度与 Token 缓存（显式命中率与就地开关）</th><th width="50%">独立额度预测与 8 分类上下文构成</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/speed-zh.png?v=0.9.8" width="100%" alt="生成速度详情卡：会话解码、端到端速率、TTFT 与解码峰值"><br><img src="docs/assets/widget-zh.png?v=0.9.8" width="100%" alt="Token 用量与缓存详情卡：带显式缓存命中率标识与读取/未缓存/输出明细"></td>
-<td width="50%" valign="top"><img src="docs/assets/quota-zh.png?v=0.9.8" width="100%" alt="独立剩余额度卡：Gemini、Claude、Argon 5h 与周额度倒计时及耗尽预测"><br><img src="docs/assets/context-zh.png?v=0.9.8" width="100%" alt="上下文窗口详情卡：宿主 8 分类构成、压缩次数、趋势折线与宿主界面汉化/语言切换开关"></td>
+<td width="50%" valign="top"><img src="docs/assets/speed-zh.png?v=1.0.1" width="100%" alt="生成速度详情卡：会话解码、端到端速率、TTFT 与解码峰值"><br><img src="docs/assets/widget-zh.png?v=1.0.1" width="100%" alt="Token 用量与缓存详情卡：带显式缓存命中率标识与状态栏命中率就地开关"></td>
+<td width="50%" valign="top"><img src="docs/assets/quota-zh.png?v=1.0.1" width="100%" alt="独立剩余额度卡：Gemini、Claude、Argon 5h 与周额度倒计时及耗尽预测"><br><img src="docs/assets/context-zh.png?v=1.0.1" width="100%" alt="上下文窗口详情卡：宿主 8 分类构成、压缩次数、趋势折线、布局切换与设置入口"></td>
 </tr>
 </table>
 
 <table>
+<tr><th width="50%">v1.0.1 非模态设置面板与四项自由换色</th><th width="50%">浅 / 深色主题与自定义指标配色对照</th></tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/assets/settings-dialog-zh.png?v=1.0.1" width="100%" alt="非模态设置弹层：支持浅/深色切换、四项独立调色、排序与显隐控制"></td>
+<td width="50%" valign="top"><img src="docs/assets/theme-colors-zh.png?v=1.0.1" width="100%" alt="浅色默认蓝色基调、浅色四项自定义配色与深色定制配色对照"></td>
+</tr>
+</table>
+
+<img src="docs/assets/density-modes-zh.png?v=1.0.1" width="100%" alt="v1.0.1 三档自适应密度（Full / Compact-Text / Icons-Only）与 Minimal 极简折叠态对照">
+
+<table>
 <tr><th width="50%">右侧边栏 · 当前会话（四视图入口）</th><th width="50%">右侧边栏 · 全局洞察（跨会话总览）</th></tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/assets/panel-session-zh.png?v=0.9.8" width="100%" alt="侧边栏四标签页与当前会话 Token 用量、预估费用及缓存命中率"></td>
-<td width="50%" valign="top"><img src="docs/assets/panel-insights-zh.png?v=0.9.8" width="100%" alt="全局洞察视图：Credits 额度、总消耗、预估费用、近 7 天柱状图与热力图"></td>
+<td width="50%" valign="top"><img src="docs/assets/panel-session-zh.png?v=1.0.1" width="100%" alt="侧边栏四标签页与当前会话 Token 用量、预估费用及缓存命中率"></td>
+<td width="50%" valign="top"><img src="docs/assets/panel-insights-zh.png?v=1.0.1" width="100%" alt="全局洞察视图：Credits 额度、总消耗、预估费用、近 7 天柱状图与热力图"></td>
 </tr>
 </table>
 
 <table>
 <tr><th width="50%">每日 / 每周活动</th><th width="50%">按模型统计用量（含缓存命中率列）</th></tr>
 <tr>
-<td width="50%"><img src="docs/assets/usage-overview-zh.png?v=0.9.8" width="100%" alt="Token 用量活动概览，支持每日和每周贡献图"></td>
-<td width="50%"><img src="docs/assets/usage-details-zh.png?v=0.9.8" width="100%" alt="按模型统计柱状图、额度池汇总及含缓存命中率列的明细表"></td>
+<td width="50%"><img src="docs/assets/usage-overview-zh.png?v=1.0.1" width="100%" alt="Token 用量活动概览，支持每日和每周贡献图"></td>
+<td width="50%"><img src="docs/assets/usage-details-zh.png?v=1.0.1" width="100%" alt="按模型统计柱状图、额度池汇总及含缓存命中率列的明细表"></td>
 </tr>
 </table>
 
