@@ -166,9 +166,9 @@ try {
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'initial full density');
 
   // 0. Medium-width main composer (758px, matching real Antigravity with XHigh model)
-  // keeps numbers + cache-hit visible via compact-text instead of premature icons-only.
+  // keeps numbers + cache-hit visible via compact-text/tight-text instead of premature icons-only.
   await evalJs(() => { document.querySelector('.composer').style.width = '758px'; });
-  await waitUntil(() => ['full', 'compact-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
   const medState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -181,6 +181,35 @@ try {
   });
   assert.notEqual(medState.cacheHit, 'none', 'cache-hit stays visible at 758px');
   assert.notEqual(medState.tps, 'none', 'tps stays visible at 758px');
+
+  // 0b. Issue #97: long Orchestrator model name in 758px composer uses tight-text
+  // instead of dropping straight to icons-only.
+  await evalJs(() => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon (Medium)';
+  });
+  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
+  const longModelState = await evalJs(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n.shadowRoot;
+    const span = document.querySelector('[data-testid="model-selector-trigger"] span');
+    return {
+      density: n.dataset.density,
+      cacheHit: getComputedStyle(sr.getElementById('cache-hit')).display,
+      tps: getComputedStyle(sr.getElementById('tps')).display,
+      quotaText: getComputedStyle(sr.getElementById('quota-text')).display,
+      ctxPct: getComputedStyle(sr.getElementById('context-percent')).display,
+      modelTruncated: span.scrollWidth > span.clientWidth + 1,
+    };
+  });
+  assert.notEqual(longModelState.density, 'icons', 'long model name at 758px must not drop to icons-only');
+  assert.notEqual(longModelState.cacheHit, 'none', 'cache-hit stays visible with long model name');
+  assert.notEqual(longModelState.tps, 'none', 'tps stays visible with long model name');
+  assert.notEqual(longModelState.quotaText, 'none', 'primary quota stays visible with long model name');
+  assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
+  assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
+  await evalJs(() => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Gemini 4 Hydrogen (Medium)';
+  });
 
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
   await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });

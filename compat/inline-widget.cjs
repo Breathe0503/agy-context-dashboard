@@ -808,7 +808,7 @@ module.exports = function installAgPulseInlineWidget() {
     };
     let safe=false,snapshotTaken=false,nextDensity='full';
     const captureBeforeMutate=()=>{if(oldReady&&!snapshotTaken){previous=densitySnapshot(previous);snapshotTaken=true;}};
-    const DENSITY_CLASSES=['icons-only','compact-text','minimal','minimal-tight','minimal-icon','minimal-empty'];
+    const DENSITY_CLASSES=['icons-only','compact-text','tight-text','minimal','minimal-tight','minimal-icon','minimal-empty'];
     const DENSITY_SET=new Set(DENSITY_CLASSES);
     const hasExactClasses=wanted=>DENSITY_CLASSES.every(cls=>node.classList.contains(cls)===wanted.includes(cls));
     const applyDensityClasses=wanted=>{
@@ -849,6 +849,7 @@ module.exports = function installAgPulseInlineWidget() {
         const tiers=[
           {name:'full',classes:[]},
           {name:'compact-text',classes:['compact-text']},
+          {name:'tight-text',classes:['compact-text','tight-text']},
           {name:'icons',classes:['icons-only']},
         ];
         const curIdx=tiers.findIndex(item=>item.name===oldDensity);
@@ -876,6 +877,7 @@ module.exports = function installAgPulseInlineWidget() {
     const useSpring=stripMode.mode==='full'&&springNextExpand&&node.dataset.density==='full';
     if(node.dataset.density==='full'||stripMode.mode==='minimal'||!safe)springNextExpand=false;
     const changed=safe&&oldReady&&previous?.row===composer.row&&oldDensity!==node.dataset.density;
+    if(oldDensity&&oldDensity!==node.dataset.density){ignoreHoverUntil=Date.now()+300;if(cardName){clearTimeout(openTimer);openTimer=null;}}
     const next=changed?densitySnapshot():{rect:node.getBoundingClientRect(),model:composer.model,modelRect:composer.model?.getBoundingClientRect(),row:composer.row};
     if(changed&&!skipMotion)animateDensity(previous,next,{spring:useSpring});
     else if(!safe||previous?.row!==composer.row||previous?.model!==composer.model||(changed&&skipMotion))stopDensityMotion();
@@ -1001,7 +1003,7 @@ module.exports = function installAgPulseInlineWidget() {
     const visibleChips=root?Array.from(root.querySelectorAll('.bar .chip')).filter(c=>!c.hidden).length:3;
     const minStripWidth=stripMode.mode==='minimal'?24:(visibleChips>0?visibleChips*24+Math.max(0,visibleChips-1)*2:0);
     if(composer.kind==='main'){
-      const room=sharedRoom-reserve-4;
+      const room=sharedRoom-reserve-2;
       const minBranch=minMainBranchWidth(composer.branch,trigger,reserve);
       const noRoom=minStripWidth>0&&sharedRoom<minStripWidth+minBranch;
       const budget=noRoom?Math.max(0,Math.floor(sharedRoom-minBranch)):Math.max(minStripWidth,Math.floor(room));
@@ -1072,7 +1074,7 @@ module.exports = function installAgPulseInlineWidget() {
     else {if(element.hasAttribute('popover')&&element.matches(':popover-open'))element.hidePopover();hidden(element,true);}
   }
   let cardSide=null;
-  let ignoreLeaveUntil=0;
+  let ignoreLeaveUntil=0,ignoreHoverUntil=0;
   // Each strip chip maps 1:1 to its own detail popover card.
   const cardIdFor=name=>`${name}-card`;
   function hide({keepWarm=false}={}){
@@ -1102,6 +1104,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(name==='context')contextDetailRefresh();
   }
   function hoverChip(name){
+    if(cardName&&cardName!==name&&Date.now()<ignoreHoverUntil)return;
     clearTimeout(hoverTimer);
     if(name==='quota')void hoverQuotaRefresh();
     if(name==='context')contextDetailRefresh();
@@ -1289,6 +1292,7 @@ module.exports = function installAgPulseInlineWidget() {
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
       :host(.compact-text) .bar{gap:3px}:host(.compact-text) .chip{padding:3px;gap:3px}:host(.compact-text) .context-rounds,:host(.compact-text) .context-label,:host(.compact-text) .countdown{display:none!important}
+      :host(.tight-text) .bar{gap:2px}:host(.tight-text) .chip{padding:2px 3px;gap:2px}:host(.tight-text) [data-card=speed]>span:not(.rounds),:host(.tight-text) .quota-secondary{display:none!important}
       :host(.minimal) .bar{gap:2px}:host(.minimal) .bar>.dot{display:none}
       :host(.minimal.icons-only) .strip-toggle{display:inline-grid}:host(.minimal.icons-only) [data-card=cache]>.cache-hit{display:none!important}:host(.minimal.icons-only) [data-card=cache]{flex:0 0 24px!important;width:24px!important;padding:0!important;gap:0!important}
       :host(.minimal.minimal-icon) .strip-toggle,:host(.minimal.minimal-icon) [data-card="speed"],:host(.minimal.minimal-icon) [data-card="cache"],:host(.minimal.minimal-icon) [data-card="quota"],:host(.minimal.minimal-icon) #context-percent,:host(.minimal.minimal-icon) .context-label,:host(.minimal.minimal-icon) .context-rounds{display:none!important}:host(.minimal.minimal-icon) [data-card="context"]{display:flex!important;flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}
@@ -2468,12 +2472,12 @@ module.exports = function installAgPulseInlineWidget() {
         attribute(quotaChip,'data-quota-level',view.level==='ok'?null:view.level);
         attribute(quotaChip,'data-quota-dot',view.dot);
         const tag=w=>w==='5h'?'5h':t('weekShort');
-        const seg=(w,strong)=>{const v=w==='5h'?view.five?.remaining??null:view.week?.remaining??null;return v!==null?`<${strong?'strong':'span'}>${tag(w)} ${ringPct(v)}</${strong?'strong':'span'}>`:`<span class="dim">${tag(w)} —</span>`;};
+        const seg=(w,strong,secondary=false)=>{const v=w==='5h'?view.five?.remaining??null:view.week?.remaining??null;const cls=secondary?' class="quota-secondary"':'';return v!==null?`<${strong?'strong':'span'}${cls}>${tag(w)} ${ringPct(v)}</${strong?'strong':'span'}>`:`<span class="dim${secondary?' quota-secondary':''}">${tag(w)} —</span>`;};
         let html='';
         if(quotaDisplay.value==='both'){
-          const parts=[];
-          if(view.five)parts.push(seg('5h',view.show==='5h'&&view.five.remaining!==null));
-          if(view.week){if(parts.length)parts.push('<span class="dim">·</span>');parts.push(seg('weekly',view.show==='weekly'&&view.week.remaining!==null));}
+          const parts=[],primary=view.show||'5h';
+          if(view.five)parts.push(seg('5h',primary==='5h'&&view.five.remaining!==null,primary!=='5h'));
+          if(view.week){if(parts.length)parts.push(`<span class="dim quota-secondary">·</span>`);parts.push(seg('weekly',primary==='weekly'&&view.week.remaining!==null,primary!=='weekly'));}
           html=parts.join('')||'<span class="dim">—</span>';
         }else if(view.show){
           const v=view.show==='5h'?view.five?.remaining??null:view.week?.remaining??null;
