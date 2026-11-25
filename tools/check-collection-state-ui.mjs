@@ -69,7 +69,7 @@ async function verifyNarrowStateMatrix(page,strip){
    await page.waitForFunction(mode=>{const w=document.getElementById('ag-pulse-status-bar');return !w.shadowRoot.querySelector('.refresh[aria-busy=true]')&&(w.dataset.collection||'')===(mode.startsWith('processing')?'processing':mode==='limited'?'limited':'');},mode);
    for(const density of ['icons','full']){
     await page.evaluate(density=>document.querySelector('.composer').style.maxWidth=density==='icons'?'260px':'1000px',density);
-    const expectedDensity=mode==='empty'?'icons':density;
+    const expectedDensity=density;
     const screenshot=theme==='light'&&mode==='normal'&&density==='icons'?'fixed-light-'+await strip.getAttribute('lang')+'.png':null;
     await verifyGlyphs(page,strip,expectedDensity,expected,screenshot);
    }
@@ -95,7 +95,7 @@ try{for(const lang of ['en','zh-CN','zh-TW']){
  await notice.locator('summary').click();assert.match(await notice.locator('.collection-budget-size').textContent(),/8\.00 MiB/);assert.equal(await notice.locator('a').getAttribute('href'),'https://github.com/wycocoyu/agy-context-dashboard/blob/main/docs/LONG_CONVERSATIONS.md');
  for(const mode of ['saved','serialized','field','empty','normal','limited']){
   await page.keyboard.press('Escape');await page.selectOption('#scenario',mode);
-  await page.waitForFunction(mode=>{const w=document.getElementById('ag-pulse-status-bar'),r=w.shadowRoot;if(['empty','normal'].includes(mode))return !w.dataset.collection&&w.dataset.density===(mode==='empty'?'icons':'full')&&!w.dataset.motion;return mode==='saved'?r.getElementById('tps').textContent==='50.0':r.getElementById('tps').textContent==='—';},mode);
+  await page.waitForFunction(mode=>{const w=document.getElementById('ag-pulse-status-bar'),r=w.shadowRoot;if(['empty','normal'].includes(mode))return !w.dataset.collection&&w.dataset.density==='full'&&!w.dataset.motion;return mode==='saved'?r.getElementById('tps').textContent==='50.0':r.getElementById('tps').textContent==='—';},mode);
   if(mode==='empty')assert.equal(await strip.locator('.bar .chip:visible').count(),4);
   await strip.locator('[data-card=cache]').click();
   if(mode==='saved'){assert.match(await notice.locator('.collection-state').textContent(),/Last complete|上次完整/);assert.equal(await strip.locator('#tps').textContent(),'50.0');}

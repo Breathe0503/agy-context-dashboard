@@ -99,6 +99,7 @@ const speed = trajectoryMetrics({
 });
 
 let prefs = { language: 'en', languageGuideDismissed: true, revision: 1 };
+let emptyConversation = false;
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/api/metrics') {
@@ -106,7 +107,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({
       connection: 'live', theme: 'light', preferences: prefs, serverTime: new Date().toISOString(),
       groups: [{ id: 'gemini', name: 'Gemini', windows: { '5h': { available: true, remaining: 0.8, resetAt: reset5h }, weekly: { available: true, remaining: 0.9, resetAt: resetWk } } }],
-      speed,
+      speed: emptyConversation ? null : speed,
     }));
     return;
   }
@@ -233,7 +234,46 @@ try {
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'expands back to full via footer toggle');
   assert.equal(prefs.stripMode, 'full');
 
-  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 combined)');
+  // 5. Issue #90: empty/new conversation with valid account quota stays full when stripMode=full,
+  // and collapses all text when switched to stripMode=minimal.
+  emptyConversation = true;
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('.refresh')?.click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('tps')?.textContent === '—', 'empty conversation rendered');
+  const emptyFullState = await evalJs(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n.shadowRoot;
+    return {
+      density: n.dataset.density,
+      iconsOnly: n.classList.contains('icons-only'),
+      quotaDisplay: getComputedStyle(sr.getElementById('quota-text')).display,
+      quotaText: sr.getElementById('quota-text').textContent,
+      tpsDisplay: getComputedStyle(sr.getElementById('tps')).display,
+    };
+  });
+  assert.equal(emptyFullState.density, 'full', 'empty conversation with quota stays full in stripMode=full');
+  assert.equal(emptyFullState.iconsOnly, false, 'must not force icons-only when quota is loaded');
+  assert.notEqual(emptyFullState.quotaDisplay, 'none', '#quota-text must stay visible');
+  assert.match(emptyFullState.quotaText, /80%/, '#quota-text shows remaining quota');
+  assert.notEqual(emptyFullState.tpsDisplay, 'none', 'all chips stay expanded in full mode');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.getElementById('strip-mode-minimal').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'minimal', 'empty conversation collapses in minimal mode');
+  const emptyMinimalQuota = await evalJs(() => getComputedStyle(document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('quota-text')).display);
+  assert.equal(emptyMinimalQuota, 'none', 'minimal mode hides quota text');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.getElementById('strip-mode-full').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'empty conversation expands back to full');
+
+  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 + Issue #90 combined)');
 } finally {
   if (browser) {
     try { browser.cdp.close(); } catch {}
