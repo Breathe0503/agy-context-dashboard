@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — 2026-11-25
+
+- **Prevent abrupt `icons-only` collapse in 758px composer ([#97](https://github.com/wycocoyu/agy-context-dashboard/issues/97), [#98](https://github.com/wycocoyu/agy-context-dashboard/pull/98))**: Added a `tight-text` intermediate density tier between `compact-text` and `icons-only` (hiding secondary quota window text and `tok/s` unit suffixes while preserving speed, token totals, cache hit rate, primary quota, and context percentage) for long model names and active running states, plus a 300ms hover-hijack guard during density transitions.
+- **4-tier cache hit-rate colors & runtime hot-reinject ([#88](https://github.com/wycocoyu/agy-context-dashboard/issues/88), [#93](https://github.com/wycocoyu/agy-context-dashboard/pull/93))**: Unified the cache hit-rate color picker, added optional 4-tier hit-rate colors (`high` / `mid` / `low` / `cold`), and added runtime hot-reinject for updated renderer assets.
+- **Documentation cleanup ([#94](https://github.com/wycocoyu/agy-context-dashboard/pull/94), [#95](https://github.com/wycocoyu/agy-context-dashboard/pull/95))**: Trimmed verbose README sections and fixed bold delimiter formatting.
+
 ## 1.0.2 — 2026-11-24
 
 - **Empty-conversation inline strip expansion ([#90](https://github.com/wycocoyu/agy-context-dashboard/pull/90))**: Expand the full inline status strip in empty conversations as soon as quota metrics are loaded.
