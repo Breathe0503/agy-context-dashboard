@@ -877,6 +877,7 @@ module.exports = function installAgPulseInlineWidget() {
     const useSpring=stripMode.mode==='full'&&springNextExpand&&node.dataset.density==='full';
     if(node.dataset.density==='full'||stripMode.mode==='minimal'||!safe)springNextExpand=false;
     const changed=safe&&oldReady&&previous?.row===composer.row&&oldDensity!==node.dataset.density;
+    if(oldDensity&&oldDensity!==node.dataset.density){ignoreHoverUntil=Date.now()+300;if(cardName){clearTimeout(openTimer);openTimer=null;}}
     const next=changed?densitySnapshot():{rect:node.getBoundingClientRect(),model:composer.model,modelRect:composer.model?.getBoundingClientRect(),row:composer.row};
     if(changed&&!skipMotion)animateDensity(previous,next,{spring:useSpring});
     else if(!safe||previous?.row!==composer.row||previous?.model!==composer.model||(changed&&skipMotion))stopDensityMotion();
@@ -1073,7 +1074,7 @@ module.exports = function installAgPulseInlineWidget() {
     else {if(element.hasAttribute('popover')&&element.matches(':popover-open'))element.hidePopover();hidden(element,true);}
   }
   let cardSide=null;
-  let ignoreLeaveUntil=0;
+  let ignoreLeaveUntil=0,ignoreHoverUntil=0;
   // Each strip chip maps 1:1 to its own detail popover card.
   const cardIdFor=name=>`${name}-card`;
   function hide({keepWarm=false}={}){
@@ -1103,6 +1104,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(name==='context')contextDetailRefresh();
   }
   function hoverChip(name){
+    if(cardName&&cardName!==name&&Date.now()<ignoreHoverUntil)return;
     clearTimeout(hoverTimer);
     if(name==='quota')void hoverQuotaRefresh();
     if(name==='context')contextDetailRefresh();
