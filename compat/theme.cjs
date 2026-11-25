@@ -179,15 +179,17 @@ module.exports = function createAgPulseTheme() {
       return { values: { ...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,colorCss(value)])), shadow: dark ? 'rgba(0,0,0,.38)' : 'rgba(20,35,64,.14)' }, surfaces };
     }
     function surfaceColors(theme) {
-      let hostBg=hostColor(['--background','--color-background']);
-      if(!hostBg&&embedded){
+      const explicitBg=hostColor(['--background','--color-background']);
+      const hostMatchesExplicit=explicitBg&&((luminance(explicitBg)<.35)===(theme==='dark'));
+      let background=(hostMatchesExplicit?explicitBg:null)||rgb(hostTheme[theme]?.background);
+      if(!background&&embedded){
         for(let element=target.parentElement;element;element=element.parentElement){
-          hostBg=rgb(getComputedStyle(element).backgroundColor);if(hostBg)break;
+          const candidate=rgb(getComputedStyle(element).backgroundColor);
+          if(candidate&&((luminance(candidate)<.35)===(theme==='dark'))){background=candidate;break;}
         }
       }
-      const hostMatchesTheme=hostBg&&((luminance(hostBg)<.35)===(theme==='dark'));
-      const background=(hostMatchesTheme?hostBg:null)||rgb(hostTheme[theme]?.background);
       if(!background)return {};
+      const hostMatchesTheme=Boolean(hostMatchesExplicit||(!explicitBg&&resolveHostScheme()===theme));
       const dark=luminance(background)<.35,end=dark?[255,255,255]:[0,0,0];
       let card=(hostMatchesTheme?hostColor(['--popover','--card','--color-card']):null)||mix(background,end,dark?.05:.015);
       const commonContrast=bg=>Math.max(...[[255,255,255],[0,0,0]].map(fg=>Math.min(contrast(fg,background),contrast(fg,bg))));
