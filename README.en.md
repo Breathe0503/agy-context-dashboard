@@ -386,7 +386,29 @@ python manage.py package
 ZIP and SHA256 files are generated in `dist/`. Packaging uses an allowlist and excludes credentials, account settings, logs, SDK caches, and application archives.
 Generating README images is an optional developer task: `node tools/build-readme-assets.mjs` requires Playwright (or an absolute `PLAYWRIGHT_MODULE` path). It renders the actual widget code with illustrative metrics and produces English/Chinese assets. This is not an installation dependency.
 
-[Development guide →](docs/DEVELOPMENT.md) · [Changelog →](CHANGELOG.md)
+[Development guide →](docs/DEVELOPMENT.md) · [Contributing →](CONTRIBUTING.md) · [Changelog →](CHANGELOG.md)
+
+## Contributors
+
+Thanks to everyone who contributes code, bug reports, ideas, and documentation ([Contributing Guide](CONTRIBUTING.md)):
+
+<!-- ALL-CONTRIBUTORS-BADGE:START -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/wycocoyu"><img src="https://avatars.githubusercontent.com/u/17003385?v=4?s=64" width="64px;" alt="Cocoyu"/><br /><sub><b>Cocoyu</b></sub></a><br /><a href="https://github.com/wycocoyu/agy-context-dashboard/commits?author=wycocoyu" title="Code">💻</a> <a href="#maintenance-wycocoyu" title="Maintenance">🚧</a> <a href="https://github.com/wycocoyu/agy-context-dashboard/commits?author=wycocoyu" title="Documentation">📖</a></td>
+    </tr>
+  </tbody>
+</table>
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## License
 

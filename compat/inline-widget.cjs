@@ -2076,7 +2076,7 @@ module.exports = function installAgPulseInlineWidget() {
     const tokens=usage?.tokens || cache;
     // Keep coverage in the data model; the compact card shows readable counters.
     const hasTotal=tokens?.measuredRequests&&Number.isSafeInteger(tokens.totalTokens)&&tokens.totalTokens>=0;
-    const hasStripData=Boolean(collectionActive||stripRate!==null||hasTotal||(typeof cache?.hitRate==='number'&&Number.isFinite(cache.hitRate))||hasCapacity);
+    const hasStripData=Boolean(collectionActive||stripRate!==null||hasTotal||(typeof cache?.hitRate==='number'&&Number.isFinite(cache.hitRate))||hasCapacity||(group&&!hiddenSet.has('quota')));
     if(!hasStripData){
       emptyCompact=true;
       if(hydrated)seenEmptySession=true;

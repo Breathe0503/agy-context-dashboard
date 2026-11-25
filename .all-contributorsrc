@@ -1,0 +1,27 @@
+{
+  "projectName": "agy-context-dashboard",
+  "projectOwner": "wycocoyu",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md",
+    "README.en.md"
+  ],
+  "imageSize": 64,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "wycocoyu",
+      "name": "Cocoyu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17003385?v=4",
+      "profile": "https://github.com/wycocoyu",
+      "contributions": [
+        "code",
+        "maintenance",
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true
+}
