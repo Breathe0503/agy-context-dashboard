@@ -28,7 +28,7 @@ test('PreferencesStore persists barColors, themeMode, and cacheHitTone preferenc
   assert.equal(initial.barColors, undefined);
   assert.equal(initial.themeMode, undefined);
   assert.equal(initial.cacheHitTone, undefined);
-  assert.deepEqual(BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit']);
+  assert.deepEqual(BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit', 'cacheHitHigh', 'cacheHitMid', 'cacheHitLow', 'cacheHitCold']);
 
   await store.set({ barColors: { speed: '#7C3AED', token: '#16a34a', context: null } });
   const reloaded = await new PreferencesStore({ file }).get();
@@ -83,6 +83,7 @@ test('runtime bridges whitelist barColors, themeMode, and cacheHitTone preferenc
     assert.ok(src.includes("'barColors'"), `${rel} must whitelist barColors`);
     assert.ok(src.includes("'themeMode'"), `${rel} must whitelist themeMode`);
     assert.ok(src.includes("'cacheHitTone'"), `${rel} must whitelist cacheHitTone`);
+    assert.ok(src.includes("'cacheHitTiers'"), `${rel} must whitelist cacheHitTiers`);
   }
 });
 
@@ -92,9 +93,11 @@ test('i18n exposes trilingual barColors, themeMode & settings keys and connects 
     'settingsSectionTheme', 'settingsSectionBar', 'settingsSectionGeneral',
     'settingsMode', 'modeAuto', 'modeLight', 'modeDark', 'themeModeSaveFailed',
     'barColorSpeed', 'barColorToken', 'barColorQuota', 'barColorContext', 'barColorCacheHit',
+    'barColorCacheHitHigh', 'barColorCacheHitMid', 'barColorCacheHitLow', 'barColorCacheHitCold',
     'barColorDefault', 'barColorPick', 'barColorsSaveFailed',
     'cacheHitToneLabel', 'cacheHitToneAccent', 'cacheHitToneSemantic',
-    'cacheHitToneSaveFailed', 'settingsBack', 'settingsClose',
+    'cacheHitToneSaveFailed', 'cacheHitTiersLabel', 'cacheHitTiersFixed', 'cacheHitTiersAuto',
+    'cacheHitTiersHint', 'cacheHitTiersSaveFailed', 'settingsBack', 'settingsClose',
   ];
   for (const locale of ['en', 'zh-CN', 'zh-TW']) {
     const i18n = createDashboardI18n(locale);
@@ -150,15 +153,19 @@ test('theme avoids outer skin presets and inline widget keeps transparent defaul
   const theme = createAgPulseTheme();
   assert.equal(theme.SKIN_PRESETS, undefined);
   assert.equal(theme.shadowCss().includes('--pulse-bar-'), false);
-  assert.deepEqual(theme.BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit']);
+  assert.deepEqual(theme.BAR_COLOR_KEYS, ['speed', 'token', 'quota', 'context', 'cacheHit', 'cacheHitHigh', 'cacheHitMid', 'cacheHitLow', 'cacheHitCold']);
   assert.deepEqual(theme.normalizeBarColors({ speed: '#7C3AED', token: 'bad', extra: '#000000' }), { speed: '#7c3aed' });
   assert.equal(theme.normalizeThemeMode('light'), 'light');
   assert.equal(theme.normalizeThemeMode('bogus'), 'auto');
 
   const widgetSrc = await readFile(new URL('../../../compat/inline-widget.cjs', import.meta.url), 'utf8');
-  assert.ok(widgetSrc.includes('.cache-hit{font-variant-numeric:tabular-nums;font-weight:600;color:var(--pulse-bar-cacheHit,var(--pulse-accent))}'));
-  assert.ok(widgetSrc.includes(':host([data-cache-hit-tone=semantic]) .cache-hit{color:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}'));
-  assert.equal(widgetSrc.includes('data-tone='), false);
+  assert.ok(widgetSrc.includes('.cache-hit{font-variant-numeric:tabular-nums;font-weight:600;--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-accent));color:var(--pulse-hit-high)}'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tone=semantic]) .cache-hit{--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tiers=true]) .cache-hit[data-tone=high]{color:var(--pulse-bar-cacheHitHigh,var(--pulse-hit-high))}'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tiers=true]) .cache-hit[data-tone=mid]{color:var(--pulse-bar-cacheHitMid,'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tiers=true]) .cache-hit[data-tone=low]{color:var(--pulse-bar-cacheHitLow,'));
+  assert.ok(widgetSrc.includes(':host([data-cache-hit-tiers=true]) .cache-hit[data-tone=cold]{color:var(--pulse-bar-cacheHitCold,var(--pulse-muted))}'));
+  assert.ok(widgetSrc.includes("hitRateNum>=0.9?'high':hitRateNum>=0.8?'mid':hitRateNum>=0.7?'low':'cold'"));
   assert.ok(widgetSrc.includes('--pulse-bar-speed'));
   assert.ok(widgetSrc.includes('--pulse-bar-token'));
   assert.ok(widgetSrc.includes('--pulse-bar-quota'));

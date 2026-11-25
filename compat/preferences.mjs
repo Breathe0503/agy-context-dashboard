@@ -49,7 +49,7 @@ export function validateContextChipMode(value) {
 function storedContextChipMode(value) {
   return CONTEXT_CHIP_MODES.includes(value)?value:undefined;
 }
-export const BAR_COLOR_KEYS=['speed','token','quota','context','cacheHit'];
+export const BAR_COLOR_KEYS=['speed','token','quota','context','cacheHit','cacheHitHigh','cacheHitMid','cacheHitLow','cacheHitCold'];
 export const THEME_MODES=['auto','light','dark'];
 export const CACHE_HIT_TONES=['accent','semantic'];
 function normalizeHexColor(value) {
@@ -109,6 +109,13 @@ export function validateInlineCacheHit(value) {
 function storedInlineCacheHit(value) {
   return typeof value==='boolean'?value:undefined;
 }
+export function validateCacheHitTiers(value) {
+  if(typeof value!=='boolean')throw new Error('Invalid cache hit tiers preference');
+  return value;
+}
+function storedCacheHitTiers(value) {
+  return typeof value==='boolean'?value:undefined;
+}
 export function validateLanguage(value) {
   if (value!=='en'&&value!=='zh-CN'&&value!=='zh-TW') throw new Error('Invalid language preference');
   return value;
@@ -141,18 +148,19 @@ export class PreferencesStore {
       const barColors=storedBarColors(value.barColors);
       const themeMode=storedThemeMode(value.themeMode);
       const cacheHitTone=storedCacheHitTone(value.cacheHitTone);
+      const cacheHitTiers=storedCacheHitTiers(value.cacheHitTiers);
       const barOrder=storedBarOrder(value.barOrder);
       const barHidden=storedBarHidden(value.barHidden);
       const contextChipMode=storedContextChipMode(value.contextChipMode);
       const stripMode=storedStripMode(value.stripMode);
-      return {language:value.language===null?null:validateLanguage(value.language),languageGuideDismissed:value.languageGuideDismissed===true,usageGuideDismissed:value.usageGuideDismissed===true,speedStyle:storedSpeedStyle(value.speedStyle),quotaDisplay:storedQuotaDisplay(value.quotaDisplay),...(usageScope?{usageScope}:{}),...(typeof autoRelaunchDebug==='boolean'?{autoRelaunchDebug}:{}),...(typeof hostUiLocalization==='boolean'?{hostUiLocalization}:{}),...(typeof inlineCacheHit==='boolean'?{inlineCacheHit}:{}),...(barColors?{barColors}:{}),...(themeMode?{themeMode}:{}),...(cacheHitTone?{cacheHitTone}:{}),...(barOrder?{barOrder}:{}),...(barHidden?{barHidden}:{}),...(contextChipMode?{contextChipMode}:{}),...(stripMode?{stripMode}:{}),revision:Number.isSafeInteger(value.revision)&&value.revision>=0?value.revision:0};
+      return {language:value.language===null?null:validateLanguage(value.language),languageGuideDismissed:value.languageGuideDismissed===true,usageGuideDismissed:value.usageGuideDismissed===true,speedStyle:storedSpeedStyle(value.speedStyle),quotaDisplay:storedQuotaDisplay(value.quotaDisplay),...(usageScope?{usageScope}:{}),...(typeof autoRelaunchDebug==='boolean'?{autoRelaunchDebug}:{}),...(typeof hostUiLocalization==='boolean'?{hostUiLocalization}:{}),...(typeof inlineCacheHit==='boolean'?{inlineCacheHit}:{}),...(barColors?{barColors}:{}),...(themeMode?{themeMode}:{}),...(cacheHitTone?{cacheHitTone}:{}),...(typeof cacheHitTiers==='boolean'?{cacheHitTiers}:{}),...(barOrder?{barOrder}:{}),...(barHidden?{barHidden}:{}),...(contextChipMode?{contextChipMode}:{}),...(stripMode?{stripMode}:{}),revision:Number.isSafeInteger(value.revision)&&value.revision>=0?value.revision:0};
     } catch(error) {
       if(error.code==='ENOENT')return {language:null,languageGuideDismissed:false,usageGuideDismissed:false,speedStyle:null,quotaDisplay:null,revision:0};
       throw new Error('Language preference could not be read');
     }
   }
   async set(input) {
-    if(!input||typeof input!=='object'||Array.isArray(input)||!Object.keys(input).length||Object.keys(input).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','quotaDisplay','usageScope','autoRelaunchDebug','hostUiLocalization','inlineCacheHit','barColors','themeMode','cacheHitTone','barOrder','barHidden','contextChipMode','stripMode'].includes(key)))throw new Error('Invalid preferences request');
+    if(!input||typeof input!=='object'||Array.isArray(input)||!Object.keys(input).length||Object.keys(input).some(key=>!['language','languageGuideDismissed','usageGuideDismissed','speedStyle','quotaDisplay','usageScope','autoRelaunchDebug','hostUiLocalization','inlineCacheHit','barColors','themeMode','cacheHitTone','cacheHitTiers','barOrder','barHidden','contextChipMode','stripMode'].includes(key)))throw new Error('Invalid preferences request');
     if(Object.hasOwn(input,'language'))validateLanguage(input.language);
     if(Object.hasOwn(input,'speedStyle'))validateSpeedStyle(input.speedStyle);
     if(Object.hasOwn(input,'quotaDisplay'))validateQuotaDisplay(input.quotaDisplay);
@@ -163,6 +171,7 @@ export class PreferencesStore {
     if(Object.hasOwn(input,'barColors'))input={...input,barColors:validateBarColors(input.barColors)};
     if(Object.hasOwn(input,'themeMode'))validateThemeMode(input.themeMode);
     if(Object.hasOwn(input,'cacheHitTone'))validateCacheHitTone(input.cacheHitTone);
+    if(Object.hasOwn(input,'cacheHitTiers'))validateCacheHitTiers(input.cacheHitTiers);
     if(Object.hasOwn(input,'barOrder'))validateBarOrder(input.barOrder);
     if(Object.hasOwn(input,'barHidden'))validateBarHidden(input.barHidden);
     if(Object.hasOwn(input,'contextChipMode'))validateContextChipMode(input.contextChipMode);
@@ -171,8 +180,8 @@ export class PreferencesStore {
     if(Object.hasOwn(input,'usageGuideDismissed')&&input.usageGuideDismissed!==true)throw new Error('Invalid usage guide preference');
     const operation=this.queue.then(async()=>{
       await mkdir(dirname(this.file),{recursive:true});
-      let prior=0,previous={language:null,languageGuideDismissed:false,usageGuideDismissed:false,speedStyle:null,quotaDisplay:null,usageScope:undefined,autoRelaunchDebug:undefined,hostUiLocalization:undefined,inlineCacheHit:undefined,barColors:undefined,themeMode:undefined,cacheHitTone:undefined,barOrder:undefined,barHidden:undefined,contextChipMode:undefined,stripMode:undefined};
-      try {const value=JSON.parse((await readFile(this.file,'utf8')).replace(/^\uFEFF/,''));if(Number.isSafeInteger(value.revision))prior=value.revision;previous={language:['en','zh-CN','zh-TW'].includes(value.language)?value.language:null,languageGuideDismissed:value.languageGuideDismissed===true,usageGuideDismissed:value.usageGuideDismissed===true,speedStyle:storedSpeedStyle(value.speedStyle),quotaDisplay:storedQuotaDisplay(value.quotaDisplay),usageScope:storedUsageScope(value.usageScope),autoRelaunchDebug:storedAutoRelaunchDebug(value.autoRelaunchDebug),hostUiLocalization:storedHostUiLocalization(value.hostUiLocalization),inlineCacheHit:storedInlineCacheHit(value.inlineCacheHit),barColors:storedBarColors(value.barColors),themeMode:storedThemeMode(value.themeMode),cacheHitTone:storedCacheHitTone(value.cacheHitTone),barOrder:storedBarOrder(value.barOrder),barHidden:storedBarHidden(value.barHidden),contextChipMode:storedContextChipMode(value.contextChipMode),stripMode:storedStripMode(value.stripMode)};}catch{}
+      let prior=0,previous={language:null,languageGuideDismissed:false,usageGuideDismissed:false,speedStyle:null,quotaDisplay:null,usageScope:undefined,autoRelaunchDebug:undefined,hostUiLocalization:undefined,inlineCacheHit:undefined,barColors:undefined,themeMode:undefined,cacheHitTone:undefined,cacheHitTiers:undefined,barOrder:undefined,barHidden:undefined,contextChipMode:undefined,stripMode:undefined};
+      try {const value=JSON.parse((await readFile(this.file,'utf8')).replace(/^\uFEFF/,''));if(Number.isSafeInteger(value.revision))prior=value.revision;previous={language:['en','zh-CN','zh-TW'].includes(value.language)?value.language:null,languageGuideDismissed:value.languageGuideDismissed===true,usageGuideDismissed:value.usageGuideDismissed===true,speedStyle:storedSpeedStyle(value.speedStyle),quotaDisplay:storedQuotaDisplay(value.quotaDisplay),usageScope:storedUsageScope(value.usageScope),autoRelaunchDebug:storedAutoRelaunchDebug(value.autoRelaunchDebug),hostUiLocalization:storedHostUiLocalization(value.hostUiLocalization),inlineCacheHit:storedInlineCacheHit(value.inlineCacheHit),barColors:storedBarColors(value.barColors),themeMode:storedThemeMode(value.themeMode),cacheHitTone:storedCacheHitTone(value.cacheHitTone),cacheHitTiers:storedCacheHitTiers(value.cacheHitTiers),barOrder:storedBarOrder(value.barOrder),barHidden:storedBarHidden(value.barHidden),contextChipMode:storedContextChipMode(value.contextChipMode),stripMode:storedStripMode(value.stripMode)};}catch{}
       const language=Object.hasOwn(input,'language')?input.language:previous.language;
       const languageGuideDismissed=previous.languageGuideDismissed||Object.hasOwn(input,'language')||input.languageGuideDismissed===true;
       const usageGuideDismissed=previous.usageGuideDismissed||input.usageGuideDismissed===true;
@@ -185,12 +194,13 @@ export class PreferencesStore {
       const barColors=Object.hasOwn(input,'barColors')?input.barColors:previous.barColors;
       const themeMode=Object.hasOwn(input,'themeMode')?input.themeMode:previous.themeMode;
       const cacheHitTone=Object.hasOwn(input,'cacheHitTone')?input.cacheHitTone:previous.cacheHitTone;
+      const cacheHitTiers=Object.hasOwn(input,'cacheHitTiers')?input.cacheHitTiers:previous.cacheHitTiers;
       const barOrder=Object.hasOwn(input,'barOrder')?validateBarOrder(input.barOrder):previous.barOrder;
       const barHidden=Object.hasOwn(input,'barHidden')?validateBarHidden(input.barHidden):previous.barHidden;
       const contextChipMode=Object.hasOwn(input,'contextChipMode')?validateContextChipMode(input.contextChipMode):previous.contextChipMode;
       const stripMode=Object.hasOwn(input,'stripMode')?input.stripMode:previous.stripMode;
       const revision=Math.max(Date.now(),prior+1);
-      const extra={...(usageScope?{usageScope}:{}),...(typeof autoRelaunchDebug==='boolean'?{autoRelaunchDebug}:{}),...(typeof hostUiLocalization==='boolean'?{hostUiLocalization}:{}),...(typeof inlineCacheHit==='boolean'?{inlineCacheHit}:{}),...(barColors?{barColors}:{}),...(themeMode?{themeMode}:{}),...(cacheHitTone?{cacheHitTone}:{}),...(barOrder?{barOrder}:{}),...(barHidden?{barHidden}:{}),...(contextChipMode?{contextChipMode}:{}),...(stripMode?{stripMode}:{})};
+      const extra={...(usageScope?{usageScope}:{}),...(typeof autoRelaunchDebug==='boolean'?{autoRelaunchDebug}:{}),...(typeof hostUiLocalization==='boolean'?{hostUiLocalization}:{}),...(typeof inlineCacheHit==='boolean'?{inlineCacheHit}:{}),...(barColors?{barColors}:{}),...(themeMode?{themeMode}:{}),...(cacheHitTone?{cacheHitTone}:{}),...(typeof cacheHitTiers==='boolean'?{cacheHitTiers}:{}),...(barOrder?{barOrder}:{}),...(barHidden?{barHidden}:{}),...(contextChipMode?{contextChipMode}:{}),...(stripMode?{stripMode}:{})};
       const temporary=this.file+'.'+process.pid+'.'+randomUUID()+'.tmp';
       try {
         const handle=await open(temporary,'wx',0o600);

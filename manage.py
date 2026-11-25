@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from urllib.parse import urlparse
@@ -142,6 +143,22 @@ def _current_profile():
 
 
 @lifecycle_operation
+def restart_active_sidecar():
+    marker = SETTINGS.parent / 'active-sidecar.json'
+    try:
+        record = json.loads(marker.read_text(encoding='utf-8-sig'))
+        pid = int(record.get('pid') or 0)
+    except Exception:
+        return False
+    if pid <= 0 or pid == os.getpid():
+        return False
+    try:
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except OSError:
+        return False
+
+
 def install(panel_only=False, legacy_loader=False, with_cli=False, node=None, language=None, with_launcher=False, remote_bridge_port=None):
     own_plugin()
     config = json_read(CONFIG)
@@ -190,6 +207,8 @@ def install(panel_only=False, legacy_loader=False, with_cli=False, node=None, la
         settings.pop('managedLaunch', None)
     atomic_json(SETTINGS, settings)
     set_enabled(True)
+    if not legacy_loader and restart_active_sidecar():
+        print('Restarted active plugin sidecar so updated UI/runtime code takes effect immediately.')
     host = lc.inspect_host_archive(APP)
     print('Installed:', PLUGIN)
     if not panel_only and not legacy_loader and launch_result['configured']:

@@ -227,6 +227,19 @@ const syncLaunchConfig = async (force = false) => {
   }
   return cachedLaunch;
 };
+const RENDERER_FILES=[join(HERE,'..','..','compat','i18n.cjs'),join(HERE,'..','..','compat','inline-widget.cjs'),join(HERE,'..','..','compat','theme.cjs')];
+let cachedSourceStamp='',cachedRendererCode='';
+const rendererSource=()=>{
+  try{
+    const parts=RENDERER_FILES.map(f=>readFileSync(f,'utf8'));
+    const stamp=parts.join('\0');
+    if(stamp!==cachedSourceStamp||!cachedRendererCode){
+      cachedRendererCode=makeRendererSource(parts[0],parts[1],parts[2],ownership?.token,ownership?.startedAt,updateSource()+usageSource()+hostI18nSource());
+      cachedSourceStamp=stamp;
+    }
+  }catch{}
+  return cachedRendererCode;
+};
 const integration = new RuntimeUi({
   // Composer identity is authoritative. Unknown/new inline inputs request quota
   // only; SDK/HTTP panels keep the store's automatic most-recent selection.
@@ -237,7 +250,8 @@ const integration = new RuntimeUi({
   preferences,
   updater,
   owner:ownership?.token,owns:()=>ownership?ownership.isOwner():true,
-  source: makeRendererSource(readFileSync(join(HERE,'..','..','compat','i18n.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','inline-widget.cjs'),'utf8'),readFileSync(join(HERE,'..','..','compat','theme.cjs'),'utf8'),ownership?.token,ownership?.startedAt,updateSource()+usageSource()+hostI18nSource()),
+  source: rendererSource(),
+  sourceForTarget: rendererSource,
   dataDir: paths.data,
   enabled: () => { const s = runtimeSettings(); return s.enabled !== false && s.inline !== false && s.mode !== 'legacy'; },
   onTargets: () => { missingPortTicks = 0; },
