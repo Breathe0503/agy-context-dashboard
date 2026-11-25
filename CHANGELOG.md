@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 — 2026-11-24
+
+- **Empty-conversation inline strip expansion ([#90](https://github.com/wycocoyu/agy-context-dashboard/pull/90))**: Expand the full inline status strip in empty conversations as soon as quota metrics are loaded.
+- **Release workflow, branch protection & contributing guide ([#91](https://github.com/wycocoyu/agy-context-dashboard/pull/91))**: Add `tools/prepare-release.py` (`npm run release:prep`), automatic `New Contributors` credits in `tools/publish-release.py`, `dev`-first PR guard (`pr-target-guard.yml`), bilingual `CONTRIBUTING.md`, Issue/PR templates, and first-interaction greetings.
+
 ## 1.0.1 — 2026-11-24
 
 - **Per-item bottom bar color customization & non-modal settings ([#76](https://github.com/wycocoyu/agy-context-dashboard/issues/76), [#69](https://github.com/wycocoyu/agy-context-dashboard/pull/69))**: Keep the default bottom bar borderless with accent-blue high cache-hit rate (`>= 70%`), add a non-modal anchored Settings popover above the bar with `auto / light / dark` polarity control, high-hit accent/semantic toggle, and independent default/preset/custom color pickers for `Speed`, `Token`, `Quota`, and `Context`, plus a synced inline cache-hit quick switch inside the `Token · Cache` card.
