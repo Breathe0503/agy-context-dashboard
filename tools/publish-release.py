@@ -107,10 +107,28 @@ class GitHub:
             page += 1
 
 
+def generate_contributor_notes(client, tag):
+    """Fetch GitHub auto-generated New Contributors section if available."""
+    try:
+        generated = client.request('POST', 'releases/generate-notes', {'tag_name': tag})
+    except Exception:
+        return ''
+    body = (generated or {}).get('body', '')
+    marker = '## New Contributors'
+    idx = body.find(marker)
+    if idx == -1:
+        return ''
+    return body[idx:].strip()
+
+
 def publish(client, tag, commit, notes, assets):
     release = client.find(tag)
     if release and not release['draft']:
         raise ValueError('Release is already public; withdraw it before replacing its package')
+    if '## New Contributors' not in notes:
+        contrib = generate_contributor_notes(client, tag)
+        if contrib:
+            notes = notes.rstrip() + '\n\n---\n\n' + contrib
     details = {'tag_name': tag, 'target_commitish': commit, 'name': 'Antigrative Dashboard ' + tag,
                'body': notes, 'draft': True, 'prerelease': False}
     release = client.request('PATCH', 'releases/' + str(release['id']), details) if release else client.request('POST', 'releases', details)

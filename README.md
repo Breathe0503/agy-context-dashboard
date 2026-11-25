@@ -390,7 +390,29 @@ python manage.py package
 
 ZIP 与 SHA256 文件输出到 `dist/`。打包使用文件白名单，不包含账号配置、凭据、日志、SDK 缓存或 App 归档。
 
-[开发说明 →](docs/DEVELOPMENT.md) · [版本记录 →](CHANGELOG.md)
+[开发说明 →](docs/DEVELOPMENT.md) · [贡献指南 →](CONTRIBUTING.md) · [版本记录 →](CHANGELOG.md)
+
+## 贡献者 · Contributors
+
+感谢所有提交代码、高质量 Issue 与文档建议的社区伙伴（[贡献指南](CONTRIBUTING.md)）：
+
+<!-- ALL-CONTRIBUTORS-BADGE:START -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#贡献者--contributors)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/wycocoyu"><img src="https://avatars.githubusercontent.com/u/17003385?v=4?s=64" width="64px;" alt="Cocoyu"/><br /><sub><b>Cocoyu</b></sub></a><br /><a href="https://github.com/wycocoyu/agy-context-dashboard/commits?author=wycocoyu" title="Code">💻</a> <a href="#maintenance-wycocoyu" title="Maintenance">🚧</a> <a href="https://github.com/wycocoyu/agy-context-dashboard/commits?author=wycocoyu" title="Documentation">📖</a></td>
+    </tr>
+  </tbody>
+</table>
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## 许可
 
