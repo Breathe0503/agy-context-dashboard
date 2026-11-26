@@ -182,21 +182,23 @@ try {
   assert.notEqual(medState.cacheHit, 'none', 'cache-hit stays visible at 758px');
   assert.notEqual(medState.tps, 'none', 'tps stays visible at 758px');
 
-  // 0b. Issue #97: long Orchestrator model name in 758px composer uses tight-text
-  // instead of dropping straight to icons-only.
+  // 0b. Issue #97: long Orchestrator model name in 758px composer stays in text density
+  // instead of dropping straight to icons-only, preserving primary metrics + dual quota.
   await evalJs(() => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon (Medium)';
   });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
   const longModelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
     const span = document.querySelector('[data-testid="model-selector-trigger"] span');
+    const qSec = sr.querySelector('.quota-secondary');
     return {
       density: n.dataset.density,
       cacheHit: getComputedStyle(sr.getElementById('cache-hit')).display,
       tps: getComputedStyle(sr.getElementById('tps')).display,
       quotaText: getComputedStyle(sr.getElementById('quota-text')).display,
+      quotaSecondary: qSec ? getComputedStyle(qSec).display : 'missing',
       ctxPct: getComputedStyle(sr.getElementById('context-percent')).display,
       ctxRounds: getComputedStyle(sr.getElementById('context-rounds')).display,
       modelTruncated: span.scrollWidth > span.clientWidth + 1,
@@ -206,23 +208,23 @@ try {
   assert.notEqual(longModelState.cacheHit, 'none', 'cache-hit stays visible with long model name');
   assert.notEqual(longModelState.tps, 'none', 'tps stays visible with long model name');
   assert.notEqual(longModelState.quotaText, 'none', 'primary quota stays visible with long model name');
+  assert.notEqual(longModelState.quotaSecondary, 'none', 'dual quota stays visible with long model name');
   assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
-  assert.notEqual(longModelState.ctxRounds, 'none', 'context rounds stays visible with long model name at 758px');
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
 
   // Verify label / compact / rounds context sub-label modes stay responsive under
-  // Orchestrator Gemini 4 Neon Extra High in compact-text / tight-text.
+  // Orchestrator Gemini 4 Neon Extra High in compact-text (before tight-text drops rounds/label).
   await evalJs(`async () => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
-    for (let w = 758; w >= 460; w -= 12) {
+    for (let w = 840; w >= 460; w -= 12) {
       document.querySelector('.composer').style.width = w + 'px';
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
       const d = document.getElementById('ag-pulse-status-bar')?.dataset.density;
-      if (d === 'compact-text' || d === 'tight-text') break;
+      if (d === 'compact-text') break;
     }
   }`);
-  await waitUntil(() => ['compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long Orchestrator name reaches compact/tight tier');
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'compact-text', 'long Orchestrator name reaches compact-text tier');
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     sr.querySelector('[data-card="context"]').click();
@@ -233,7 +235,7 @@ try {
   await waitUntil(() => {
     const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
     return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display !== 'none';
-  }, 'context label stays visible in compact/tight tier');
+  }, 'context label stays visible in compact-text tier');
   const labelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -243,7 +245,7 @@ try {
       rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
     };
   });
-  assert.ok(['compact-text', 'tight-text'].includes(labelState.density), 'label check runs in compact/tight tier: ' + labelState.density);
+  assert.equal(labelState.density, 'compact-text', 'label check runs in compact-text tier: ' + labelState.density);
   assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
   assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
 
@@ -277,8 +279,8 @@ try {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Gemini 4 Hydrogen (Medium)';
   });
 
-  // 0c. Issue #106: narrow widths preserve #context-rounds through compact-text and tight-text,
-  // hiding it only at dense-text while keeping all 4 primary metrics visible.
+  // 0c. Narrow widths degrade context rounds first (tight-text), then cache hit
+  // (trim-hit), preserving dual-window quota until dense-text before icons-only.
   const setWidthAndSettle = async w => {
     return await evalJs(`async () => {
       document.querySelector('.composer').style.width = '${w}px';
@@ -306,23 +308,31 @@ try {
   };
   let compactSnapshot = null;
   let tightSnapshot = null;
+  let trimHitSnapshot = null;
   let denseSnapshot = null;
-  for (let w = 640; w >= 320; w -= 6) {
+  for (let w = 680; w >= 320; w -= 6) {
     const snap = await setWidthAndSettle(w);
     if (!compactSnapshot && snap.density === 'compact-text') compactSnapshot = { width: w, ...snap };
     if (!tightSnapshot && snap.density === 'tight-text') tightSnapshot = { width: w, ...snap };
+    if (!trimHitSnapshot && snap.density === 'trim-hit') trimHitSnapshot = { width: w, ...snap };
     if (!denseSnapshot && snap.density === 'dense-text') denseSnapshot = { width: w, ...snap };
-    if (compactSnapshot && tightSnapshot && denseSnapshot) break;
+    if (compactSnapshot && tightSnapshot && trimHitSnapshot && denseSnapshot) break;
   }
   if (compactSnapshot) assert.notEqual(compactSnapshot.quotaSecondary, 'none', 'compact-text preserves both-mode secondary quota');
-  assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before icons');
-  assert.notEqual(tightSnapshot.rounds, 'none', 'tight-text still keeps #context-rounds visible');
+  assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before trim-hit');
+  assert.equal(tightSnapshot.rounds, 'none', 'tight-text hides #context-rounds first');
   assert.equal(tightSnapshot.cacheUnit, 'none', 'tight-text hides cache tok unit');
-  assert.equal(tightSnapshot.cacheHit, 'none', 'tight-text hides inline cache hit');
-  assert.equal(tightSnapshot.quotaTag, 'none', 'tight-text hides quota tag');
-  assert.equal(tightSnapshot.quotaSecondary, 'none', 'tight-text hides secondary quota');
+  assert.notEqual(tightSnapshot.cacheHit, 'none', 'tight-text still keeps inline cache hit');
+  assert.notEqual(tightSnapshot.quotaTag, 'none', 'tight-text still keeps quota tag');
+  assert.notEqual(tightSnapshot.quotaSecondary, 'none', 'tight-text still keeps dual-window secondary quota');
+  assert.ok(trimHitSnapshot, 'stepping down further must hit trim-hit tier before dense-text');
+  assert.equal(trimHitSnapshot.cacheHit, 'none', 'trim-hit hides inline cache hit');
+  assert.notEqual(trimHitSnapshot.quotaSecondary, 'none', 'trim-hit still preserves dual-window secondary quota');
   assert.ok(denseSnapshot, 'stepping down further must hit dense-text tier before icons');
   assert.equal(denseSnapshot.rounds, 'none', 'dense-text hides #context-rounds');
+  assert.equal(denseSnapshot.cacheHit, 'none', 'dense-text hides #cache-hit');
+  assert.equal(denseSnapshot.quotaTag, 'none', 'dense-text hides quota tag');
+  assert.equal(denseSnapshot.quotaSecondary, 'none', 'dense-text hides secondary quota');
   assert.notEqual(denseSnapshot.tps, 'none', 'dense-text keeps #tps visible');
   assert.notEqual(denseSnapshot.cacheNum, 'none', 'dense-text keeps #cache-total-num visible');
   assert.notEqual(denseSnapshot.quotaText, 'none', 'dense-text keeps #quota-text visible');
@@ -355,7 +365,7 @@ try {
   let recoveryWidth = null;
   for (let w = 640; w >= 360; w -= 8) {
     const snap = await setWidthAndSettle(w);
-    if (snap.density === 'compact-text' || snap.density === 'tight-text') { recoveryWidth = w; break; }
+    if (['compact-text', 'tight-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
   }
   assert.ok(recoveryWidth !== null, 'found tight width where both mode degrades');
   await evalJs(() => {
