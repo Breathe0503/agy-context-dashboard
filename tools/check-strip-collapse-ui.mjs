@@ -209,7 +209,71 @@ try {
   assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
   assert.notEqual(longModelState.ctxRounds, 'none', 'context rounds stays visible with long model name at 758px');
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
+
+  // Verify label / compact / rounds context sub-label modes stay responsive under
+  // Orchestrator Gemini 4 Neon Extra High in compact-text / tight-text.
+  await evalJs(`async () => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
+    for (let w = 758; w >= 460; w -= 12) {
+      document.querySelector('.composer').style.width = w + 'px';
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const d = document.getElementById('ag-pulse-status-bar')?.dataset.density;
+      if (d === 'compact-text' || d === 'tight-text') break;
+    }
+  }`);
+  await waitUntil(() => ['compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long Orchestrator name reaches compact/tight tier');
   await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="label"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display !== 'none';
+  }, 'context label stays visible in compact/tight tier');
+  const labelState = await evalJs(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n.shadowRoot;
+    return {
+      density: n.dataset.density,
+      label: getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display,
+      rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
+    };
+  });
+  assert.ok(['compact-text', 'tight-text'].includes(labelState.density), 'label check runs in compact/tight tier: ' + labelState.density);
+  assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
+  assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="compact"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display === 'none';
+  }, 'compact mode hides context label');
+  assert.equal(await evalJs(() => getComputedStyle(document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('context-rounds')).display), 'none', 'compact mode hides rounds');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="rounds"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.getElementById('context-rounds')).display !== 'none';
+  }, 'rounds mode restores context rounds');
+
+  await evalJs(() => {
+    document.querySelector('.composer').style.width = '758px';
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Gemini 4 Hydrogen (Medium)';
   });
 
