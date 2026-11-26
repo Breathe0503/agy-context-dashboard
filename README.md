@@ -1,6 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/hero-zh.png?v=1.0.1" width="100%" alt="Antigrative Dashboard：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark-zh.webp?v=1.0.3" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light-zh.webp?v=1.0.3" />
+  <img src="docs/assets/hero-light-zh.webp?v=1.0.3" width="100%" alt="Antigrative Dashboard：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。" />
+</picture>
+
+<sub>以上画面由离线渲染舞台直接运行本仓库前端源码逐帧录制，示例数据均为虚构。</sub>
 
 # AGY Context Dashboard (Antigrative Dashboard)
 
