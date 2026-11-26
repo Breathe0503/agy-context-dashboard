@@ -25,6 +25,9 @@ test('thinXLabels skips labels by the smallest step that fits and always keeps t
   assert.equal(thinned.filter(Boolean).length, 2);
   // Last label is never dropped even when it alone overflows the estimate.
   assert.equal(thinXLabels([10, 10, 500], 100).at(-1), true);
+  // Penultimate label too close to the last label is dropped to prevent overlap.
+  const noCollide = thinXLabels([50, 50, 50, 50, 50, 50], 220);
+  assert.deepEqual(noCollide, [true, false, true, false, false, true]);
 });
 
 test('presetRange computes day-based presets inclusive of today', () => {

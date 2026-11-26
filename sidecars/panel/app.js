@@ -736,12 +736,19 @@ function renderContextComposition(composition) {
     if (markers.length) {
       markersList.replaceChildren(...markers.map(m => {
         const label = m.kind === 'checkpoint' ? t('trendCheckpoint') : t('trendCompaction');
+        const beforeShort = Number.isFinite(m.before) ? compact(m.before) : '—';
+        const afterShort = Number.isFinite(m.after) ? compact(m.after) : '—';
+        const beforeFull = Number.isFinite(m.before) ? count(m.before) : '—';
+        const afterFull = Number.isFinite(m.after) ? count(m.after) : '—';
         const reclaimed = Number.isFinite(m.before) && Number.isFinite(m.after) && m.before > m.after ? ` (${t('trendReclaimed', { tokens: compact(m.before - m.after) })})` : '';
-        const share = Number.isFinite(m.peakFraction) ? ` · ${t('trendPeakShare', { pct: Math.round(m.peakFraction * 100) })}` : '';
+        const pct = Number.isFinite(m.peakFraction) ? Math.round(m.peakFraction * 100) : null;
+        const badgeShare = pct !== null ? ` · ▲${pct}%` : '';
+        const tipShare = pct !== null ? ` · ${t('trendPeakShare', { pct })}` : '';
         const peak = m.peak ? ` · ${t('trendPeakTrigger')}` : '';
         return Object.assign(document.createElement('span'), {
           className: m.peak ? 'trend-marker-badge trend-marker-badge-peak' : 'trend-marker-badge',
-          textContent: `${label}: ${compact(m.before)} → ${compact(m.after)}${reclaimed}${share}${peak}`,
+          textContent: `${label}: ${beforeShort} → ${afterShort}${badgeShare}`,
+          title: `${label}: ${beforeFull} → ${afterFull}${reclaimed}${tipShare}${peak}`,
         });
       }));
     }
