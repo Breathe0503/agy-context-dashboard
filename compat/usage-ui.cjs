@@ -1,4 +1,5 @@
 // Shared local usage views. Values and model labels are inserted as text.
+
 module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope,embedded=false,showHeaderTabs=!embedded,onTabChange=null,themeHost=null}) {
   setMarkup||=(target,markup)=>{
     const fragment=document.createDocumentFragment(),stack=[fragment];let offset=0;
@@ -20,6 +21,54 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     if(offset<markup.length)fragment.append(document.createTextNode(decode(markup.slice(offset))));
     target.replaceChildren(fragment);
   };
+  // usage-chart-helpers:start -- pure date-range & label-thinning helpers (unit-tested via marker extraction)
+// Pure chart helpers shared by the Usage by model view and unit tests.
+const usageChartHelpers=(()=>{
+  const addDays=(date,days)=>{const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
+  const weekStart=date=>addDays(date,-((new Date(date+'T00:00:00Z').getUTCDay()+6)%7));
+  const addMonths=(date,shift)=>{const d=new Date(date.slice(0,7)+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+shift);return d.toISOString().slice(0,10);};
+  const isDay=s=>/^\d{4}-\d{2}-\d{2}$/.test(s);
+  // Pixel-aware X-axis thinning: find the smallest step k so kept labels
+  // (every k-th plus always the last) fit into `available` px.
+  const thinXLabels=(widths,available)=>{
+    if(!Array.isArray(widths)||!widths.length)return[];
+    const budget=Math.max(0,Number(available)||0);
+    const total=widths.reduce((a,b)=>a+(Number(b)||0),0);
+    if(total<=budget)return widths.map(()=>true);
+    for(let k=2;;k++){
+      let sum=0;
+      for(let i=0;i<widths.length;i++)if(i%k===0||i===widths.length-1)sum+=Number(widths[i])||0;
+      if(sum<=budget||k>=widths.length)return widths.map((_,i)=>i%k===0||i===widths.length-1);
+    }
+  };
+  const presetRange=(preset,today)=>{
+    if(!isDay(today))return null;
+    if(preset==='7d'||preset==='30d'||preset==='90d'){const n=Number(preset.slice(0,-1));return{from:addDays(today,-(n-1)),to:today};}
+    if(preset==='thisMonth'){const from=today.slice(0,7)+'-01';return{from,to:today};}
+    if(preset==='lastMonth'){const from=addMonths(today,-1),last=addDays(addMonths(from,1),-1);return{from,to:last};}
+    return null;
+  };
+  const clampRange=(range,firstDate,today)=>{
+    if(!range||!isDay(range.from||'')||!isDay(range.to||''))return null;
+    let from=range.from,to=range.to;
+    if(isDay(firstDate||'')&&from<firstDate)from=firstDate;
+    if(isDay(today||'')&&to>today)to=today;
+    if(from>to)return null;
+    return{from,to};
+  };
+  const chartBuckets=(range,period)=>{
+    const out=[];
+    if(!range||range.from>range.to)return out;
+    const{from,to}=range;
+    if(period==='day'){for(let d=from;d<=to;d=addDays(d,1))out.push({from:d,to:d});return out;}
+    if(period==='week'){for(let s=weekStart(from);s<=to;s=addDays(s,7))out.push({from:s<from?from:s,to:addDays(s,6)>to?to:addDays(s,6)});return out;}
+    for(let m=from.slice(0,7)+'-01';m<=to;m=addMonths(m,1))out.push({from:m<from?from:m,to:add(addMonths(m,1),-1)>to?to:add(addMonths(m,1),-1)});
+    return out;
+    function add(date,days){return addDays(date,days);}
+  };
+  return{addDays,weekStart,addMonths,thinXLabels,presetRange,clampRange,chartBuckets};
+})();
+  // usage-chart-helpers:end
   let dialog=null,backdrop=null,surface=null,shell=document.createElement('div');
   if(!embedded){
     dialog=document.createElement('dialog');dialog.id='usage-dashboard';dialog.setAttribute('popover','manual');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label',language.language==='zh-TW'?'用量統計':language.language==='zh-CN'?'用量统计':'Token usage');
@@ -55,7 +104,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     .heat-wrap{overflow-x:auto;padding:3px 3px 7px}.calendar{min-width:680px}.months{display:grid;margin-left:35px;font-size:11px;color:var(--pulse-muted);margin-bottom:7px}.months span{white-space:nowrap}.heat-row{display:flex;gap:9px}.weekdays{display:grid;grid-template-rows:repeat(7,1fr);width:26px;flex:none;font-size:11px;color:var(--pulse-muted)}.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;width:100%}.heat button{border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);border-radius:3px;padding:0;min-width:0;aspect-ratio:1;background:var(--pulse-control);outline-offset:1px}.heat button[data-level="1"],.swatch[data-level="1"]{background:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-control));border-color:transparent}.heat button[data-level="2"],.swatch[data-level="2"]{background:color-mix(in srgb,var(--pulse-accent) 52%,var(--pulse-control));border-color:transparent}.heat button[data-level="3"],.swatch[data-level="3"]{background:color-mix(in srgb,var(--pulse-accent) 76%,var(--pulse-control));border-color:transparent}.heat button[data-level="4"],.swatch[data-level="4"]{background:var(--pulse-accent);border-color:transparent}.heat button.future{opacity:.3;cursor:default}.heat.week{grid-template-columns:repeat(26,minmax(0,1fr))!important;grid-template-rows:repeat(2,1fr);grid-auto-flow:row}.week button{max-height:28px;aspect-ratio:1}.heat-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 16px;font-size:11px;color:var(--pulse-muted)}.scale{display:flex;align-items:center;gap:4px}.swatch{width:11px;height:11px;border-radius:3px;border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);background:var(--pulse-control)}.selected{padding:12px 0 0;border-top:1px solid var(--pulse-separator);display:flex;justify-content:space-between;gap:16px;align-items:center}.selected button{border:0;color:var(--pulse-accent);font-size:12px;font-weight:550;padding:5px 8px}.selected button:hover{background:var(--pulse-hover)}.selected .title{font-weight:550;margin-bottom:2px}.selected strong{font-weight:550}
     .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;background:var(--model-color)}
     .chart-controls{display:flex;gap:10px;align-items:center}.range{display:flex;align-items:center;gap:10px}.range button{height:26px;width:26px;border:0}.range strong{font-size:12px;font-weight:500;min-width:106px;text-align:center}.legend-wrap{display:flex;align-items:flex-start;gap:6px;margin:0 0 6px}.legend{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px 6px;margin:0;padding:0}.legend.is-folded{max-height:44px;overflow:hidden}.legend button{box-sizing:border-box;height:20px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;border:1px solid color-mix(in srgb,var(--pulse-separator) 90%,transparent);border-radius:999px;background:color-mix(in srgb,var(--pulse-control) 55%,transparent);font-size:11px;line-height:18px;color:var(--pulse-label);transition:background-color 120ms ease,border-color 120ms ease,opacity 120ms ease}.legend button:hover,.legend button[aria-pressed=true]{color:var(--pulse-foreground);border-color:var(--pulse-border)}.legend button[aria-pressed=false]{opacity:.42;background:transparent;text-decoration:line-through}.legend-toggle{box-sizing:border-box;height:20px;flex:none;display:inline-flex;align-items:center;padding:0 8px;border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);border-radius:999px;background:transparent;color:var(--pulse-accent);font-size:10px;line-height:18px}.legend-toggle[hidden]{display:none}
-    .chart-wrap{overflow-x:auto;border-bottom:1px solid var(--pulse-separator);padding:6px 0 7px;margin-bottom:7px}.chart{height:168px;display:flex;gap:16px;min-width:650px}.axis{width:42px;flex:none;position:relative;font-size:11px;color:var(--pulse-muted)}.axis span{position:absolute;right:0;transform:translateY(50%)}.plot{position:relative;flex:1;display:flex;align-items:stretch;gap:5px;padding:0 1px}.grid-line{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb,var(--pulse-separator) 80%,transparent);opacity:.7;pointer-events:none}.grid-line:first-child{border-top-style:solid;opacity:.92}.bar-column{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;border:0;border-radius:4px;background:transparent;padding:0;margin-bottom:18px;transition:background-color 120ms ease}.bar-column:hover,.bar-column:focus-visible{background:color-mix(in srgb,var(--pulse-hover) 68%,transparent)}.bar-column:active{transform:none}.stack{display:flex;flex-direction:column-reverse;width:62%;max-width:30px;margin-inline:auto;gap:0;pointer-events:none;border-radius:4px 4px 0 0;overflow:hidden}.bar-segment{display:block;flex:none;width:100%;min-height:0;border-radius:0;pointer-events:auto;background:var(--model-color);transition:opacity 140ms ease}.plot[data-highlight] .bar-segment:not([data-highlight=true]){opacity:.24}.x-label{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-size:11px;color:var(--pulse-muted);white-space:nowrap}.empty-bar{height:1px;width:100%;background:var(--pulse-track);border-radius:2px;opacity:.35}.chart-empty{position:absolute;left:0;right:0;top:40%;text-align:center;color:var(--pulse-muted);font-size:12px;pointer-events:none}.chart-summary{font-size:11px;color:var(--pulse-muted);margin:0}.chart-summary strong{color:var(--pulse-foreground);font-weight:500}
+    .chart-wrap{overflow-x:auto;border-bottom:1px solid var(--pulse-separator);padding:6px 0 7px;margin-bottom:7px}.chart{height:168px;display:flex;gap:16px;min-width:650px}.axis{width:42px;flex:none;position:relative;font-size:11px;color:var(--pulse-muted)}.axis span{position:absolute;right:0;transform:translateY(50%)}.plot{position:relative;flex:1;display:flex;align-items:stretch;gap:5px;padding:0 1px}.grid-line{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb,var(--pulse-separator) 80%,transparent);opacity:.7;pointer-events:none}.grid-line:first-child{border-top-style:solid;opacity:.92}.bar-column{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;border:0;border-radius:4px;background:transparent;padding:0;margin-bottom:18px;transition:background-color 120ms ease}.bar-column:hover,.bar-column:focus-visible{background:color-mix(in srgb,var(--pulse-hover) 68%,transparent)}.bar-column:active{transform:none}.stack{display:flex;flex-direction:column-reverse;width:62%;max-width:30px;margin-inline:auto;gap:0;pointer-events:none;border-radius:4px 4px 0 0;overflow:hidden}.bar-segment{display:block;flex:none;width:100%;min-height:0;border-radius:0;pointer-events:auto;background:var(--model-color);transition:opacity 140ms ease}.plot[data-highlight] .bar-segment:not([data-highlight=true]){opacity:.24}.x-label{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-size:11px;color:var(--pulse-muted);white-space:nowrap}.empty-bar{height:1px;width:100%;background:var(--pulse-track);border-radius:2px;opacity:.35}.chart-empty{position:absolute;left:0;right:0;top:40%;text-align:center;color:var(--pulse-muted);font-size:12px;pointer-events:none}.range-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.range-picker select{max-width:130px}.range-picker input[type=date]{padding:3px 6px;font-size:11px;background:var(--pulse-background);color:var(--pulse-foreground);border-color:var(--pulse-border)}.range-picker input[type=date][hidden]{display:none}.chart-summary{font-size:11px;color:var(--pulse-muted);margin:0}.chart-summary strong{color:var(--pulse-foreground);font-weight:500}
     .table-wrap{overflow:visible}.table{width:100%;border-collapse:collapse;text-align:right;font-size:11px;white-space:nowrap}.table th{font-weight:500;color:var(--pulse-muted);padding:6px 10px;border-bottom:0;position:sticky;top:0;z-index:2;background:var(--pulse-background);box-shadow:inset 0 -1px 0 var(--pulse-separator)}.table td{padding:7px 10px;border-bottom:1px solid var(--pulse-separator)}.table td:nth-child(2){font-weight:550}.table tbody tr:hover td{background:color-mix(in srgb,var(--pulse-hover) 55%,transparent)}.table th:first-child,.table td:first-child{text-align:left;padding-left:0}.table td:first-child span{margin-right:7px}.table tr:last-child td{border-bottom:0}
     .pool-strip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pool-strip[hidden]{display:none}.pool-pill{flex:1 1 150px;display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--pulse-separator);border-radius:8px;background:color-mix(in srgb,var(--pulse-hover) 40%,transparent);font-size:11px}.pool-pill-name{font-weight:550;color:var(--pulse-label)}.pool-pill-val{font-variant-numeric:tabular-nums;color:var(--pulse-foreground);font-weight:600}.pool-pill-meta{margin-left:5px;color:var(--pulse-muted);font-weight:400}
     .footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:auto;padding-top:14px;font-size:11px;color:var(--pulse-muted)}.alert{color:var(--pulse-warning);margin-top:12px;font-size:11px}.tip{position:fixed;z-index:20;max-width:280px;padding:12px 14px;border:1px solid var(--pulse-border);border-radius:9px;background:var(--pulse-menu);box-shadow:0 8px 30px var(--pulse-shadow);color:var(--pulse-foreground);font-size:11px;pointer-events:none}.tip[hidden]{display:none}.tip .tip-title{font-size:11px;color:var(--pulse-muted);margin-bottom:5px}.tip strong{font-size:16px;font-weight:550}.tip-model{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:5px;padding:3px 0}.tip-model.dimmed{opacity:.5}.tip-model.active{font-weight:600}.tip-model .dot{margin-right:6px}.model-share{font-size:11px;color:var(--pulse-muted);margin-left:9px}.usage-waiting{display:grid;place-items:center;min-height:260px;color:var(--pulse-muted);font-size:12px}.usage-waiting[hidden]{display:none}
@@ -110,7 +159,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   }
   if(!cssAdopted){const css=document.createElement('style');css.textContent=cssText;view.append(css);}
   const page=document.createElement('div');page.className=embedded?'page embedded':'page';
-  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"${showHeaderTabs?'':' data-hide-tabs="true"'}><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div></div></div><div class="legend-wrap" id="legend-wrap"><div class="legend" id="legend"></div><button type="button" class="legend-toggle" id="legend-toggle" hidden></button></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
+  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"${showHeaderTabs?'':' data-hide-tabs="true"'}><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div><div class="range-picker"><select id="range-preset" aria-label="Date range"></select><input type="date" id="range-from" aria-label="Start date" hidden><input type="date" id="range-to" aria-label="End date" hidden></div></div></div><div class="legend-wrap" id="legend-wrap"><div class="legend" id="legend"></div><button type="button" class="legend-toggle" id="legend-toggle" hidden></button></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
   const intro=document.createElement('section');intro.id='usage-intro';intro.className='usage-intro';intro.hidden=true;intro.setAttribute('aria-labelledby','usage-intro-title');
   setMarkup(intro,'<div class="intro-heading"><span class="intro-mark" aria-hidden="true"><svg viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/></svg></span><h2 id="usage-intro-title"></h2></div><div class="intro-copy"><p id="usage-intro-history"></p><p id="usage-intro-scope"></p><p id="usage-intro-storage"></p></div><div class="intro-bottom"><span id="usage-intro-error" role="status"></span><button id="usage-intro-done" type="button"></button></div>');
   page.querySelector('#totals').before(intro);
@@ -407,15 +456,39 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return showYear?`${names[m-1]} '${yy}`:names[m-1];
   }
+  let rangePreset='default',customFrom='',customTo='',customAnchor=null;
+  const h=usageChartHelpers;
+  const syncRangePicker=()=>{
+    const options=[['default',w('默认窗口','Default window','預設視窗')],['7d',w('近 7 天','Last 7 days','近 7 天')],['30d',w('近 30 天','Last 30 days','近 30 天')],['90d',w('近 90 天','Last 90 days','近 90 天')],['thisMonth',w('本月','This month','本月')],['lastMonth',w('上月','Last month','上月')],['custom',w('自定义','Custom','自訂')]];
+    const select=$('range-preset');
+    if(select.options.length!==options.length)select.replaceChildren(...options.map(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;return o;}));
+    if(select.value!==rangePreset)select.value=rangePreset;
+    $('range-from').hidden=rangePreset!=='custom';$('range-to').hidden=rangePreset!=='custom';
+    if($('range-from').value!==customFrom)$('range-from').value=customFrom;
+    if($('range-to').value!==customTo)$('range-to').value=customTo;
+  };
   function renderChart(){
-    if(!value)return;syncPalette();$('tip').hidden=true;highlightModel(null);
+    if(!value)return;syncPalette();$('tip').hidden=true;highlightModel(null);syncRangePicker();
     const todayStr=syncDateState(value);
     const weekCount=embedded?8:12,monthCount=embedded?6:12;
     const buckets=[];
+    const firstDate=value.firstDate&&value.firstDate<=todayStr?value.firstDate:null;
+    const base=rangePreset==='custom'?{from:customFrom,to:customTo}:rangePreset!=='default'?h.presetRange(rangePreset,customAnchor||todayStr):null;
+    const range=base?h.clampRange(base,firstDate,todayStr):null;
+    if(range){
+      for(const b of h.chartBuckets(range,period))buckets.push(totals(b.from,b.to,true));
+      text('range-label',range.from+' – '+range.to);
+      $('next').disabled=range.to>=todayStr;
+    }else if(rangePreset!=='default'){
+      $('next').disabled=true;
+    }else{
     if(period==='day'){const start=month(anchor,0),end=add(month(anchor,1),-1);for(let date=start;date<=end;date=add(date,1))buckets.push(totals(date,date,true));text('range-label',start.slice(0,7));}
     else if(period==='week'){const start=add(week(anchor),-(weekCount-1)*7);for(let i=0;i<weekCount;i++){const from=add(start,i*7);buckets.push(totals(from,add(from,6),true));}text('range-label',start.slice(5)+' – '+add(week(anchor),6).slice(5));}
     else{for(let i=-(monthCount-1);i<=0;i++){const from=month(anchor,i);buckets.push(totals(from,add(month(from,1),-1),true));}text('range-label',buckets[0].from.slice(0,7)+' – '+month(anchor,0).slice(0,7));}
-    $('next').disabled=period==='week'?week(anchor)>=week(todayStr):anchor.slice(0,7)>=todayStr.slice(0,7);$('legend').replaceChildren();
+    $('next').disabled=period==='week'?week(anchor)>=week(todayStr):anchor.slice(0,7)>=todayStr.slice(0,7);
+    }
+    $('legend').replaceChildren();
+    if(!buckets.length){$('axis').replaceChildren();$('plot').replaceChildren();$('plot').append(node('div','chart-empty',w('所选区间无效或暂无用量','Invalid or empty date range','所選區間無效或無用量')));return;}
     const periodAll=totals(buckets[0].from,buckets.at(-1).to,false);
     const periodModels=value.models.filter(m=>(periodAll.models[m]?.total||0)>0||disabledModels.has(m)).sort((a,b)=>(periodAll.models[b]?.total||0)-(periodAll.models[a]?.total||0)||modelName(a).localeCompare(modelName(b)));
     for(const model of periodModels){const button=node('button',''),dot=node('i','dot');dot.style.setProperty('--model-color',color(model));button.append(dot,document.createTextNode(modelName(model)));button.type='button';button.setAttribute('aria-pressed',String(!disabledModels.has(model)));button.addEventListener('click',()=>{if(disabledModels.has(model))disabledModels.delete(model);else disabledModels.add(model);renderChart();});button.addEventListener('pointerenter',()=>highlightModel(disabledModels.has(model)?null:model));button.addEventListener('pointerleave',()=>highlightModel(null));$('legend').append(button);}
@@ -434,6 +507,13 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     for(let i=0;i<=4;i++){const label=node('span','',compact(ceiling*i/4));label.style.bottom=(18+150*i/4)+'px';$('axis').append(label);const line=node('i','grid-line');line.style.bottom=(18+150*i/4)+'px';$('plot').append(line);}
     const surfW=surface.clientWidth||0,dayStep=embedded&&surfW>0?(surfW<300?7:surfW<360?5:3):3,weekStep=embedded&&surfW>0?(surfW<300?3:surfW<360?2:1):1,monthStep=embedded&&surfW>0&&surfW<300?2:1,compactMonth=embedded&&surfW>0&&surfW<320,endYear=buckets.at(-1).from.slice(0,4);
     const keepLabel=(i,step)=>step<=1||(i===buckets.length-1||(i%step===0&&buckets.length-1-i>=Math.ceil(step/2)));
+    // Adaptive thinning for month labels: estimate each label's pixel width
+    // (~7px/char + padding) and skip labels until they fit the plot width.
+    let monthThin=null;
+    if(period==='month'&&buckets.length>1){
+      const est=buckets.map(b=>monthAxisLabel(b.from.slice(0,7),0,endYear,false).length*7+8);
+      monthThin=h.thinXLabels(est,Math.max(160,Math.round((surfW||520)*0.8)));
+    }
     for(const [i,bucket]of buckets.entries()){
       const button=node('button','bar-column');button.type='button';const stack=node('div','stack');
       const segments=periodModels.filter(model=>bucket.models[model]?.total>0);
@@ -441,7 +521,7 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
       // separators are inset, so small values and total heights remain exact.
       for(const [j,model]of segments.entries()){const r=bucket.models[model],bar=node('i','bar-segment'),height=r.total/ceiling*150;bar.dataset.model=model;bar.setAttribute('aria-hidden','true');bar.style.setProperty('--model-color',color(model));bar.style.height=height+'px';if(j&&height>=2.5)bar.style.boxShadow='inset 0 -.5px 0 color-mix(in srgb,var(--pulse-background) 42%,transparent)';stack.append(bar);}
       if(!bucket.total)stack.append(node('i','empty-bar'));button.append(stack);
-      const showX=period==='day'?keepLabel(i,dayStep):period==='week'?keepLabel(i,weekStep):keepLabel(i,monthStep);
+      const showX=(period==='day'?keepLabel(i,dayStep):period==='week'?keepLabel(i,weekStep):keepLabel(i,monthStep))&&(!monthThin||monthThin[i]);
       if(showX)button.append(node('span','x-label',period==='day'?String(i+1):period==='week'?bucket.from.slice(5):monthAxisLabel(bucket.from.slice(0,7),i,endYear,compactMonth)));
       bindBucket(button,bucket);$('plot').append(button);
     }
@@ -592,7 +672,16 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   $('legend').addEventListener('pointerleave',()=>highlightModel(null));$('plot').addEventListener('pointerleave',()=>highlightModel(null));
   $('legend-toggle').addEventListener('click',()=>{legendExpanded=!legendExpanded;renderChart();});
   $('selection-details').addEventListener('click',()=>{anchor=(selected?.from||safeToday(value));period=heatMode;changeTab('details',true);});
-  for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*(embedded?8:12)*7):month(anchor,step*(embedded?6:12));renderChart();});
+  for(const [id,step]of [['previous',-1],['next',1]])$(id).addEventListener('click',()=>{
+    const today=safeToday(value);
+    if(rangePreset==='custom'&&/^\d{4}-\d{2}-\d{2}$/.test(customFrom)&&/^\d{4}-\d{2}-\d{2}$/.test(customTo)){const span=Math.round((Date.parse(customTo)-Date.parse(customFrom))/86400000)+1;customFrom=h.addDays(customFrom,step*span);customTo=h.addDays(customTo,step*span);}
+    else if(rangePreset!=='default'){const base=h.presetRange(rangePreset,today),span=base?Math.round((Date.parse(base.to)-Date.parse(base.from))/86400000)+1:1;customAnchor=h.addDays(customAnchor||today,step*span);}
+    else anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*(embedded?8:12)*7):month(anchor,step*(embedded?6:12));
+    renderChart();
+  });
+  $('range-preset').addEventListener('change',()=>{rangePreset=$('range-preset').value;customAnchor=null;renderChart();});
+  $('range-from').addEventListener('change',()=>{customFrom=$('range-from').value||'';renderChart();});
+  $('range-to').addEventListener('change',()=>{customTo=$('range-to').value||'';renderChart();});
   const languagePicker=embedded?null:language.mountLanguagePicker({button:$('locale'),label:$('locale-label'),parent:dialog,choose:onLanguage});
   $('refresh').addEventListener('click',async()=>{
     if(busy||disposed)return;busy=true;const button=$('refresh'),turn=600,started=performance.now();button.disabled=true;button.setAttribute('aria-busy','true');
