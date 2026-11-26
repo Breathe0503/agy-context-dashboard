@@ -189,6 +189,7 @@ function rendererBridge(binding, allowNested = false) {
     getPreferences: () => call('preferences', {}),
     setPreferences: input => call('preferences', input),
     getHostI18nOverrides: () => call('host-i18n', {}),
+    compactChat: () => call('compact-chat', {}),
     report: input => { void call('diagnostic', input); },
   };
 }
@@ -319,6 +320,26 @@ export class RuntimeUi {
         result = await this.enabled()
           ? await readHostI18nOverrides(this.overrideFiles ?? this.defaultOverrideFiles())
           : { overrides: {}, hash: 'disabled' };
+      }
+      else if (input.type === 'compact-chat') {
+        await connection.command('Input.insertText', { text: '/compact' });
+        await new Promise(r => setTimeout(r, 120));
+        await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        await connection.command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        await new Promise(r => setTimeout(r, 80));
+        const sent = await connection.command('Runtime.evaluate', {
+          expression: `(() => {
+            const btn = Array.from(document.querySelectorAll('[data-testid="send-button"],[data-tooltip-id*="send-button"]')).find(b => !b.disabled && b.getAttribute('data-tooltip-id') !== 'input-send-button-record-tooltip');
+            if (btn) { btn.click(); return true; }
+            return false;
+          })()`,
+          returnByValue: true,
+        });
+        if (!sent?.result?.value) {
+          await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+          await connection.command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        }
+        result = { ok: true };
       }
       else if (input.type === 'diagnostic' && ['boot', 'mounted', 'mount-error'].includes(input.input?.stage)) {
         if (input.input.stage === 'mounted' && input.input.editorFound && input.input.composerFound) connection.mounted = true;
