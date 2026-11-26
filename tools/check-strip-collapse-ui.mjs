@@ -213,7 +213,8 @@ try {
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
 
   // Verify 758px composer with Orchestrator Gemini 4 Neon Extra High + 165px right controls
-  // fits in tight-text while keeping both #cache-hit and .quota-secondary visible.
+  // fits in tight-text/snug-text while keeping both #cache-hit and .quota-secondary visible,
+  // and hiding speed (3-chip mode) preserves airy 11px spacing without shrinking fonts.
   await evalJs(() => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
     document.querySelector('.right').style.minWidth = '165px';
@@ -223,9 +224,31 @@ try {
     const sr = n?.shadowRoot;
     const hit = sr?.getElementById('cache-hit');
     const sec = sr?.querySelector('.quota-secondary');
-    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
+    return ['full', 'compact-text', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
   }, '758px Orchestrator Extra High + 165px right keeps cache-hit and dual quota');
   await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && !n.classList.contains('snug-text');
+  }, '3-chip Orchestrator mode avoids snug-text compression');
+  const airy3Chip = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    return {
+      barGap: getComputedStyle(sr.querySelector('.bar')).gap,
+      fontSize: getComputedStyle(sr.querySelector('[data-card="cache"]')).fontSize,
+    };
+  });
+  assert.equal(airy3Chip.fontSize, '11px', '3-chip Orchestrator keeps crisp 11px font');
+  assert.equal(airy3Chip.barGap, '3px', '3-chip Orchestrator keeps 3px gap');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
+    sr.getElementById('pulse-settings-close').click();
     document.querySelector('.right').style.minWidth = '';
   });
 
@@ -382,7 +405,7 @@ try {
   let recoveryWidth = null;
   for (let w = 640; w >= 360; w -= 8) {
     const snap = await setWidthAndSettle(w);
-    if (['compact-text', 'tight-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
+    if (['compact-text', 'tight-text', 'snug-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
   }
   assert.ok(recoveryWidth !== null, 'found tight width where both mode degrades');
   await evalJs(() => {
@@ -466,7 +489,7 @@ try {
   let narrowHitCheck = null;
   for (let w = 640; w >= 360; w -= 8) {
     const snap = await setWidthAndSettle(w);
-    if (snap.density === 'tight-text' || snap.density === 'trim-hit') { narrowHitCheck = snap; break; }
+    if (snap.density === 'tight-text' || snap.density === 'snug-text' || snap.density === 'trim-hit') { narrowHitCheck = snap; break; }
   }
   assert.ok(narrowHitCheck, 'hit-only mode hits tight text tier before icons');
   assert.notEqual(narrowHitCheck.cacheHit, 'none', 'hit-only mode preserves #cache-hit under tight/trim-hit tiers');
