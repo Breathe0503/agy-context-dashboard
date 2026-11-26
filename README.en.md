@@ -1,12 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark-en.webp?v=1.0.3" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light-en.webp?v=1.0.3" />
-  <img src="docs/assets/hero-light-en.webp?v=1.0.3" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input." />
-</picture>
-
-<sub>Rendered frame-by-frame from current widget & sidecar source with illustrative data.</sub>
+<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input.">
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
@@ -32,6 +26,18 @@ Keep the summary visible. Hover or switch tabs for full details.
 - **v1.0.1 / v1.0.0**: Per-item bar colors and light/dark Settings popover, model selector truncation guard with minimal collapse, Context rounds & 5-bucket step drawer, Orchestrator/Swarm split, square Insights heatmaps, and Remote SSH support.
 
 ## Preview
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark-en.webp?v=1.0.3" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light-en.webp?v=1.0.3" />
+  <img src="docs/assets/hero-light-en.webp?v=1.0.3" width="100%" alt="Antigrative Dashboard interactive motion demo: hover cards and Side Panel tab switching." />
+</picture>
+
+<sub>Rendered frame-by-frame from current widget & sidecar source with illustrative data.</sub>
+
+</div>
 
 <img src="docs/assets/responsive.png?v=1.0.1" width="100%" alt="v1.0.1 four-icon compact layout in a narrow main chat and separate statistics beside a subagent input.">
 
