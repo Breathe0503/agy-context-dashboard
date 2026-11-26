@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {mkdtemp,rm,readFile,writeFile,mkdir,open,stat} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile,mkdir,open,stat,readdir,utimes} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -532,4 +532,36 @@ test('large JSON-only ledgers above 64 files or 4MiB offload summary to disk wor
  assert.equal(bigSettled.requests,count);
  assert.equal(bigSettled.totalTokens,count*600+150);
  assert.equal(bigInlineReads,0);
+});
+
+test('batched ephemeral summary isolates corrupt files across batch boundaries and sweeps only stale summary temps',async t=>{
+ const {root,ledger}=await fixture(t),dir=join(ledger.directory,scope);
+ const sharedLow=row('shared-dup',50),sharedHigh=row('shared-dup',250);
+ const seed=join(root,'seed.sqlite');job(seed,[sharedLow,row('sqlite-seed')]);
+ await ledger.ingestDisk(scope,id,seed);
+ for(let i=0;i<140;i++){
+  const name=hash('batch-conv-'+i);
+  const records=i===135?[sharedHigh,row('json-'+i)]:[row('json-'+i)];
+  await writeFile(join(dir,name+'.json'),JSON.stringify({schema:1,account:scope,records}));
+ }
+ await writeFile(join(dir,hash('corrupt-early')+'.json'),'{"schema":1,"account":"'+scope+'","records":[{"id":"'+hash('leak-early')+'","at":1,"model":"Fixture","uncached":10,"cacheRead":0,"cacheWrite":0,"output":10,"partial":false,"timeBasis":"request-start"},');
+ await writeFile(join(dir,hash('corrupt-late')+'.json'),JSON.stringify({schema:1,account:'b'.repeat(64),records:[row('leak-late')]}));
+
+ const staleRootTmp=join(ledger.directory,'.summary-all-11111111-1111-1111-1111-111111111111.tmp');
+ const staleScopeTmp=join(dir,'.summary-22222222-2222-2222-2222-222222222222.tmp');
+ const staleJournal=staleScopeTmp+'-journal';
+ const activeScopeTmp=join(dir,'.summary-33333333-3333-3333-3333-333333333333.tmp');
+ for(const f of [staleRootTmp,staleScopeTmp,staleJournal,activeScopeTmp])await writeFile(f,'scratch');
+ const oldSec=Math.floor((Date.now()-20*60*1000)/1000);
+ for(const f of [staleRootTmp,staleScopeTmp,staleJournal])await utimes(f,oldSec,oldSec);
+
+ const result=await summary(ledger);
+ assert.equal(result.requests,142);
+ assert.equal(result.totalTokens,141*600+750);
+ assert.equal(result.unreadableFiles,2);
+ const rootFiles=await readdir(ledger.directory),scopeFiles=await readdir(dir);
+ assert.equal(rootFiles.includes('.summary-all-11111111-1111-1111-1111-111111111111.tmp'),false);
+ assert.equal(scopeFiles.includes('.summary-22222222-2222-2222-2222-222222222222.tmp'),false);
+ assert.equal(scopeFiles.includes('.summary-22222222-2222-2222-2222-222222222222.tmp-journal'),false);
+ assert.equal(scopeFiles.includes('.summary-33333333-3333-3333-3333-333333333333.tmp'),true,'fresh concurrent summary temp must remain untouched');
 });

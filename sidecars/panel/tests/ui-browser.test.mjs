@@ -265,6 +265,72 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await evalJs(`() => { document.documentElement.style.setProperty('--ui-font-family', '"Georgia"'); }`);
   await waitUntil(`() => getComputedStyle(document.getElementById('ag-pulse-status-bar').shadowRoot.querySelector('.bar')).fontFamily.includes('Georgia')`, 'inline widget font synced to Georgia');
 
+  // 1b. PR #122 / Issue #120: ignore low-contrast host DOM --primary button surfaces
+  // (e.g. Antigravity IDE dark #404754 on #1a1c22), falling back to hostTheme.primary or palette defaults.
+  await evalJs(`() => {
+    document.body.dataset.theme = 'dark';
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--background', '#1a1c22');
+    rootStyle.setProperty('--primary', '#404754');
+  }`);
+  await waitUntil(`() => {
+    const bar = document.getElementById('ag-pulse-status-bar');
+    const sr = bar?.shadowRoot;
+    return bar?.style.getPropertyValue('--pulse-background') === 'rgb(26 28 34)'
+      && bar?.style.getPropertyValue('--pulse-accent') === ''
+      && sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(126, 165, 255)'
+      && getComputedStyle(sr.getElementById('context-fill')).backgroundColor === 'rgb(118, 136, 178)';
+  }`, 'dark low-contrast DOM --primary falls back to built-in palette');
+
+  panelTheme = { fontFamily: "'Fira Code'", mode: 'dark', dark: { background: '#1e1e1e', primary: '#7b3fe4' } };
+  await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.querySelector('.refresh').click()`);
+  await waitUntil(`() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(123, 63, 228)';
+  }`, 'low-contrast DOM --primary falls back to explicit hostTheme.dark.primary');
+
+  await evalJs(`() => { document.documentElement.style.setProperty('--primary', '#da7756'); }`);
+  await waitUntil(`() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(218, 119, 86)';
+  }`, 'high-contrast DOM --primary overrides hostTheme.dark.primary');
+
+  panelTheme = { fontFamily: "'Fira Code'", mode: 'dark', dark: { background: '#1e1e1e' } };
+  await evalJs(`() => {
+    document.body.dataset.theme = 'light';
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--background', '#ffffff');
+    rootStyle.setProperty('--primary', '#e8edf4');
+    document.getElementById('ag-pulse-status-bar').shadowRoot.querySelector('.refresh').click();
+  }`);
+  await waitUntil(`() => {
+    const bar = document.getElementById('ag-pulse-status-bar');
+    const sr = bar?.shadowRoot;
+    return bar?.dataset.pulseTheme === 'light'
+      && sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(70, 120, 230)';
+  }`, 'light low-contrast DOM --primary falls back to built-in light palette');
+
+  await evalJs(`() => { document.documentElement.style.setProperty('--primary', '#007acc'); }`);
+  await waitUntil(`() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(0, 122, 204)';
+  }`, 'light high-contrast DOM --primary applies normally');
+
+  await evalJs(`() => {
+    delete document.body.dataset.theme;
+    const rootStyle = document.documentElement.style;
+    rootStyle.removeProperty('--background');
+    rootStyle.removeProperty('--primary');
+    document.getElementById('ag-pulse-status-bar').shadowRoot.querySelector('.refresh').click();
+  }`);
+  await waitUntil(`() => {
+    const bar = document.getElementById('ag-pulse-status-bar');
+    const sr = bar?.shadowRoot;
+    return bar?.dataset.pulseTheme === 'dark'
+      && sr && getComputedStyle(sr.getElementById('five-fill')).backgroundColor === 'rgb(126, 165, 255)'
+      && getComputedStyle(sr.getElementById('context-fill')).backgroundColor === 'rgb(118, 136, 178)';
+  }`, 'baseline dark theme restored after DOM --primary fallback checks');
+
   // Quota window token hints sit inline beside forecast with full detail in tooltip
   const quotaText = await evalJs(`() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
@@ -508,8 +574,14 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot.getElementById('details-tab').click()`);
   await waitUntil(`() => {
     const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
-    return vs.getElementById('details').hidden === false && vs.querySelectorAll('#legend button').length === ${stressModelList.length} && vs.querySelectorAll('#table-body tr').length === ${stressModelList.length};
-  }`, 'details tab with 22 model rows visible');
+    const rows = vs.querySelectorAll('#table-body tr').length;
+    return vs.getElementById('details').hidden === false && vs.getElementById('tier-merge-toggle')?.getAttribute('aria-pressed') === 'true' && rows > 0 && rows < ${stressModelList.length} && vs.querySelectorAll('#table-body .tier-pill').length > 0;
+  }`, 'details tab with default merged tier rows visible');
+  await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot.getElementById('tier-merge-toggle').click()`);
+  await waitUntil(`() => {
+    const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
+    return vs.getElementById('tier-merge-toggle')?.getAttribute('aria-pressed') === 'false' && vs.querySelectorAll('#legend button').length === ${stressModelList.length} && vs.querySelectorAll('#table-body tr').length === ${stressModelList.length};
+  }`, 'details tab with 22 unmerged model rows visible');
 
   const detailsMetrics = await evalJs(`() => {
     const ud = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard');

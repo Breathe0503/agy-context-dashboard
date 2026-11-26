@@ -237,7 +237,12 @@ module.exports = function createAgPulseTheme() {
       if (target.dataset.pulseBarSkinned) delete target.dataset.pulseBarSkinned;
       const values=surfaceColors(theme);
       const surfaces=[values.card||palettes[theme].card,values.background||palettes[theme].background,values.control||palettes[theme].control].map(rgb);
-      const primary=(hostMatchesTheme?hostColor(['--primary','--color-primary']):null)||rgb(hostTheme[theme]?.primary);
+      const primarySurfaces=[values.background||palettes[theme].background,values.card||palettes[theme].card].map(rgb);
+      const domPrimary=hostMatchesTheme?hostColor(['--primary','--color-primary']):null;
+      // Ignore host --primary tokens that are dark/low-contrast button surfaces
+      // (e.g. Antigravity IDE dark #404754 on #1a1c22) instead of foreground accents.
+      const usableDomPrimary=domPrimary&&primarySurfaces.every(surface=>contrast(domPrimary,surface)>=2.2)?domPrimary:null;
+      const primary=usableDomPrimary||rgb(hostTheme[theme]?.primary);
       if(primary){
         values.accent=colorCss(primary);
         values.ring=colorCss(primary);

@@ -689,10 +689,12 @@ function renderContextComposition(composition) {
       const at = x(Math.min(Math.max(m.pointIndex || 0, 0), points.length - 1));
       const label = m.kind === 'checkpoint' ? t('trendCheckpoint') : t('trendCompaction');
       const reclaimed = Number.isFinite(m.before) && Number.isFinite(m.after) && m.before > m.after ? ` (${t('trendReclaimed', { tokens: compact(m.before - m.after) })})` : '';
-      const tip = `${label}: ${Number.isFinite(m.before) ? count(m.before) : '—'} → ${Number.isFinite(m.after) ? count(m.after) : '—'}${reclaimed}`;
+      const share = Number.isFinite(m.peakFraction) ? ` · ${t('trendPeakShare', { pct: Math.round(m.peakFraction * 100) })}` : '';
+      const peak = m.peak ? ` · ${t('trendPeakTrigger')}` : '';
+      const tip = `${label}: ${Number.isFinite(m.before) ? count(m.before) : '—'} → ${Number.isFinite(m.after) ? count(m.after) : '—'}${reclaimed}${share}${peak}`;
       return svgEl('g', { class: 'trend-marker-group' }, [
         svgEl('title', {}, [document.createTextNode(tip)]),
-        svgEl('line', { class: 'trend-marker', x1: at, x2: at, y1: P, y2: H - P }),
+        svgEl('line', { class: m.peak ? 'trend-marker trend-marker-peak' : 'trend-marker', x1: at, x2: at, y1: P, y2: H - P }),
         svgEl('line', { class: 'trend-marker-hit', x1: at, x2: at, y1: P, y2: H - P }),
       ]);
     });
@@ -734,10 +736,19 @@ function renderContextComposition(composition) {
     if (markers.length) {
       markersList.replaceChildren(...markers.map(m => {
         const label = m.kind === 'checkpoint' ? t('trendCheckpoint') : t('trendCompaction');
+        const beforeShort = Number.isFinite(m.before) ? compact(m.before) : '—';
+        const afterShort = Number.isFinite(m.after) ? compact(m.after) : '—';
+        const beforeFull = Number.isFinite(m.before) ? count(m.before) : '—';
+        const afterFull = Number.isFinite(m.after) ? count(m.after) : '—';
         const reclaimed = Number.isFinite(m.before) && Number.isFinite(m.after) && m.before > m.after ? ` (${t('trendReclaimed', { tokens: compact(m.before - m.after) })})` : '';
+        const pct = Number.isFinite(m.peakFraction) ? Math.round(m.peakFraction * 100) : null;
+        const badgeShare = pct !== null ? ` · ▲${pct}%` : '';
+        const tipShare = pct !== null ? ` · ${t('trendPeakShare', { pct })}` : '';
+        const peak = m.peak ? ` · ${t('trendPeakTrigger')}` : '';
         return Object.assign(document.createElement('span'), {
-          className: 'trend-marker-badge',
-          textContent: `${label}: ${compact(m.before)} → ${compact(m.after)}${reclaimed}`,
+          className: m.peak ? 'trend-marker-badge trend-marker-badge-peak' : 'trend-marker-badge',
+          textContent: `${label}: ${beforeShort} → ${afterShort}${badgeShare}`,
+          title: `${label}: ${beforeFull} → ${afterFull}${reclaimed}${tipShare}${peak}`,
         });
       }));
     }
@@ -1607,7 +1618,7 @@ function render() {
     hidden('context-compaction-pill',!(compactions!==null&&compactions>0));
     if(compactions!==null&&compactions>0){
       text('context-compaction-pill',t('contextCompactionCount',{n:compactions}));
-      compactionPill.title=t('contextCompactionsTitle',{n:compactions});
+      compactionPill.title=`${t('contextCompactionsTitle',{n:compactions})}\n${t('compactionMetricsBasis')}`;
     }
   }
   const mkEl=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};

@@ -168,7 +168,7 @@ try {
   // 0. Medium-width main composer (758px, matching real Antigravity with XHigh model)
   // keeps numbers + cache-hit visible via compact-text/tight-text instead of premature icons-only.
   await evalJs(() => { document.querySelector('.composer').style.width = '758px'; });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'snug-rounds', 'mini-rounds', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
   const medState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -187,7 +187,7 @@ try {
   await evalJs(() => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon (Medium)';
   });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'snug-rounds', 'mini-rounds', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
   const longModelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -224,7 +224,7 @@ try {
     const sr = n?.shadowRoot;
     const hit = sr?.getElementById('cache-hit');
     const sec = sr?.querySelector('.quota-secondary');
-    return ['full', 'compact-text', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
+    return ['full', 'compact-text', 'snug-rounds', 'mini-rounds', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
   }, '758px Orchestrator Extra High + 165px right keeps cache-hit and dual quota');
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
@@ -234,8 +234,10 @@ try {
   });
   await waitUntil(() => {
     const n = document.getElementById('ag-pulse-status-bar');
-    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && !n.classList.contains('snug-text');
-  }, '3-chip Orchestrator mode avoids snug-text compression');
+    const sr = n?.shadowRoot;
+    const rounds = sr?.getElementById('context-rounds');
+    return ['full', 'compact-text', 'snug-rounds'].includes(n?.dataset.density) && rounds && getComputedStyle(rounds).display !== 'none';
+  }, '3-chip Orchestrator mode preserves context rounds at 11px without tight-text hiding');
   const airy3Chip = await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     return {
@@ -244,7 +246,7 @@ try {
     };
   });
   assert.equal(airy3Chip.fontSize, '11px', '3-chip Orchestrator keeps crisp 11px font');
-  assert.equal(airy3Chip.barGap, '3px', '3-chip Orchestrator keeps 3px gap');
+  assert.ok(['3px', '1.5px'].includes(airy3Chip.barGap), '3-chip Orchestrator keeps expected bar gap: ' + airy3Chip.barGap);
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
@@ -285,7 +287,7 @@ try {
       rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
     };
   });
-  assert.equal(labelState.density, 'compact-text', 'label check runs in compact-text tier: ' + labelState.density);
+  assert.ok(['full', 'compact-text', 'snug-rounds', 'mini-rounds'].includes(labelState.density), 'label check runs before tight-text hides label: ' + labelState.density);
   assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
   assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
 
@@ -405,7 +407,7 @@ try {
   let recoveryWidth = null;
   for (let w = 640; w >= 360; w -= 8) {
     const snap = await setWidthAndSettle(w);
-    if (['compact-text', 'tight-text', 'snug-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
+    if (['compact-text', 'snug-rounds', 'mini-rounds', 'tight-text', 'snug-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
   }
   assert.ok(recoveryWidth !== null, 'found tight width where both mode degrades');
   await evalJs(() => {
@@ -599,7 +601,152 @@ try {
   });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'empty conversation expands back to full');
 
-  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 + Issue #90 combined)');
+  // 6. Flush-right alignment across model lengths & zero ghost-flash across Empty -> Type -> Clear -> Send (+Stop) -> Done
+  emptyConversation = false;
+  await evalJs(() => {
+    const comp = document.querySelector('.composer');
+    comp.style.width = '778px';
+    const actions = document.querySelector('.actions');
+    const left = document.querySelector('.left');
+    actions.style.justifyContent = 'flex-start';
+    left.style.flex = '1';
+    left.style.minWidth = '0';
+    const right = document.querySelector('.right');
+    right.innerHTML = '<button aria-label="Mode">Turbo</button><button aria-label="Mic" style="width:24px">M</button><button id="action-btn" data-testid="voice-start-button" style="width:32px">V</button>';
+  });
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('#pulse-settings-dialog [data-language-choice="zh-CN"]').click();
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]')?.blur?.();
+    sr.getElementById('pulse-settings-close').click();
+    sr.querySelector('.refresh')?.click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n?.shadowRoot;
+    const speedCard = sr?.querySelector('[data-card="speed"]');
+    const rounds = sr?.getElementById('context-rounds');
+    return n?.dataset.layout === 'ready' && speedCard?.hidden === true && rounds && getComputedStyle(rounds).display !== 'none';
+  }, '3-chip Chinese setup for multi-model regression');
+
+  const settleFrames = () => evalJs(`async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); }`);
+  const sampleStrip = () => evalJs(() => {
+    const w = document.getElementById('ag-pulse-status-bar');
+    const sr = w.shadowRoot;
+    const wRect = w.getBoundingClientRect();
+    const triggerRect = document.querySelector('[data-testid="model-selector-trigger"]').getBoundingClientRect();
+    const rightRect = document.querySelector('.right').getBoundingClientRect();
+    const span = document.querySelector('[data-testid="model-selector-trigger"] span');
+    return {
+      left: wRect.left,
+      right: wRect.right,
+      leftGap: wRect.left - triggerRect.right,
+      rightGap: rightRect.left - wRect.right,
+      density: w.dataset.density,
+      roundsDisp: getComputedStyle(sr.getElementById('context-rounds')).display,
+      modelTruncated: span.scrollWidth > span.clientWidth + 1,
+      rightPadProp: w.style.getPropertyValue('--pulse-right-pad'),
+      stages: window.__jumpStages || 0,
+    };
+  });
+
+  const modelCases = [
+    { name: 'Gemini Flash', width: 778, short: true, lifecycle: false },
+    { name: 'Gemini Flash', width: 920, short: true, lifecycle: false },
+    { name: 'Gemini 4 Hydrogen Medium', width: 778, short: true, lifecycle: true },
+    { name: 'Gemini 4 Hydrogen Medium', width: 920, short: true, lifecycle: false },
+    { name: 'Claude Opus 4.6 (Thinking)', width: 778, short: false, lifecycle: false },
+    { name: 'Orchestrator Gemini 4 Neon Extra High', width: 778, short: false, lifecycle: true },
+  ];
+
+  for (const mc of modelCases) {
+    await evalJs(`() => {
+      document.querySelector('.composer').style.width = '${mc.width}px';
+      document.querySelector('[data-testid="model-selector-trigger"] span').textContent = ${JSON.stringify(mc.name)};
+      document.querySelector('.editor').replaceChildren();
+      document.getElementById('stop')?.remove();
+      const btn = document.getElementById('action-btn');
+      btn.dataset.testid = 'voice-start-button';
+      btn.textContent = 'V';
+      const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+      window.__jumpStages = 0;
+      window.__jumpObs?.disconnect();
+      window.__jumpObs = new MutationObserver(rs => {
+        for (const r of rs) for (const n of r.addedNodes) if (n.classList?.contains('density-stage')) window.__jumpStages++;
+      });
+      window.__jumpObs.observe(sr, { childList: true });
+    }`);
+    await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.layout === 'ready', `${mc.name} @ ${mc.width}px ready`);
+    await settleFrames();
+    await evalJs(() => { window.__jumpStages = 0; });
+
+    const idleSnap = await sampleStrip();
+    assert.equal(idleSnap.rightPadProp, '', `${mc.name} @ ${mc.width}px has no --pulse-right-pad`);
+    assert.ok(idleSnap.rightGap >= 0 && idleSnap.rightGap <= 14, `${mc.name} @ ${mc.width}px flush right rightGap=${idleSnap.rightGap}`);
+    assert.notEqual(idleSnap.roundsDisp, 'none', `${mc.name} @ ${mc.width}px keeps rounds visible (density=${idleSnap.density})`);
+    assert.equal(idleSnap.modelTruncated, false, `${mc.name} @ ${mc.width}px preserves model label`);
+    if (mc.short) {
+      assert.ok(idleSnap.leftGap > 40, `${mc.name} @ ${mc.width}px leaves spare gap on left (leftGap=${idleSnap.leftGap})`);
+      assert.equal(idleSnap.density, 'full', `${mc.name} @ ${mc.width}px stays full density`);
+    }
+
+    if (mc.lifecycle) {
+      // Type -> swap Voice 32px -> Send 32px in-place + DOM child inside editor
+      await evalJs(() => {
+        const ed = document.querySelector('.editor');
+        const p = document.createElement('p'); p.textContent = 'hello typing test';
+        ed.replaceChildren(p);
+        const btn = document.getElementById('action-btn');
+        btn.dataset.testid = 'send-button';
+        btn.textContent = '^';
+      });
+      await settleFrames();
+      const typeSnap = await sampleStrip();
+
+      // Clear -> swap Send 32px -> Voice 32px in-place + clear editor
+      await evalJs(() => {
+        document.querySelector('.editor').replaceChildren();
+        const btn = document.getElementById('action-btn');
+        btn.dataset.testid = 'voice-start-button';
+        btn.textContent = 'V';
+      });
+      await settleFrames();
+      const clearSnap = await sampleStrip();
+
+      // Send -> add Stop (+32px on right)
+      await evalJs(() => {
+        const r = document.querySelector('.right');
+        const stop = document.createElement('button'); stop.id = 'stop'; stop.dataset.testid = 'stop-button'; stop.style.width = '32px'; stop.textContent = 'X';
+        r.append(stop);
+      });
+      await settleFrames();
+      const sendSnap = await sampleStrip();
+
+      // Done -> remove Stop
+      await evalJs(() => {
+        document.getElementById('stop')?.remove();
+      });
+      await settleFrames();
+      const doneSnap = await sampleStrip();
+
+      for (const [stateName, s] of [['type', typeSnap], ['clear', clearSnap], ['done', doneSnap]]) {
+        assert.ok(Math.abs(s.left - idleSnap.left) <= 1, `${mc.name} ${stateName} left=${s.left} drifted from idle=${idleSnap.left}`);
+        assert.ok(Math.abs(s.right - idleSnap.right) <= 1, `${mc.name} ${stateName} right=${s.right} drifted from idle=${idleSnap.right}`);
+      }
+      for (const [stateName, s] of [['idle', idleSnap], ['type', typeSnap], ['clear', clearSnap], ['send', sendSnap], ['done', doneSnap]]) {
+        assert.ok(s.rightGap >= 0 && s.rightGap <= 14, `${mc.name} ${stateName} rightGap=${s.rightGap} stays flush right`);
+        assert.notEqual(s.roundsDisp, 'none', `${mc.name} ${stateName} keeps rounds visible (density=${s.density})`);
+        assert.equal(s.modelTruncated, false, `${mc.name} ${stateName} preserves model label`);
+        assert.equal(s.stages, 0, `${mc.name} ${stateName} spawned zero density-stage ghost flashes`);
+      }
+    }
+    await evalJs(() => window.__jumpObs?.disconnect());
+  }
+
+  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 + Issue #90 + multi-model flush-right stability)');
 } finally {
   if (browser) {
     try { browser.cdp.close(); } catch {}
