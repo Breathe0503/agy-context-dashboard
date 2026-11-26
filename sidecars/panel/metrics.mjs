@@ -174,9 +174,12 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   const tokens = { inputTokens:0, cachedTokens:0, cacheWriteTokens:0, uncachedTokens:0, outputTokens:0,
     measuredRequests:0, inputRequests:0, outputRequests:0, missingInputRequests:0, missingOutputRequests:0,
     uncachedRequests:0, cachedRequests:0, cacheWriteRequests:0 };
-  let lastSettledContext = null;
+  let lastSettledContext = null, lastChatStepIdx = -1;
   for (const [index, generator] of generators.entries()) {
     const chat = generator.chatModel;
+    if (chat && Array.isArray(generator.stepIndices)) {
+      for (const si of generator.stepIndices) if (Number.isInteger(si) && si > lastChatStepIdx) lastChatStepIdx = si;
+    }
     const chatCwm = chat?.chatStartMetadata?.contextWindowMetadata;
     const chatMax = tokenCount(chatCwm?.maxContextTokens);
     const chatSettled = settledUsageTokens(chat?.usage);
@@ -367,14 +370,26 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   }
   const ttftMedianSeconds = median(ttftValues);
   const latestTtftSeconds = typeof latest?.ttft === 'number' && Number.isFinite(latest.ttft) ? latest.ttft : null;
-  let rounds = 0, toolTotalCalls = 0, toolArgTokens = 0;
+  let rounds = 0, toolTotalCalls = 0, toolArgTokens = 0, lastCompactCmdIdx = -1, lastCompactionIdx = -1, compactingInProgress = false;
   const stepBreakdown = { user: 0, planner: 0, tool: 0, compaction: 0, other: 0 };
   const toolIntervals = storage ? null : [];
   const toolMap = new Map();
-  for (const s of steps) {
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
     const typeText = String(s?.type || '');
     const isUser = /USER_INPUT/.test(typeText);
-    if (isUser) rounds++;
+    if (isUser) {
+      rounds++;
+      const isCompactCmd = /^\s*\/compact\b/i.test(s?.userInput?.userResponse || s?.userInput?.text || s?.content || '') ||
+        (Array.isArray(s?.userInput?.items) && s.userInput.items.some(item => /^\s*\/compact\b/i.test(item?.text || '')));
+      if (isCompactCmd) lastCompactCmdIdx = i;
+    }
+    const isCompactionStep = /COMPACTION|CONTEXT_COMPACTION/.test(typeText) ||
+      (/CHECKPOINT/.test(typeText) && (Boolean(s?.checkpoint) || /^\s*(?:\[?context (?:summary|compaction)\]?|conversation (?:summary|checkpoint)|checkpoint summary|# Resuming from a compaction|<CONTEXT_SUMMARY>)/i.test(s?.content?.prefix || s?.checkpoint?.sessionSummary || '')));
+    if (isCompactionStep) {
+      lastCompactionIdx = i;
+      if (/RUNNING/.test(String(s?.status || ''))) compactingInProgress = true;
+    }
     const tc = s?.metadata?.toolCall;
     const isTool = TOOL_STEP_RE.test(typeText) || Boolean(tc);
     if (isUser) stepBreakdown.user++;
@@ -446,8 +461,12 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     planner: finalPlanner,
     executor: finalExecutor,
   } : null;
+  const responseRunning = /RUNNING/.test(String(response.status || ''));
+  const compactionState = compactingInProgress || (responseRunning && lastCompactCmdIdx >= 0 && lastCompactCmdIdx >= lastCompactionIdx && lastCompactCmdIdx > lastChatStepIdx)
+    ? 'compacting'
+    : (lastCompactionIdx >= 0 && lastCompactionIdx > lastChatStepIdx ? 'compacted' : 'idle');
   return {
-    source: 'Antigravity request metadata', status: response.status || null,
+    source: 'Antigravity request metadata', status: response.status || null, compactionState,
     conversationId: trajectory.cascadeId || null,
     steps: Number(response.numTotalSteps ?? steps.length), rounds, stepBreakdown,
     requests: ids.size, measuredRequests: acceptedCount, missingTiming, excludedTiming, rateWarnings, timingReasons, rateVersion: RATE_VERSION, counts,

@@ -9,6 +9,7 @@
 | [bowenliang123/dsh-context](https://github.com/bowenliang123/dsh-context) | DSH（DeepSeek Harness）插件（npm / Cordis） | **设计灵感来源**（不同宿主，无竞争） |
 | [ATtacK030130/antigrative-dashboard](https://github.com/ATtacK030130/antigrative-dashboard) | Python 管理器 + Node sidecar + 内联 widget | **同构竞品 / 活跃上游**，定期互同步 |
 | [elviscjn-cjn/antigravity-context-viewer](https://github.com/elviscjn-cjn/antigravity-context-viewer) | `app.asar` 注入补丁 + CLI | 异构竞品（功能重叠度最高） |
+| [AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor) | App 原生 Sidecar 插件 + IDE VSIX（MIT） | **同赛道参考项目**（上下文卡片复制按钮、双水位线与 Orchestrator 拆解） |
 | [n2ns/antigravity-panel](https://github.com/n2ns/antigravity-panel) | VS Code / Open VSX 扩展 | IDE 侧竞品（不覆盖桌面 App 内嵌） |
 | [nkjDSLcvanv/antigravity-codex-theme](https://github.com/nkjDSLcvanv/antigravity-codex-theme) | CDP 运行时注入（主题 / 汉化 / 轻统计） | 参考项目（同款注入路线的工程实践） |
 | [Anarcadia/chuanban-antigravity-theme-patch](https://github.com/Anarcadia/chuanban-antigravity-theme-patch) | CDP 运行时注入（美化 / 字体 / 汉化） | 参考项目（上表 codex-theme 的参考来源） |
@@ -45,6 +46,10 @@ DSH = **DeepSeek Harness**（DeepSeek 的 agent harness，npm 包 `@deepseek-ai/
 ### elviscjn-cjn/antigravity-context-viewer
 
 ASAR 注入式看板：主进程钩子 + 预加载桥接 + 渲染层面板，自研 ASAR 打包引擎，零依赖。功能面最宽：按模型配置上下文长度（含社区「上下文解锁」，注意服务端不一定接受）、顶栏额度圆环（剩余 + 5h/周 + 重置时间）、生成速度、52 周活跃热力图、API 费用估算、汉化、免 TUN 代理。与我们「不篡改 `app.asar`」的红线相反，升级即失效；主要在 Windows 验证。**可对比它的额度圆环与重置时间展示、历史热力图交互**。
+
+### AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor
+
+MIT 协议，同时支持 Antigravity App（Zero-CDP 原生 Sidecar `AUX_PANE` / `SIDEBAR` 与可选 CDP 输入框环）与 Antigravity IDE（VSIX）。功能聚焦上下文构成与多代理归因：在上下文构成卡片内直接提供 **Copy `/context` Report** 与 **Copy Handoff Prompt** 一键复制按钮、Top 5 最大占用项折叠列表、双水位线（`Compaction` + `200k`）、Orchestrator `Planner → Executor` 角色归因与 `5h` + `Weekly` 消耗速率预测。**可借鉴上下文卡片内一键复制报告/交接提示词的按钮设计与 Top 5 占用项呈现**；同时保持本仓轻量化定位，不照搬重型设置面板。
 
 ### n2ns/antigravity-panel
 
