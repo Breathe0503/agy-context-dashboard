@@ -10,7 +10,7 @@ import {normalizeConversationId} from './delegation.mjs';
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SCOPE = /^[0-9a-f]{64}$/;
-const numeric = ['steps','rounds','requests','measuredRequests','missingTiming','tps','latestTps','peakTps','e2eTps','streamingSeconds','modelSeconds','toolSeconds','ttftSeconds','ttftMedianSeconds','latestTtftSeconds','excludedTiming','rateWarnings'];
+const numeric = ['steps','rounds','requests','measuredRequests','missingTiming','tps','latestTps','peakTps','e2eTps','streamingSeconds','modelSeconds','toolSeconds','ttftSeconds','ttftMedianSeconds','latestTtftSeconds','latestOutputTokens','latestDurationSeconds','latestE2eTps','prevQualifiedTps','excludedTiming','rateWarnings'];
 const counts = ['input','output','responseOutput','thinkingOutput','cacheRead','cacheWrite'];
 const cache = ['inputTokens','cachedTokens','cacheWriteTokens','uncachedTokens','outputTokens','measuredRequests','missingRequests','totalTokens','hitRate'];
 const tokens = ['inputTokens','cachedTokens','cacheWriteTokens','uncachedTokens','outputTokens','measuredRequests','inputRequests','outputRequests','missingInputRequests','missingOutputRequests','totalTokens'];
@@ -112,7 +112,7 @@ export function safeMetrics(value, conversationId) {
   for (const key of counts) result.counts[key] = tokenNumber(value.counts?.[key]) ? value.counts[key] : 0;
   for (const key of cache) result.cache[key] = (key==='hitRate'?number:tokenNumber)(value.cache?.[key]) ? value.cache[key] : null;
   if (result.cache.hitRate > 1) result.cache.hitRate = null;
-  for (const key of ['complete','latestShortSample']) result[key] = value[key] === true;
+  for (const key of ['complete','prevQualifiedSameModel']) result[key] = value[key] === true;
   result.cache.complete = value.cache?.complete === true;
   result.tokens = {};
   if (value.tokens && typeof value.tokens === 'object') {
@@ -201,16 +201,17 @@ export function safeMetrics(value, conversationId) {
   if(transcript&&['ready','partial'].includes(transcript.status)&&(transcript.matchedSteps>0||transcript.complete))result.transcriptStats=transcript;
   result.rateVersion = value.rateVersion === RATE_VERSION ? RATE_VERSION : 0;
   result.timingReasons = Object.fromEntries(RATE_REASONS.map(key=>[key,number(value.timingReasons?.[key]) ? value.timingReasons[key] : 0]));
-  result.latestRateStatus = ['ok','missing','unreliable'].includes(value.latestRateStatus) ? value.latestRateStatus : 'missing';
+  result.latestRateStatus = ['ok','short','buffered','unreliable','missing'].includes(value.latestRateStatus) ? value.latestRateStatus : 'missing';
   if (result.rateVersion !== RATE_VERSION) {
     // Old aggregates cannot be repaired without the raw trajectory. Retain
     // usage/context, but never present a legacy unvalidated rate as trustworthy.
     result.tps = result.latestTps = result.peakTps = result.e2eTps = result.streamingSeconds = null;
     result.ttftMedianSeconds = result.latestTtftSeconds = null;
+    result.latestOutputTokens = result.latestDurationSeconds = result.latestE2eTps = result.prevQualifiedTps = null;
     result.recentTps = [];
     result.measuredRequests = 0;
     result.latestRateStatus = 'legacy';
-    result.latestShortSample = false;
+    result.prevQualifiedSameModel = false;
   }
   return result;
 }
