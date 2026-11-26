@@ -212,6 +212,23 @@ try {
   assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
 
+  // Verify 758px composer with Orchestrator Gemini 4 Neon Extra High + 165px right controls
+  // fits in tight-text while keeping both #cache-hit and .quota-secondary visible.
+  await evalJs(() => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
+    document.querySelector('.right').style.minWidth = '165px';
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n?.shadowRoot;
+    const hit = sr?.getElementById('cache-hit');
+    const sec = sr?.querySelector('.quota-secondary');
+    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
+  }, '758px Orchestrator Extra High + 165px right keeps cache-hit and dual quota');
+  await evalJs(() => {
+    document.querySelector('.right').style.minWidth = '';
+  });
+
   // Verify label / compact / rounds context sub-label modes stay responsive under
   // Orchestrator Gemini 4 Neon Extra High in compact-text (before tight-text drops rounds/label).
   await evalJs(`async () => {
@@ -469,7 +486,7 @@ try {
   }, 'restored both quota and cache modes');
 
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
-  await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });
+  await evalJs(() => { document.querySelector('.composer').style.width = '400px'; });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'icons', 'narrow main composer drops to icons');
   const modelTruncated = await evalJs(() => {
     const span = document.querySelector('[data-testid="model-selector-trigger"] span');
