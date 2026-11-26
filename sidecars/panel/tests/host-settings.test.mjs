@@ -419,6 +419,9 @@ test('dashboardLanguage exposes trilingual label for settings panels', () => {
   assert.equal(createDashboardI18n('zh-CN').t('barPlacementFooter'), '底部独立一行');
   assert.equal(createDashboardI18n('en').t('turnFooter'), 'Per-turn reply footer');
   assert.equal(createDashboardI18n('zh-CN').t('turnFooter'), '回复末尾统计条');
+  assert.equal(createDashboardI18n('zh-CN').t('turnFooterIn'), '输入');
+  assert.equal(createDashboardI18n('zh-CN').t('turnFooterOut'), '输出');
+  assert.equal(createDashboardI18n('zh-CN').t('turnFooterCache'), '缓存');
 });
 
 test('host-settings toggles barPlacement to footer and resets back to inline', async t => {

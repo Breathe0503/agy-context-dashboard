@@ -180,8 +180,8 @@ try {
   // 1. Exact count match renders both turn footers above Copy buttons
   await waitUntil(() => document.querySelectorAll('[data-ag-pulse-turn-footer]').length === 2, 'renders 2 turn footers');
   const initialTexts = await evalJs(() => Array.from(document.querySelectorAll('[data-ag-pulse-turn-footer]')).map(el => el.textContent));
-  assert.match(initialTexts[0], /Gemini 4 Hydrogen \(Medium\).*In .*Out .*Cache 90(\.0)?%.*200 tok\/s/);
-  assert.match(initialTexts[1], /Gemini 4 Neon \(XHigh\).*In .*Out .*Cache 99(\.0)?%.*250 tok\/s/);
+  assert.match(initialTexts[0], /Gemini 4 Hydrogen \(Medium\).*输入 .*输出 .*缓存 90(\.0)?%.*200 tok\/s/);
+  assert.match(initialTexts[1], /Gemini 4 Neon \(XHigh\).*输入 .*输出 .*缓存 99(\.0)?%.*250 tok\/s/);
 
   // 2. Mismatch Fail-Closed: inject an extra unbacked toolbar -> older turn footer removed, only latest kept
   await evalJs(() => {

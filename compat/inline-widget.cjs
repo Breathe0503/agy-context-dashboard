@@ -2607,9 +2607,9 @@ module.exports = function installAgPulseInlineWidget() {
     if(!turn||typeof turn!=='object')return '';
     const parts=[];
     if(turn.model)parts.push(turn.multiModel?`${turn.model} +`:turn.model);
-    if(Number.isSafeInteger(turn.inputTokens))parts.push(`In ${compact(turn.inputTokens)}`);
-    if(Number.isSafeInteger(turn.outputTokens))parts.push(`Out ${compact(turn.outputTokens)}`);
-    if(typeof turn.hitRate==='number'&&Number.isFinite(turn.hitRate))parts.push(`Cache ${pct(turn.hitRate)}`);
+    if(Number.isSafeInteger(turn.inputTokens))parts.push(`${t('turnFooterIn')} ${compact(turn.inputTokens)}`);
+    if(Number.isSafeInteger(turn.outputTokens))parts.push(`${t('turnFooterOut')} ${compact(turn.outputTokens)}`);
+    if(typeof turn.hitRate==='number'&&Number.isFinite(turn.hitRate))parts.push(`${t('turnFooterCache')} ${pct(turn.hitRate)}`);
     if(typeof turn.tps==='number'&&Number.isFinite(turn.tps))parts.push(`${Math.round(turn.tps)} tok/s`);
     return parts.join(' · ');
   }
