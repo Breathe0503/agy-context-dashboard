@@ -174,6 +174,27 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   const tokens = { inputTokens:0, cachedTokens:0, cacheWriteTokens:0, uncachedTokens:0, outputTokens:0,
     measuredRequests:0, inputRequests:0, outputRequests:0, missingInputRequests:0, missingOutputRequests:0,
     uncachedRequests:0, cachedRequests:0, cacheWriteRequests:0 };
+  const turnSegments = [];
+  let turnSeg = { start: 0, end: -1, hasVisible: false, completed: false };
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    const typeText = String(s?.type || '');
+    const isUser = /USER_INPUT/.test(typeText);
+    const isSystem = /SYSTEM_MESSAGE/.test(typeText);
+    if (isUser || (isSystem && turnSeg.hasVisible && turnSeg.completed)) {
+      if (turnSeg.hasVisible && turnSeg.completed) turnSegments.push({ start: turnSeg.start, end: i - 1 });
+      turnSeg = { start: i, end: i, hasVisible: false, completed: false };
+    }
+    turnSeg.end = i;
+    if (/PLANNER_RESPONSE/.test(typeText) && String(s?.plannerResponse?.response || '').trim()) {
+      turnSeg.hasVisible = true;
+      turnSeg.completed = !/RUNNING|PENDING|GENERATING/.test(String(s?.status || ''));
+    }
+  }
+  if (turnSeg.hasVisible && turnSeg.completed) turnSegments.push({ start: turnSeg.start, end: turnSeg.end });
+  const turnAcc = turnSegments.map(() => ({
+    model: '', models: new Set(), requests: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0, streamTokens: 0, streamSeconds: 0,
+  }));
   let lastSettledContext = null, lastChatStepIdx = -1;
   for (const [index, generator] of generators.entries()) {
     const chat = generator.chatModel;
@@ -329,6 +350,22 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       pendingPlannerBucket ||= createOrchBucket();
       addToOrchBucket(pendingPlannerBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
       inActiveExecutorSegment = false;
+    }
+    const firstTurnStep = gStepIndices.find(si => Number.isInteger(si) && si >= 0 && si < steps.length);
+    if (firstTurnStep !== undefined) {
+      const segIdx = turnSegments.findIndex(seg => firstTurnStep >= seg.start && firstTurnStep <= seg.end);
+      if (segIdx >= 0) {
+        const acc = turnAcc[segIdx];
+        if (formattedModel) { acc.model = formattedModel; acc.models.add(formattedModel); }
+        acc.requests++;
+        acc.inputTokens += reqInput;
+        acc.cachedTokens += reqRead;
+        acc.outputTokens += reqOutput;
+        if (streamTokens !== null && duration > 0) {
+          acc.streamTokens += streamTokens;
+          acc.streamSeconds += duration;
+        }
+      }
     }
     const sample = { outputTokens: streamTokens, responseTokens, duration, ttft, reasons, toolOnly,
       tps: streamTokens !== null && duration > 0 ? streamTokens / duration : null,
@@ -511,6 +548,17 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       }
       return contextMetrics(lastCwm, { model: lastModelRaw, sampledAt, estimated: true });
     })(),
+    turns: turnAcc.slice(-64).map(item => ({
+      model: item.model || null,
+      multiModel: item.models.size > 1,
+      requests: item.requests,
+      inputTokens: item.inputTokens,
+      cachedTokens: item.cachedTokens,
+      outputTokens: item.outputTokens,
+      hitRate: item.inputTokens > 0 ? item.cachedTokens / item.inputTokens : null,
+      tps: item.streamSeconds > 0 && item.streamTokens > 0 ? item.streamTokens / item.streamSeconds : null,
+    })),
+    totalCompletedTurns: turnSegments.length,
     complete: Number(response.numTotalGeneratorMetadata ?? generators.length) === generators.length,
   };
 }

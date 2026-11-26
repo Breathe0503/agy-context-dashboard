@@ -207,3 +207,22 @@ test('barPlacement persists independently, defaults to inline and validates choi
   fail=true;await ctrl.choose('footer');assert.equal(ctrl.placement,'footer');assert.equal(ctrl.error,true);
   ctrl.dispose();
 });
+
+test('turnFooter is omitted when unset, defaults to true and validates booleans',async t=>{
+  const {file,store}=await fixture(t);
+  const language=create(null);assert.equal(language.normalizeTurnFooter(undefined),true);assert.equal(language.normalizeTurnFooter(false),false);assert.equal(language.normalizeTurnFooter('no'),true);
+  const initial=await store.get();
+  assert.equal(Object.hasOwn(initial,'turnFooter'),false);
+  await store.set({turnFooter:false});
+  let saved=await new PreferencesStore({file}).get();assert.equal(saved.turnFooter,false);assert.equal(saved.language,null);
+  await store.set({language:'zh-CN'});await store.set({turnFooter:true});
+  saved=await new PreferencesStore({file}).get();assert.equal(saved.turnFooter,true);assert.equal(saved.language,'zh-CN');
+  for(const bad of [{turnFooter:'false'},{turnFooter:0},{turnFooter:null},{turnFooter:false,extra:'x'}])await assert.rejects(store.set(bad));
+  let revision=1,fail=false;
+  const ctrl=language.connectTurnFooter({initial:false,write:async input=>{if(fail)throw Error('io');return {language:null,turnFooter:input.turnFooter,revision:++revision};}});
+  assert.equal(ctrl.enabled,false);
+  await ctrl.choose(true);assert.equal(ctrl.enabled,true);assert.equal(ctrl.error,false);
+  ctrl.sync({language:null,turnFooter:false,revision:1});assert.equal(ctrl.enabled,true);
+  fail=true;await ctrl.choose(false);assert.equal(ctrl.enabled,false);assert.equal(ctrl.error,true);
+  ctrl.dispose();
+});

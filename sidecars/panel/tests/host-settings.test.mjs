@@ -199,6 +199,7 @@ function makeControllers() {
   const hostUiLocalization = language.connectHostUiLocalization({ write });
   const stripMode = language.connectStripMode({ write });
   const barPlacement = language.connectBarPlacement({ write });
+  const turnFooter = language.connectTurnFooter({ write });
   return {
     language,
     preferences,
@@ -213,6 +214,7 @@ function makeControllers() {
     hostUiLocalization,
     stripMode,
     barPlacement,
+    turnFooter,
     dispose() {
       preferences.dispose();
       barPrefs.dispose();
@@ -226,6 +228,7 @@ function makeControllers() {
       hostUiLocalization.dispose();
       stripMode.dispose();
       barPlacement.dispose();
+      turnFooter.dispose();
     },
   };
 }
@@ -414,6 +417,8 @@ test('dashboardLanguage exposes trilingual label for settings panels', () => {
   assert.equal(createDashboardI18n('zh-TW').t('pulseSettingsTitle'), 'Antigravity Dashboard 設定');
   assert.equal(createDashboardI18n('en').t('barPlacementFooter'), 'Bottom row');
   assert.equal(createDashboardI18n('zh-CN').t('barPlacementFooter'), '底部独立一行');
+  assert.equal(createDashboardI18n('en').t('turnFooter'), 'Per-turn reply footer');
+  assert.equal(createDashboardI18n('zh-CN').t('turnFooter'), '回复末尾统计条');
 });
 
 test('host-settings toggles barPlacement to footer and resets back to inline', async t => {
@@ -445,9 +450,16 @@ test('host-settings toggles barPlacement to footer and resets back to inline', a
   await new Promise(r => setTimeout(r, 10));
   assert.equal(ctrls.barPlacement.placement, 'footer');
 
+  const turnOffBtn = panelHost.querySelector('[data-turn-footer-choice="false"]');
+  assert.ok(turnOffBtn, 'turnFooter off button rendered in System Settings');
+  turnOffBtn.click();
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(ctrls.turnFooter.enabled, false);
+
   const resetBtn = panelHost.querySelector('.hs-reset');
   assert.ok(resetBtn);
   resetBtn.click();
   await new Promise(r => setTimeout(r, 10));
   assert.equal(ctrls.barPlacement.placement, 'inline');
+  assert.equal(ctrls.turnFooter.enabled, true);
 });

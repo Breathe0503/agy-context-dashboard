@@ -15,6 +15,7 @@ module.exports = function createHostSettings({
   hostUiLocalization,
   stripMode,
   barPlacement,
+  turnFooter,
   version = '',
   allowNested = false,
   document: doc = document,
@@ -196,6 +197,7 @@ module.exports = function createHostSettings({
     if (barPrefs?.error) return t('barSaveFailed');
     if (stripMode?.error) return t('stripModeSaveFailed');
     if (barPlacement?.error) return t('barPlacementSaveFailed');
+    if (turnFooter?.error) return t('turnFooterSaveFailed');
     if (quotaDisplay?.error) return t('quotaDisplaySaveFailed');
     if (speedStyle?.error) return t('styleSaveFailed');
     return '';
@@ -243,6 +245,7 @@ module.exports = function createHostSettings({
     void quotaDisplay?.choose?.('both');
     void speedStyle?.choose?.('minimal');
     void barPlacement?.choose?.('inline');
+    void turnFooter?.choose?.(true);
   }
 
   function ensurePanelHost() {
@@ -346,6 +349,7 @@ module.exports = function createHostSettings({
       hostUiLocalization?.enabled,
       stripMode?.mode,
       barPlacement?.placement,
+      turnFooter?.enabled,
       err,
     ]);
     if (!force && sig === lastSig) return;
@@ -592,6 +596,26 @@ module.exports = function createHostSettings({
           active: barPlacement?.placement === 'footer',
           failed: Boolean(barPlacement?.error && barPlacement?.placement === 'footer'),
           onClick: () => void barPlacement?.choose?.('footer'),
+        },
+      ])
+    );
+    addRow(
+      secBar,
+      t('turnFooter'),
+      segGroup(t('turnFooter'), [
+        {
+          label: t('turnFooterOff'),
+          attrs: { 'data-turn-footer-choice': 'false' },
+          active: turnFooter?.enabled === false,
+          failed: Boolean(turnFooter?.error && turnFooter?.enabled === false),
+          onClick: () => void turnFooter?.choose?.(false),
+        },
+        {
+          label: t('turnFooterOn'),
+          attrs: { 'data-turn-footer-choice': 'true' },
+          active: turnFooter?.enabled !== false,
+          failed: Boolean(turnFooter?.error && turnFooter?.enabled !== false),
+          onClick: () => void turnFooter?.choose?.(true),
         },
       ])
     );
