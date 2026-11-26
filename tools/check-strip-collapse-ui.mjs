@@ -395,6 +395,32 @@ try {
     sr.getElementById('pulse-settings-toggle').click();
     sr.querySelector('[data-quota-display-choice="weekly"]').click();
     sr.querySelector('[data-cache-chip-mode="hit"]').click();
+    sr.querySelector('#pulse-settings-dialog [data-language-choice="zh-CN"]').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr?.getElementById('pulse-settings-dialog')?.textContent?.includes('缓存显示');
+  }, 'settings modal renders zh-CN labels');
+  const kvLayout = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    return Array.from(sr.querySelectorAll('#pulse-settings-dialog .settings-kv')).map(row => {
+      const label = row.querySelector(':scope > span');
+      return {
+        text: label?.textContent || '',
+        labelHeight: label ? label.getBoundingClientRect().height : 0,
+        scrollWidth: row.scrollWidth,
+        clientWidth: row.clientWidth,
+      };
+    });
+  });
+  assert.ok(kvLayout.length >= 6, 'settings modal lists kv rows');
+  for (const row of kvLayout) {
+    assert.ok(row.labelHeight <= 22, `settings label "${row.text}" wrapped (${row.labelHeight}px)`);
+    assert.ok(row.scrollWidth <= row.clientWidth + 1, `settings row "${row.text}" overflows (${row.scrollWidth} > ${row.clientWidth})`);
+  }
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('#pulse-settings-dialog [data-language-choice="en"]').click();
     sr.getElementById('pulse-settings-close').click();
   });
   await waitUntil(() => {
