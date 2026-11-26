@@ -74,7 +74,7 @@ const usageChartHelpers=(()=>{
   // usage-chart-helpers:end
   // usage-model-tiers:start -- pure tier-merging helpers (unit-tested via marker extraction)
 const usageTierHelpers=(()=>{
-  const TIER_SUFFIX_RE=/\s*\((n|xhigh|extra-high|extrahigh|extra|high|medium|low|max|thinking)\)$/i;
+  const TIER_SUFFIX_RE=/\s*\((n|xhigh|extra-high|extrahigh|extra|high|medium|low|max|thinking|tiered)\)$/i;
   const TIER_MERGE_KEYS=['total','requests','uncached','cacheRead','cacheWrite','output'];
   function baseModelName(name){
     const s=String(name??'').trim();

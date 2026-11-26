@@ -17,6 +17,7 @@ test('baseModelName strips effort-tier suffixes',()=>{
   assert.equal(baseModelName('Gemini 4 Neon (XHigh)'),'Gemini 4 Neon');
   assert.equal(baseModelName('Claude Sonnet 4.6 (Thinking)'),'Claude Sonnet 4.6');
   assert.equal(baseModelName('GPT-OSS 120B (Max)'),'GPT-OSS 120B');
+  assert.equal(baseModelName('Gemini 3.8 Flash (Tiered)'),'Gemini 3.8 Flash');
 });
 
 test('baseModelName is case-insensitive and trims whitespace',()=>{
@@ -61,6 +62,17 @@ test('mergeModelTiers rolls tiers of the same base model into one row',()=>{
   assert.equal(merged['Gemini 4 Neon'].tiers.High.total,100);
   assert.equal(merged['Gemini 4 Neon'].tiers.Medium.total,50);
   assert.equal(merged['Gemini 4 Neon'].tiers.Low.total,25);
+
+  const flash=mergeModelTiers({
+    'Gemini 3.8 Flash (Tiered)':counters(120,2,20,80,20,0),
+    'Gemini 3.8 Flash (High)':counters(60,1,10,40,10,0),
+    'Gemini 3.8 Flash (Medium)':counters(30,1,10,15,5,0),
+  },m=>m,baseModelName);
+  assert.deepEqual(Object.keys(flash.merged),['Gemini 3.8 Flash']);
+  assert.equal(flash.merged['Gemini 3.8 Flash'].total,210);
+  assert.equal(flash.merged['Gemini 3.8 Flash'].tiers.Tiered.total,120);
+  assert.equal(flash.merged['Gemini 3.8 Flash'].tiers.High.total,60);
+  assert.equal(flash.merged['Gemini 3.8 Flash'].tiers.Medium.total,30);
 });
 
 test('mergeModelTiers keeps non-tier models untouched and tiers null',()=>{
