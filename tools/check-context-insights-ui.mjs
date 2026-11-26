@@ -432,7 +432,8 @@ try {
 
   await page.locator('#trend-mode-delta').click();
   assert.ok(await page.locator('#panel-trend-svg .trend-bar-neg').count() >= 1);
-  assert.match(await page.locator('#panel-trend-markers').textContent(), /Compaction: 120K → 35K \(-85K reclaimed\)/);
+  assert.match(await page.locator('#panel-trend-markers').textContent(), /Compaction: 120K → 35K/);
+  assert.match((await page.locator('#panel-trend-markers .trend-marker-badge').first().getAttribute('title')) || '', /\(-85K reclaimed\)/);
 
   // 3. On-Demand Session Audit (Files -> step jump, Commands, Steps + filters)
   assert.equal(calls.audit.length, 0);
@@ -498,7 +499,8 @@ try {
     };
   });
   assert.equal(modelsText.detailsHidden, false);
-  assert.match(modelsText.tableText, /Gemini 4 Hydrogen \(XHigh\)/);
+  assert.match(modelsText.tableText, /Gemini 4 Hydrogen/);
+  assert.doesNotMatch(modelsText.tableText, /\(XHigh\)/);
   assert.match(modelsText.tableText, /Claude Sonnet 4\.6/);
   assert.match(modelsText.totalsText, /480K/);
 
