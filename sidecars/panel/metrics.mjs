@@ -351,23 +351,21 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       addToOrchBucket(pendingPlannerBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
       inActiveExecutorSegment = false;
     }
+    let turnSegIdx = -1;
     const firstTurnStep = gStepIndices.find(si => Number.isInteger(si) && si >= 0 && si < steps.length);
     if (firstTurnStep !== undefined) {
-      const segIdx = turnSegments.findIndex(seg => firstTurnStep >= seg.start && firstTurnStep <= seg.end);
-      if (segIdx >= 0) {
-        const acc = turnAcc[segIdx];
+      turnSegIdx = turnSegments.findIndex(seg => firstTurnStep >= seg.start && firstTurnStep <= seg.end);
+      if (turnSegIdx >= 0) {
+        const acc = turnAcc[turnSegIdx];
         if (formattedModel) { acc.model = formattedModel; acc.models.add(formattedModel); }
         acc.requests++;
         acc.inputTokens += reqInput;
         acc.cachedTokens += reqRead;
         acc.outputTokens += reqOutput;
-        if (streamTokens !== null && duration > 0) {
-          acc.streamTokens += streamTokens;
-          acc.streamSeconds += duration;
-        }
       }
     }
     const sample = { outputTokens: streamTokens, responseTokens, duration, ttft, reasons, toolOnly,
+      turnSegIdx,
       tps: streamTokens !== null && duration > 0 ? streamTokens / duration : null,
       model: formattedModel, basis,
       profile: JSON.stringify([usage.apiProvider || '',chat.responseModel || usage.model || chat.model || chat.modelDisplayName || '',basis]) };
@@ -395,6 +393,10 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       acceptedCount++;
       streamingSeconds += s.duration;
       sampledTokens += s.outputTokens;
+      if (s.turnSegIdx >= 0 && s.duration > 0 && s.outputTokens !== null) {
+        turnAcc[s.turnSegIdx].streamTokens += s.outputTokens;
+        turnAcc[s.turnSegIdx].streamSeconds += s.duration;
+      }
       if (typeof s.ttft === 'number' && Number.isFinite(s.ttft) && s.ttft + s.duration > 0) {
         e2eTokens += s.outputTokens;
         e2eSeconds += s.ttft + s.duration;

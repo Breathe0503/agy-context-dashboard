@@ -195,3 +195,24 @@ test('trajectoryMetrics aggregates completed assistant turns including non-user-
   assert.equal(data.turns[1].outputTokens, 400);
   assert.equal(data.turns[1].tps, 200);
 });
+
+test('trajectoryMetrics excludes short-window (<1s) bursts from turn.tps while keeping token totals', () => {
+  const data = trajectoryMetrics({
+    status: 'CASCADE_RUN_STATUS_IDLE',
+    trajectory: {
+      cascadeId: '11111111-1111-1111-1111-111111111111',
+      steps: [
+        { type: 'CORTEX_STEP_TYPE_USER_INPUT' },
+        { type: 'CORTEX_STEP_TYPE_RUN_COMMAND' },
+        { type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE', status: 'CORTEX_STEP_STATUS_DONE', plannerResponse: { response: 'Done' } },
+      ],
+      generatorMetadata: [
+        { stepIndices: [1], chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (Medium)', streamingDuration: '0.2s', usage: { messageId: 'b1', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: '1000', cacheReadTokens: '9000', outputTokens: '200' } } },
+        { stepIndices: [2], chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (Medium)', streamingDuration: '2s', usage: { messageId: 'b2', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI', inputTokens: '1000', cacheReadTokens: '9000', outputTokens: '400' } } },
+      ],
+    },
+  });
+  assert.equal(data.turns.length, 1);
+  assert.equal(data.turns[0].outputTokens, 600);
+  assert.equal(data.turns[0].tps, 200);
+});
