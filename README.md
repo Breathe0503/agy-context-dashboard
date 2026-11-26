@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/hero-zh.png?v=1.0.1" width="100%" alt="Antigrative Dashboard：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
+<img src="docs/assets/hero-zh.png?v=1.0.1" width="100%" alt="Antigravity Dashboard：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
 
-# AGY Context Dashboard (Antigrative Dashboard)
+# AGY Context Dashboard (Antigravity Dashboard)
 
 参考 DSH 设计的 Antigravity (`agy`) 上下文构成、Token 速率、缓存命中率、共享额度与全局洞察仪表盘；悬停胶囊展开精细统计，右侧边栏四视图一站式管理每日/每周活动、按模型用量、当前会话与全局洞察。<br>
 缩略信息常驻；鼠标悬停，才展开详细统计。
@@ -159,7 +159,7 @@ python manage.py install --with-launcher
 <summary><strong>让 Agent 帮你安装：展开完整提示词</strong></summary>
 
 ```text
-请帮我安装并启用 Antigrative Dashboard。
+请帮我安装并启用 Antigravity Dashboard。
 仓库：https://github.com/wycocoyu/agy-context-dashboard
 1. 读取 README.md、COMPATIBILITY.md、docs/CLI.md 和 ide/README.md。先用只读检查
    分析系统、可执行文件、宿主版本和已有插件配置，区分桌面 App、Antigravity CLI
@@ -194,7 +194,7 @@ python manage.py install --with-launcher
 
 ### 打开 App 侧边栏面板
 
-用右上角开关展开右侧辅助栏，在辅助栏顶部点击 **＋ → Extensions → Antigrative Dashboard**，即可打开插件的常驻侧边栏面板。顶部提供四个顶层视图切换，按常用优先级依次为：**每日/每周活动**、**按模型用量**（含额度池汇总与按模型缓存命中率列）、**当前会话**（速度 / 缓存 / 上下文卡片、`审计` 文件与命令弹窗、USD 估算费用与多代理拆解），以及**全局洞察**（Prompt / Flow Credits、跨会话总消耗、近 7 天柱状图、热力图与高频项目/技能/工具排行）。头部另附 `汉` 一键开关，可热切换 Antigravity 宿主界面汉化；点卡片切换详情且移开鼠标不隐藏，也可随时从输入框用量卡打开独立大图窗口。
+用右上角开关展开右侧辅助栏，在辅助栏顶部点击 **＋ → Extensions → Antigravity Dashboard**，即可打开插件的常驻侧边栏面板。顶部提供四个顶层视图切换，按常用优先级依次为：**每日/每周活动**、**按模型用量**（含额度池汇总与按模型缓存命中率列）、**当前会话**（速度 / 缓存 / 上下文卡片、`审计` 文件与命令弹窗、USD 估算费用与多代理拆解），以及**全局洞察**（Prompt / Flow Credits、跨会话总消耗、近 7 天柱状图、热力图与高频项目/技能/工具排行）。头部另附 `汉` 一键开关，可热切换 Antigravity 宿主界面汉化；点卡片切换详情且移开鼠标不隐藏，也可随时从输入框用量卡打开独立大图窗口。
 
 如果 Antigravity Desktop `2.33.0+` 通过常规 Dock / 快捷方式启动，或因 `quitAndInstall()` 自动更新重启而丢失了命令行参数，内嵌条会进入 `missing-debug-port` 诊断状态。此时侧边栏面板仍可直接打开，并在顶部提示条提供：
 
@@ -261,7 +261,7 @@ python manage.py install --with-launcher
 
 <details><summary><strong>安装后没出现？</strong></summary>
 
-确认已完全退出主进程再启动 App，不只是关闭窗口。执行 `python3 manage.py status`（Windows 用 `python`），查看 `debugPortAvailable`、`inlineIntegration` 与 `debugPortHint`；若为 Antigravity 2.33.0+ 且提示缺少调试端口（`missing-debug-port`），请改用 `python3 manage.py install-launcher` 生成的调试启动器打开（如 macOS 的 `~/Applications/Antigravity (Debug).app`），执行 `python3 manage.py launch --relaunch`，或在侧边栏 **＋ → Extensions → Antigrative Dashboard** 中点击一键重开按钮。也可检查 `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` 和 `data/integration-state.json`。日志不要直接公开，其中宿主产生的日志可能含本机信息。
+确认已完全退出主进程再启动 App，不只是关闭窗口。执行 `python3 manage.py status`（Windows 用 `python`），查看 `debugPortAvailable`、`inlineIntegration` 与 `debugPortHint`；若为 Antigravity 2.33.0+ 且提示缺少调试端口（`missing-debug-port`），请改用 `python3 manage.py install-launcher` 生成的调试启动器打开（如 macOS 的 `~/Applications/Antigravity (Debug).app`），执行 `python3 manage.py launch --relaunch`，或在侧边栏 **＋ → Extensions → Antigravity Dashboard** 中点击一键重开按钮。也可检查 `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` 和 `data/integration-state.json`。日志不要直接公开，其中宿主产生的日志可能含本机信息。
 
 </details>
 
@@ -279,7 +279,7 @@ python manage.py install --with-launcher
 
 <details><summary><strong>升级 Antigravity 后怎么办？</strong></summary>
 
-App 更新不会覆盖用户插件目录中的适配器。在 2.32 及更早版本中，后台会自动重新发现端口、凭据和渲染窗口并重连。在 **Antigravity 2.33.0+** 中，应用内自动更新调用 `quitAndInstall()` 重启时会丢弃 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数：从 `v0.9.5` 起，Sidecar 会同步自愈 Windows / Linux 启动快捷方式，且内嵌模式已默认开启 `autoRelaunchDebug`（启动前 `20` 秒窗内单次自愈 + `60` 秒滑窗最多放行 `2` 次防循环），更新重启后会自动帮你带参重拉并重新挂载；如需关闭自动重拉，可在侧边栏面板（**＋ → Extensions → Antigrative Dashboard**）取消勾选自动恢复选项，并改用一键调试重开、`python3 manage.py launch --relaunch` 或生成的调试启动器打开。未显示时检查 `python3 manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
+App 更新不会覆盖用户插件目录中的适配器。在 2.32 及更早版本中，后台会自动重新发现端口、凭据和渲染窗口并重连。在 **Antigravity 2.33.0+** 中，应用内自动更新调用 `quitAndInstall()` 重启时会丢弃 `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1` 参数：从 `v0.9.5` 起，Sidecar 会同步自愈 Windows / Linux 启动快捷方式，且内嵌模式已默认开启 `autoRelaunchDebug`（启动前 `20` 秒窗内单次自愈 + `60` 秒滑窗最多放行 `2` 次防循环），更新重启后会自动帮你带参重拉并重新挂载；如需关闭自动重拉，可在侧边栏面板（**＋ → Extensions → Antigravity Dashboard**）取消勾选自动恢复选项，并改用一键调试重开、`python3 manage.py launch --relaunch` 或生成的调试启动器打开。未显示时检查 `python3 manage.py status`；宿主接口变化时可先用原生侧面板。不要把旧归档覆盖新版应用。详见[鲁棒性分析](docs/ROBUSTNESS.md)。
 
 </details>
 
@@ -297,7 +297,7 @@ ZIP 与 SHA256 文件输出到 `dist/`。打包使用文件白名单，不包含
 
 ## 许可
 
-Antigrative Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 Antigravity 的二进制、SDK 或 App 备份。Antigravity 名称属于其各自权利人，本项目与其无官方隶属关系。
+Antigravity Dashboard 源码使用 [MIT](LICENSE) 许可证。项目不分发 Antigravity 的二进制、SDK 或 App 备份。Antigravity 名称属于其各自权利人，本项目与其无官方隶属关系。
 
 ## App 手动更新
 
