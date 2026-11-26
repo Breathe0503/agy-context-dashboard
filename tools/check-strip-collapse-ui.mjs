@@ -296,6 +296,7 @@ try {
         cacheHit: disp('#cache-hit'),
         cacheUnit: disp('.cache-unit'),
         quotaTag: disp('.quota-tag'),
+        quotaSecondary: disp('.quota-secondary'),
         tps: disp('#tps'),
         cacheNum: disp('#cache-total-num'),
         quotaText: disp('#quota-text'),
@@ -303,19 +304,23 @@ try {
       };
     }`);
   };
+  let compactSnapshot = null;
   let tightSnapshot = null;
   let denseSnapshot = null;
   for (let w = 640; w >= 320; w -= 6) {
     const snap = await setWidthAndSettle(w);
+    if (!compactSnapshot && snap.density === 'compact-text') compactSnapshot = { width: w, ...snap };
     if (!tightSnapshot && snap.density === 'tight-text') tightSnapshot = { width: w, ...snap };
     if (!denseSnapshot && snap.density === 'dense-text') denseSnapshot = { width: w, ...snap };
-    if (tightSnapshot && denseSnapshot) break;
+    if (compactSnapshot && tightSnapshot && denseSnapshot) break;
   }
+  if (compactSnapshot) assert.notEqual(compactSnapshot.quotaSecondary, 'none', 'compact-text preserves both-mode secondary quota');
   assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before icons');
   assert.notEqual(tightSnapshot.rounds, 'none', 'tight-text still keeps #context-rounds visible');
   assert.equal(tightSnapshot.cacheUnit, 'none', 'tight-text hides cache tok unit');
   assert.equal(tightSnapshot.cacheHit, 'none', 'tight-text hides inline cache hit');
   assert.equal(tightSnapshot.quotaTag, 'none', 'tight-text hides quota tag');
+  assert.equal(tightSnapshot.quotaSecondary, 'none', 'tight-text hides secondary quota');
   assert.ok(denseSnapshot, 'stepping down further must hit dense-text tier before icons');
   assert.equal(denseSnapshot.rounds, 'none', 'dense-text hides #context-rounds');
   assert.notEqual(denseSnapshot.tps, 'none', 'dense-text keeps #tps visible');
