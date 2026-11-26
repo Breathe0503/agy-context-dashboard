@@ -38,6 +38,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 try { releaseRuntimeDirectory(join(HERE,'..','..')); } catch {}
 const createTheme=createRequire(import.meta.url)('../../compat/theme.cjs');
 const themeCss=()=>createTheme().css(':root');
+let pluginVersion = '';
+try { pluginVersion = JSON.parse(readFileSync(join(HERE, '..', '..', 'plugin.json'), 'utf8').replace(/^\uFEFF/, '')).version || ''; } catch {}
 const paths=platformPaths();
 const ownership=process.env.ANTIGRAVITY_SIDECAR_WEB_PORT?new SidecarOwner(paths.data):null;
 let settingsCache={},settingsAt=-Infinity;
@@ -182,13 +184,14 @@ const sessionInsights = async input => {
 const usageSource=()=>{const s=readFileSync(join(HERE,'..','..','compat','usage-ui.cjs'),'utf8');return `window.__agPulseUsageFactory=(${s.slice(s.indexOf('module.exports = ')+17).trim().replace(/;$/,'')});`;};
 const updateSource=()=>{const s=readFileSync(join(HERE,'..','..','compat','update-ui.cjs'),'utf8');return `window.__agPulseUpdateFactory=(${s.slice(s.indexOf('module.exports = ')+17).trim().replace(/;$/,'')});`;};
 const hostI18nSource=()=>{const s=readFileSync(join(HERE,'..','..','compat','host-i18n.cjs'),'utf8');let dict={};try{dict=JSON.parse(readFileSync(join(HERE,'..','..','compat','host-i18n-dict.json'),'utf8').replace(/^\uFEFF/,''));}catch{}return `window.__agPulseHostI18nDict=${JSON.stringify(dict)};window.__agPulseHostI18nFactory=(${s.slice(s.indexOf('module.exports = ')+17).trim().replace(/;$/,'')});`;};
+const hostSettingsSource=()=>{const s=readFileSync(join(HERE,'..','..','compat','host-settings.cjs'),'utf8');return `window.__agPulseVersion=${JSON.stringify(pluginVersion)};window.__agPulseHostSettingsFactory=(${s.slice(s.indexOf('module.exports = ')+17).trim().replace(/;$/,'')});`;};
 const staticFiles = { '/': ['index.html', 'text/html'], '/styles.css': ['styles.css', 'text/css'], '/format.mjs': ['format.mjs', 'text/javascript'] };
 const inlineSource=()=>{
   const file=readFileSync(join(HERE,'..','..','compat','inline-widget.cjs'),'utf8');
   const i18n=readFileSync(join(HERE,'..','..','compat','i18n.cjs'),'utf8');
   const theme=readFileSync(join(HERE,'..','..','compat','theme.cjs'),'utf8');
   const extract=s=>s.slice(s.indexOf('module.exports = ')+'module.exports = '.length).trim().replace(/;$/,'');
-  return updateSource()+usageSource()+hostI18nSource()+`window.__agPulseI18nFactory=(${extract(i18n)});window.__agPulseThemeFactory=(${extract(theme)});(${extract(file)})();`;
+  return updateSource()+usageSource()+hostI18nSource()+hostSettingsSource()+`window.__agPulseI18nFactory=(${extract(i18n)});window.__agPulseThemeFactory=(${extract(theme)});(${extract(file)})();`;
 };
 const i18nModule=()=>{const s=readFileSync(join(HERE,'..','..','compat','i18n.cjs'),'utf8');return 'export const createI18n='+s.slice(s.indexOf('module.exports = ')+'module.exports = '.length);};
 const themeModule=()=>{const s=readFileSync(join(HERE,'..','..','compat','theme.cjs'),'utf8');return 'export const createTheme='+s.slice(s.indexOf('module.exports = ')+'module.exports = '.length);};
@@ -227,14 +230,14 @@ const syncLaunchConfig = async (force = false) => {
   }
   return cachedLaunch;
 };
-const RENDERER_FILES=[join(HERE,'..','..','compat','i18n.cjs'),join(HERE,'..','..','compat','inline-widget.cjs'),join(HERE,'..','..','compat','theme.cjs')];
+const RENDERER_FILES=[join(HERE,'..','..','compat','i18n.cjs'),join(HERE,'..','..','compat','inline-widget.cjs'),join(HERE,'..','..','compat','theme.cjs'),join(HERE,'..','..','compat','host-settings.cjs')];
 let cachedSourceStamp='',cachedRendererCode='';
 const rendererSource=()=>{
   try{
     const parts=RENDERER_FILES.map(f=>readFileSync(f,'utf8'));
     const stamp=parts.join('\0');
     if(stamp!==cachedSourceStamp||!cachedRendererCode){
-      cachedRendererCode=makeRendererSource(parts[0],parts[1],parts[2],ownership?.token,ownership?.startedAt,updateSource()+usageSource()+hostI18nSource());
+      cachedRendererCode=makeRendererSource(parts[0],parts[1],parts[2],ownership?.token,ownership?.startedAt,updateSource()+usageSource()+hostI18nSource()+hostSettingsSource());
       cachedSourceStamp=stamp;
     }
   }catch{}
