@@ -14,6 +14,7 @@ module.exports = function createHostSettings({
   speedStyle,
   hostUiLocalization,
   stripMode,
+  barPlacement,
   version = '',
   allowNested = false,
   document: doc = document,
@@ -194,6 +195,7 @@ module.exports = function createHostSettings({
     if (inlineCacheHit?.error) return t('inlineCacheHitSaveFailed');
     if (barPrefs?.error) return t('barSaveFailed');
     if (stripMode?.error) return t('stripModeSaveFailed');
+    if (barPlacement?.error) return t('barPlacementSaveFailed');
     if (quotaDisplay?.error) return t('quotaDisplaySaveFailed');
     if (speedStyle?.error) return t('styleSaveFailed');
     return '';
@@ -240,6 +242,7 @@ module.exports = function createHostSettings({
     void inlineCacheHit?.choose?.(true);
     void quotaDisplay?.choose?.('both');
     void speedStyle?.choose?.('minimal');
+    void barPlacement?.choose?.('inline');
   }
 
   function ensurePanelHost() {
@@ -342,6 +345,7 @@ module.exports = function createHostSettings({
       speedStyle?.style,
       hostUiLocalization?.enabled,
       stripMode?.mode,
+      barPlacement?.placement,
       err,
     ]);
     if (!force && sig === lastSig) return;
@@ -568,6 +572,26 @@ module.exports = function createHostSettings({
           active: stripMode?.mode === 'minimal',
           failed: Boolean(stripMode?.error && stripMode?.mode === 'minimal'),
           onClick: () => void stripMode?.choose?.('minimal'),
+        },
+      ])
+    );
+    addRow(
+      secBar,
+      t('barPlacement'),
+      segGroup(t('barPlacement'), [
+        {
+          label: t('barPlacementInline'),
+          attrs: { 'data-bar-placement-choice': 'inline' },
+          active: (barPlacement?.placement || 'inline') === 'inline',
+          failed: Boolean(barPlacement?.error && barPlacement?.placement === 'inline'),
+          onClick: () => void barPlacement?.choose?.('inline'),
+        },
+        {
+          label: t('barPlacementFooter'),
+          attrs: { 'data-bar-placement-choice': 'footer' },
+          active: barPlacement?.placement === 'footer',
+          failed: Boolean(barPlacement?.error && barPlacement?.placement === 'footer'),
+          onClick: () => void barPlacement?.choose?.('footer'),
         },
       ])
     );

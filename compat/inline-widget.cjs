@@ -98,6 +98,10 @@ module.exports = function installAgPulseInlineWidget() {
     initial:localGet('ag-pulse-strip-mode'),cache:value=>localSet('ag-pulse-strip-mode',value),
     write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onStripModeChanged();hostSettings?.sync();},
   });
+  const barPlacement=language.connectBarPlacement({
+    initial:localGet('ag-pulse-bar-placement'),cache:value=>localSet('ag-pulse-bar-placement',value),
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onBarPlacementChanged();hostSettings?.sync();},
+  });
   async function syncHostUiLocalizationState(){
     if(disposed||!hostI18n)return;
     const epoch=++hostI18nEpoch;
@@ -113,7 +117,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!disposed&&epoch===hostI18nEpoch&&hostUiLocalization.enabled)hostI18n.setEnabled(true);
   }
   if(hostUiLocalization.enabled)void syncHostUiLocalizationState();
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}hostSettings?.sync();}
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);barPlacement.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}hostSettings?.sync();}
   window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);hostSettings?.sync();}};
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
@@ -121,7 +125,7 @@ module.exports = function installAgPulseInlineWidget() {
     cache:value=>localSet('ag-pulse-language',value),changed:()=>{for(const inst of instances)inst.onLocaleChanged();hostSettings?.sync();},
   });
   hostSettings=typeof window.__agPulseHostSettingsFactory==='function'?window.__agPulseHostSettingsFactory({
-    language,theme,preferences,barPrefs,barColorsPref,themeModePref,cacheHitTone,cacheHitTiers,inlineCacheHit,quotaDisplay,speedStyle,hostUiLocalization,stripMode,
+    language,theme,preferences,barPrefs,barColorsPref,themeModePref,cacheHitTone,cacheHitTiers,inlineCacheHit,quotaDisplay,speedStyle,hostUiLocalization,stripMode,barPlacement,
     version:typeof window.__agPulseVersion==='string'?window.__agPulseVersion:'',
     allowNested:window.__agPulseAllowNested===true,
   }):null;
@@ -376,6 +380,14 @@ module.exports = function installAgPulseInlineWidget() {
     }
     return baseline;
   }
+  function canMountFooter(found){
+    const parent=found?.row?.parentElement;
+    if(!parent||parent===document.body||parent===document.documentElement)return false;
+    const css=getComputedStyle(parent);
+    if(['flex','inline-flex'].includes(css.display)&&!css.flexDirection.startsWith('column'))return false;
+    if(css.display==='grid'&&css.gridAutoFlow.startsWith('column'))return false;
+    return true;
+  }
   function composerLayout({row,editor,branch}){
     // Containment alone can join an app header and a distant message editor.
     // Accept only a horizontal, normal-flow action row local to that editor.
@@ -383,9 +395,10 @@ module.exports = function installAgPulseInlineWidget() {
     if(!['flex','inline-flex'].includes(css.display)||css.flexDirection!=='row'||['absolute','fixed'].includes(css.position)||row.closest('header,[role="banner"]'))return false;
     if(['absolute','fixed'].includes(getComputedStyle(branch).position))return false;
     const r=row.getBoundingClientRect(),e=editor.getBoundingClientRect(),p=row.parentElement.getBoundingClientRect();
+    const pulseFooterH=Array.from(row.parentElement.children).filter(c=>isPulseBar(c)&&c.dataset.placement==='footer').reduce((s,c)=>s+c.getBoundingClientRect().height+8,0);
     const gap=Math.max(0,r.top-e.bottom,e.top-r.bottom);
     const overlap=Math.min(r.bottom,e.bottom)-Math.max(r.top,e.top);
-    return r.width>0&&r.height>0&&e.width>0&&e.height>0&&gap<=48&&overlap<=2&&Math.min(r.right,e.right)>Math.max(r.left,e.left)&&p.height<=e.height+r.height+96;
+    return r.width>0&&r.height>0&&e.width>0&&e.height>0&&gap<=48&&overlap<=2&&Math.min(r.right,e.right)>Math.max(r.left,e.left)&&(p.height-pulseFooterH)<=e.height+r.height+96;
   }
   const fiberCascadeId=(anchor,boundary)=>{
     if(!anchor)return null;
@@ -521,6 +534,14 @@ module.exports = function installAgPulseInlineWidget() {
   let emptyCompact=true,hasContextPercent=false,hydrated=false,seenEmptySession=false,suppressNextMotion=false,springNextExpand=false,swarmRosterFilter='active';
   const $=id=>root?.getElementById(id);
   const text=(id,value)=>{const e=$(id);if(e&&e.textContent!==String(value))e.textContent=String(value);};
+  const isFooter=(found=composer)=>barPlacement.placement==='footer'&&canMountFooter(found);
+  function applyPlacementStyle(footer){
+    if(!node)return;
+    node.dataset.placement=footer?'footer':'inline';
+    node.style.cssText=footer
+      ?'display:flex;align-items:center;justify-content:center;width:100%;min-width:0;max-width:100%;height:26px;margin:4px 0 0;position:relative;box-sizing:border-box;'
+      :'display:flex;align-items:center;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 3px;position:relative;';
+  }
   const conversationId=()=>{
     if(surface&&!surface.useSharedComposer)return surface.conversationId(composer);
     const anchor=composer?.box||composer?.row;
@@ -607,8 +628,8 @@ module.exports = function installAgPulseInlineWidget() {
     for(const e of root.querySelectorAll('[data-i18n-aria]:not([data-card=cache]):not([data-card=quota])'))attribute(e,'aria-label',t(e.dataset.i18nAria));
     for(const e of root.querySelectorAll('[data-i18n-aria][title]:not([data-card])'))attribute(e,'title',t(e.dataset.i18nAria));
     for(const button of root.querySelectorAll('[data-language-choice]')){attribute(button,'aria-pressed',button.dataset.languageChoice===language.language);attribute(button,'data-save-failed',preferences.error);attribute(button,'title',preferences.error?t('languageSaveFailed'):(button.getAttribute('aria-label')||button.textContent));}
-    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
-    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):'');
+    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):'');
+    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):'');
     const toggleBtn=$('strip-toggle');
     if(toggleBtn){
       const minimal=stripMode.mode==='minimal',labelText=t(minimal?'stripExpand':'stripCollapse'),failed=stripMode.error;
@@ -621,6 +642,11 @@ module.exports = function installAgPulseInlineWidget() {
       const value=button.dataset.stripModeChoice,name=t(value==='minimal'?'stripMinimal':'stripFull'),failed=stripMode.error&&stripMode.mode===value;
       attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('stripModeSaveFailed')}`:name);
       attribute(button,'aria-pressed',stripMode.mode===value);attribute(button,'data-save-failed',failed?'true':null);
+    }
+    for(const button of root.querySelectorAll('[data-bar-placement-choice]')){
+      const value=button.dataset.barPlacementChoice,name=t(value==='footer'?'barPlacementFooter':'barPlacementInline'),failed=barPlacement.error&&barPlacement.placement===value;
+      attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('barPlacementSaveFailed')}`:name);
+      attribute(button,'aria-pressed',barPlacement.placement===value);attribute(button,'data-save-failed',failed?'true':null);
     }
     attribute(node,'data-strip-mode',stripMode.mode);
     for(const button of root.querySelectorAll('[data-speed-style-choice]')){const value=button.dataset.speedStyleChoice,name=t(value==='cat'?'styleCat':'styleMinimal'),failed=speedStyle.error&&speedStyle.style===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('styleSaveFailed')}`:name);attribute(button,'aria-pressed',speedStyle.style===value);attribute(button,'data-save-failed',failed);}
@@ -664,8 +690,9 @@ module.exports = function installAgPulseInlineWidget() {
     return {pieces,rect:node.getBoundingClientRect(),model:composer.model,modelRect:previous?.model===composer.model?previous.modelRect:composer.model?.getBoundingClientRect(),row:composer.row};
   }
   function densityBounds(next){
-    const row=next.row.getBoundingClientRect(),target=next.rect;
-    let left=Math.max(row.left,composer.anchor?.getBoundingClientRect().right||0),right=Math.min(row.right,innerWidth);
+    const footer=isFooter();
+    const row=(footer?(next.row.parentElement||next.row):next.row).getBoundingClientRect(),target=next.rect;
+    let left=Math.max(row.left,footer?0:(composer.anchor?.getBoundingClientRect().right||0)),right=Math.min(row.right,innerWidth);
     for(const control of document.querySelectorAll('button,[role="button"],a[href],input,select')){
       if(control===next.model||(next.model&&(next.model.contains(control)||control.contains(next.model))))continue;
       const r=control.getBoundingClientRect();
@@ -789,7 +816,7 @@ module.exports = function installAgPulseInlineWidget() {
     // Flex shrink alone does not constrain nowrap children or protect controls
     // positioned outside the flex flow (e.g. Agent Manager window buttons).
     const fits=()=>{
-      const rect=node.getBoundingClientRect(),row=composer.row.getBoundingClientRect();
+      const rect=node.getBoundingClientRect(),row=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect();
       const intersects=other=>Math.min(rect.right,other.right)-Math.max(rect.left,other.left)>1&&Math.min(rect.bottom,other.bottom)-Math.max(rect.top,other.top)>1;
       const barOverflow=!node.classList.contains('icons-only')&&!node.classList.contains('minimal-icon')&&(()=>{const items=Array.from(bar.children).filter(c=>!c.hidden&&getComputedStyle(c).display!=='none');if(!items.length)return false;const br=bar.getBoundingClientRect(),last=items[items.length-1].getBoundingClientRect();return last.right>br.right+1.5;})();
       if(barOverflow||bar.scrollWidth>bar.clientWidth+2||rect.width<=0||rect.left< -1||rect.right>innerWidth+1||rect.top< -1||rect.bottom>innerHeight+1||rect.left<row.left-1||rect.right>row.right+1)return false;
@@ -823,8 +850,8 @@ module.exports = function installAgPulseInlineWidget() {
       const kept=Array.from(node.classList).filter(cls=>!DENSITY_SET.has(cls));
       node.className=[...kept,...wanted].join(' ');
     };
-    const rowWidth=composer.row.getBoundingClientRect().width;
-    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+(inlineCacheHit.enabled?'1':'0')+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
+    const rowWidth=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect().width;
+    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+(inlineCacheHit.enabled?'1':'0')+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
     if(stripMode.mode==='minimal'){
       const tiers=[
         {name:'minimal',classes:['minimal','icons-only']},
@@ -981,6 +1008,7 @@ module.exports = function installAgPulseInlineWidget() {
     return Math.min(reserve,Math.ceil(Math.max(branchMin,nonModel+gap*Math.max(0,kids.length-1)+pad)));
   }
   function nativeComfortable(){
+    if(isFooter())return true;
     const baseline=composer.native;
     if(!baseline)return true;
     if(composer.branch.getBoundingClientRect().height>baseline.height+1)return false;
@@ -998,7 +1026,7 @@ module.exports = function installAgPulseInlineWidget() {
     return true;
   }
   function reserveNativeSpace(){
-    if(!['main','subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
+    if(isFooter()||!['main','subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
     const row=composer.row,style=getComputedStyle(row),siblings=Array.from(row.children).filter(e=>{if(e===node||e===composer.branch||!e.getClientRects().length)return false;const s=getComputedStyle(e);return s.display!=='none'&&!['absolute','fixed'].includes(s.position);});
     const trigger=composer.kind==='main'?currentModelTrigger():null;
     const reserve=composer.kind==='main'?naturalFlexItemWidth(composer.branch,true,trigger):(composer.native?.reserve||0);
@@ -1242,11 +1270,15 @@ module.exports = function installAgPulseInlineWidget() {
     const convChanged=syncConversation();
     if(node&&(convChanged||(modelChanged&&data)))render();
     const {row,branch}=found;
+    const footer=isFooter(found);
+    const targetParent=footer?row.parentElement:row;
+    const targetAnchor=footer?row:branch;
+    const targetPlacement=footer?'footer':'inline';
     if(node)node.dataset.scope=found.kind;
-    if(node?.isConnected&&node.parentElement===row&&node.previousElementSibling===branch){if(found.model&&found.model!==prevModel)observeComposer();return;}
+    if(node?.isConnected&&node.parentElement===targetParent&&node.previousElementSibling===targetAnchor&&node.dataset.placement===targetPlacement){if(found.model&&found.model!==prevModel)observeComposer();return;}
     if(node){
       stopDensityMotion();densityFrame=null;densityProbe=null;hide();
-      row.insertBefore(node,branch.nextSibling);observeComposer();
+      targetParent.insertBefore(node,targetAnchor.nextSibling);applyPlacementStyle(footer);observeComposer();
       themeController?.dispose();themeController=theme.attach(node,{embedded:true,onChange:()=>{if(!disposed&&!instDisposed){if(settingsOpen)renderSettingsModal();scheduleLayout();}}});
       if(data?.theme)themeController.setHostTheme(data.theme);
       themeController.setThemeMode?.(themeModePref.value);
@@ -1262,10 +1294,11 @@ module.exports = function installAgPulseInlineWidget() {
     node.dataset.agPulseBar='true';
     node.dataset.pulseWidget='true';
     node.dataset.scope=found.kind;
-    node.style.cssText='display:flex;align-items:center;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 3px;position:relative;';
+    applyPlacementStyle(footer);
     root=node.attachShadow({mode:'open'});
     setMarkup(root,`<style>${theme.shadowCss()}
       :host{flex:0 999 auto;color-scheme:var(--pulse-scheme);font-family:var(--pulse-font,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif);color:var(--pulse-foreground);font-size:11px}*{box-sizing:border-box}button,select{font:inherit}button{cursor:pointer}svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;flex:none}button:focus-visible,select:focus-visible{outline:2px solid var(--pulse-accent);outline-offset:2px}
+      :host([data-placement=footer]){flex:0 0 auto;width:100%}:host([data-placement=footer]) .bar{justify-content:center;gap:6px;min-height:24px;padding:3px 6px 0;border-top:1px solid var(--pulse-separator)}:host([data-placement=footer].icons-only) .bar{gap:4px}
       .bar{display:flex;justify-content:flex-start;width:100%;align-items:center;gap:4px;min-height:28px;padding:0;border:0;background:none;overflow:clip;min-width:0;max-width:100%}.chip{display:flex;flex:0 0 auto;align-items:center;gap:3.5px;color:var(--pulse-chip);background:none;border:0;border-radius:6px;padding:2px 4px;font-size:11px;white-space:nowrap;line-height:18px;transition:background-color 140ms ease,color 140ms ease}.chip:hover,.chip[aria-expanded=true]{background:var(--pulse-hover);color:var(--pulse-hover-text)}.chip strong{font-weight:550;font-variant-numeric:tabular-nums}.dim{color:var(--pulse-muted)}.countdown{font-size:11px;font-variant-numeric:tabular-nums}.dot{width:4px;height:4px;background:var(--pulse-dot);border-radius:50%;flex:none}.dot.live{background:var(--pulse-success)}.dot.stale{background:var(--pulse-warning)}.group{color:var(--pulse-muted);font-size:11px;margin-right:1px}
       [data-card=speed] svg.cat-badge,[data-card=speed] #tps,[data-card=speed]>span:not(.rounds){color:var(--pulse-bar-speed,inherit)}
       [data-card=cache]>svg:first-child,[data-card=cache] .cache-total{color:var(--pulse-bar-token,inherit)}
@@ -1473,7 +1506,7 @@ module.exports = function installAgPulseInlineWidget() {
       <section class="context-trend-section" id="context-trend-section" hidden><div class="composition-head"><span data-i18n="trendTitle">Context trend</span><span class="tag" id="trend-sample"></span></div><svg id="context-trend-svg" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true"></svg></section>
       <details class="breakdown-details" id="context-breakdown" hidden><summary><span id="ctx-breakdown-label"></span><strong class="breakdown-meta" id="ctx-breakdown-meta"></strong></summary><div class="breakdown-body" id="ctx-breakdown-body"></div></details>
     </section>`);
-    row.insertBefore(node,branch.nextSibling);
+    targetParent.insertBefore(node,targetAnchor.nextSibling);
     attribute(node,'data-speed-style',speedStyle.style);paintSpeed([],'idle',0.36,false);updateCatBadge($('style-cat-icon'),'idle');
     for(const cardId of ['speed-card','cache-card','context-card']){const card=$(cardId);if(!card)continue;const note=document.createElement('div');note.className='scope-note';note.dataset.i18n='subagentStats';card.querySelector('.heading').after(note);}
     for(const cardId of ['speed-card','cache-card','context-card']){
@@ -1515,6 +1548,7 @@ module.exports = function installAgPulseInlineWidget() {
       void inlineCacheHit.choose(true);
       void quotaDisplay.choose('both');
       void speedStyle.choose('minimal');
+      void barPlacement.choose('inline');
     });
     const guide=document.createElement('section');guide.className='language-guide';guide.id='language-guide';guide.hidden=true;guide.setAttribute('role','region');guide.setAttribute('aria-label','Language / 語言 / 语言');
     setMarkup(guide,'<div class="guide-heading"><strong>Language <span>/ 语言</span></strong><button type="button" id="guide-close" aria-label="Dismiss language tip / 关闭语言提示" title="Dismiss / 关闭">×</button></div><button type="button" id="guide-open"><span><span>Switch in context details</span><span lang="zh-CN">在上下文详情中切换语言</span></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button><p class="footnote" id="guide-save-note"></p>');
@@ -1677,7 +1711,7 @@ module.exports = function installAgPulseInlineWidget() {
     const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden),ctxMode=barPrefs.contextChipMode;
     const activeScheme=node?.dataset.pulseTheme==='light'?'light':'dark';
     const colors=barColorsPref.colors;
-    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,cacheHitTiers.enabled,cacheHitTiers.error,inlineCacheHit.enabled,inlineCacheHit.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,preferences.error]);
+    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,cacheHitTiers.enabled,cacheHitTiers.error,inlineCacheHit.enabled,inlineCacheHit.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,barPlacement.placement,barPlacement.error,preferences.error]);
     if(lastSettingsSig===sig)return;
     lastSettingsSig=sig;
     const mk=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
@@ -1796,6 +1830,10 @@ module.exports = function installAgPulseInlineWidget() {
     secGeneral.append(mk('div','settings-sec-head',t('settingsSectionGeneral')));
     const kv=mk('div','settings-kv-list');
     const addKv=(labelText,ctrlEl,labelId)=>{const r=mk('div','settings-kv'),lbl=mk('span','',labelText);if(labelId)lbl.id=labelId;r.append(lbl,ctrlEl);kv.append(r);};
+    addKv(t('barPlacement'),segGroup('barPlacement',[
+      {label:t('barPlacementInline'),attrs:{'data-bar-placement-choice':'inline'},active:barPlacement.placement==='inline',onClick:()=>void barPlacement.choose('inline')},
+      {label:t('barPlacementFooter'),attrs:{'data-bar-placement-choice':'footer'},active:barPlacement.placement==='footer',onClick:()=>void barPlacement.choose('footer')},
+    ]));
     addKv(t('inlineCacheHit'),segGroup('inlineCacheHit',[
       {label:t('inlineCacheHitOff'),attrs:{'data-inline-cache-hit-choice':'false'},active:!inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(false)},
       {label:t('inlineCacheHitOn'),attrs:{'data-inline-cache-hit-choice':'true'},active:inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(true)},
@@ -2816,6 +2854,7 @@ module.exports = function installAgPulseInlineWidget() {
     onCacheHitTiersChanged(){if(root){attribute(node,'data-cache-hit-tiers',cacheHitTiers.enabled?'true':'false');localize();if(settingsOpen)renderSettingsModal();render();}},
     onBarPrefsChanged(){if(root){densityProbe=null;applyBarLayout();localize();if(settingsOpen)renderSettingsModal();render();fit();tick();position();}},
     onStripModeChanged(){if(root){if(stripMode.mode==='minimal'&&cardName&&cardName!=='context')hide();localize();densityProbe=null;if(!parked&&composer){fit();position();}}},
+    onBarPlacementChanged(){if(!root)return;stopDensityMotion();densityFrame=null;densityProbe=null;if(!parked&&composer)mountTo(composer);if(settingsOpen&&settingsDialog&&!settingsDialog.hidden)cardVisibility(settingsDialog,true);localize();if(settingsOpen)renderSettingsModal();if(!parked&&composer){render();fit();position();}},
     onCompositionViewChanged(){if(root){clearTimeout(hoverTimer);hoverTimer=null;ignoreLeaveUntil=Date.now()+250;localize();render();position();}},
     onUsageScopeChanged(){if(root){render();}},
     syncUsageGuide(){usageDashboard?.syncGuideDismissed();},
@@ -2895,7 +2934,7 @@ module.exports = function installAgPulseInlineWidget() {
   const timerId=setInterval(()=>{mount();if(!instances.length)pollHostPrefs();for(const inst of instances)inst.poll();},1000);
   window.__agPulseDispose=()=>{
     disposed=true;hostI18nEpoch++;
-    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
+    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();barPlacement.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
     for(const inst of instances.splice(0))inst.dispose();
     document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);document.removeEventListener('focusin',onFocus);
     document.removeEventListener('scroll',scheduleLayout,true);window.removeEventListener('resize',scheduleLayout);

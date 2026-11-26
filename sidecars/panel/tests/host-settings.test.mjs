@@ -198,6 +198,7 @@ function makeControllers() {
   const speedStyle = language.connectSpeedStyle({ write });
   const hostUiLocalization = language.connectHostUiLocalization({ write });
   const stripMode = language.connectStripMode({ write });
+  const barPlacement = language.connectBarPlacement({ write });
   return {
     language,
     preferences,
@@ -211,6 +212,7 @@ function makeControllers() {
     speedStyle,
     hostUiLocalization,
     stripMode,
+    barPlacement,
     dispose() {
       preferences.dispose();
       barPrefs.dispose();
@@ -223,6 +225,7 @@ function makeControllers() {
       speedStyle.dispose();
       hostUiLocalization.dispose();
       stripMode.dispose();
+      barPlacement.dispose();
     },
   };
 }
@@ -409,4 +412,42 @@ test('dashboardLanguage exposes trilingual label for settings panels', () => {
   assert.equal(createDashboardI18n('en').t('pulseSettingsTitle'), 'Antigravity Dashboard Settings');
   assert.equal(createDashboardI18n('zh-CN').t('pulseSettingsTitle'), 'Antigravity Dashboard 设置');
   assert.equal(createDashboardI18n('zh-TW').t('pulseSettingsTitle'), 'Antigravity Dashboard 設定');
+  assert.equal(createDashboardI18n('en').t('barPlacementFooter'), 'Bottom row');
+  assert.equal(createDashboardI18n('zh-CN').t('barPlacementFooter'), '底部独立一行');
+});
+
+test('host-settings toggles barPlacement to footer and resets back to inline', async t => {
+  const { doc, win, MO, El } = createMinimalDom();
+  win.top = win;
+  const ctrls = makeControllers();
+  t.after(() => ctrls.dispose());
+
+  const modal = new El('div');
+  const sidebar = new El('div');
+  sidebar.setAttribute('data-testid', 'settings-sidebar');
+  const navBrowser = new El('button');
+  navBrowser.setAttribute('data-testid', 'settings-nav-item-Browser');
+  sidebar.appendChild(navBrowser);
+  const contentPane = new El('div');
+  contentPane.appendChild(new El('div'));
+  modal.appendChild(sidebar);
+  modal.appendChild(contentPane);
+  doc.body.appendChild(modal);
+
+  const hs = createHostSettings({ ...ctrls, version: '1.0.3', document: doc, window: win, MutationObserver: MO });
+  t.after(() => hs.dispose());
+
+  sidebar.querySelector('[data-testid="settings-nav-item-antigravity-pulse"]').click();
+  const panelHost = contentPane.querySelector('[data-ag-pulse-settings-panel="true"]');
+  const footerBtn = panelHost.querySelector('[data-bar-placement-choice="footer"]');
+  assert.ok(footerBtn, 'barPlacement footer button rendered in System Settings');
+  footerBtn.click();
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(ctrls.barPlacement.placement, 'footer');
+
+  const resetBtn = panelHost.querySelector('.hs-reset');
+  assert.ok(resetBtn);
+  resetBtn.click();
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(ctrls.barPlacement.placement, 'inline');
 });

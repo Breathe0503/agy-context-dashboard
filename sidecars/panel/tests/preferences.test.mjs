@@ -188,3 +188,22 @@ test('stripMode persists independently, defaults to full and validates choices',
   fail=true;await ctrl.choose('minimal');assert.equal(ctrl.mode,'minimal');assert.equal(ctrl.error,true);
   ctrl.dispose();
 });
+
+test('barPlacement persists independently, defaults to inline and validates choices',async t=>{
+  const {file,store}=await fixture(t);
+  const language=create(null);assert.equal(language.normalizeBarPlacement(undefined),'inline');assert.equal(language.normalizeBarPlacement('footer'),'footer');assert.equal(language.normalizeBarPlacement('top'),'inline');
+  const initial=await store.get();
+  assert.equal(Object.hasOwn(initial,'barPlacement'),false);
+  await store.set({barPlacement:'footer'});
+  let saved=await new PreferencesStore({file}).get();assert.equal(saved.barPlacement,'footer');assert.equal(saved.language,null);
+  await store.set({language:'zh-CN'});await store.set({barPlacement:'inline'});
+  saved=await new PreferencesStore({file}).get();assert.equal(saved.barPlacement,'inline');assert.equal(saved.language,'zh-CN');
+  for(const bad of [{barPlacement:'top'},{barPlacement:null},{barPlacement:''},{barPlacement:'footer',extra:'x'}])await assert.rejects(store.set(bad));
+  let revision=1,fail=false;
+  const ctrl=language.connectBarPlacement({initial:'footer',write:async input=>{if(fail)throw Error('io');return {language:null,barPlacement:input.barPlacement,revision:++revision};}});
+  assert.equal(ctrl.placement,'footer');
+  await ctrl.choose('inline');assert.equal(ctrl.placement,'inline');assert.equal(ctrl.error,false);
+  ctrl.sync({language:null,barPlacement:'footer',revision:1});assert.equal(ctrl.placement,'inline');
+  fail=true;await ctrl.choose('footer');assert.equal(ctrl.placement,'footer');assert.equal(ctrl.error,true);
+  ctrl.dispose();
+});
