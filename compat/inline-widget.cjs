@@ -2678,30 +2678,43 @@ module.exports = function installAgPulseInlineWidget() {
       render();
     }).catch(()=>{});
   }
-  function triggerCompact(){
+  async function triggerCompact(){
     const editor=composer?.editor;
     if(!editor?.isConnected||!node?.isConnected)return;
     const isRunningTurn=Boolean(data?.speed&&/RUNNING/i.test(String(data.speed.status||'')));
     if(isRunningTurn||pendingCompact||data?.speed?.compactionState==='compacting')return;
-    const draft=(editor.textContent||'').replace(/\u200B/g,'').trim();
-    if(draft.length>0){attribute($('context-compact-btn'),'title',t('contextCompactDraftTitle'));return;}
+    const readText=()=>(editor.textContent||'').replace(/\u200B/g,'').trim();
+    if(readText().length>0){attribute($('context-compact-btn'),'title',t('contextCompactDraftTitle'));return;}
+    const baseCompactions=data?.speed?.transcriptStats&&['ready','partial'].includes(data.speed.transcriptStats.status)&&typeof data.speed.transcriptStats.compactionMarkers==='number'?data.speed.transcriptStats.compactionMarkers:0;
+    const baseUsedTokens=data?.speed?.context?.usedTokens??null;
+    const conv=conversationId();
+    hide();
     editor.focus();
     try{
       const sel=window.getSelection?.();
       if(sel){const range=document.createRange();range.selectNodeContents(editor);range.collapse(false);sel.removeAllRanges();sel.addRange(range);}
     }catch{}
+    if(typeof window.agPulseHost?.compactChat==='function'){
+      try{
+        const res=await window.agPulseHost.compactChat();
+        if(!disposed&&!instDisposed&&res?.ok&&readText()===''){
+          pendingCompact={conversationId:conv,startedAt:Date.now(),baseCompactions,baseUsedTokens};
+          render();
+        }
+      }catch{}
+      return;
+    }
     let inserted=false;
     try{inserted=Boolean(document.execCommand?.('insertText',false,'/compact'));}catch{}
-    if(!inserted||(editor.textContent||'').replace(/\u200B/g,'').trim()!=='/compact'){
+    if(!inserted||readText()!=='/compact'){
       try{editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'/compact'}));}catch{}
     }
-    if((editor.textContent||'').replace(/\u200B/g,'').trim()!=='/compact'){
+    if(readText()!=='/compact'){
       editor.textContent='/compact';
       try{editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:'/compact'}));}catch{editor.dispatchEvent(new Event('input',{bubbles:true}));}
     }
-    const baseCompactions=data?.speed?.transcriptStats&&['ready','partial'].includes(data.speed.transcriptStats.status)&&typeof data.speed.transcriptStats.compactionMarkers==='number'?data.speed.transcriptStats.compactionMarkers:0;
-    pendingCompact={conversationId:conversationId(),startedAt:Date.now(),baseCompactions,baseUsedTokens:data?.speed?.context?.usedTokens??null};
-    hide();
+    if(readText()!=='/compact')return;
+    pendingCompact={conversationId:conv,startedAt:Date.now(),baseCompactions,baseUsedTokens};
     render();
     setTimeout(()=>{
       if(disposed||instDisposed||!editor?.isConnected)return;
@@ -2714,14 +2727,7 @@ module.exports = function installAgPulseInlineWidget() {
         return testid==='send-button'||tid.includes('send-button')||/^(?:send|submit|发送|提交|傳送)$/i.test((b.getAttribute('aria-label')||b.title||'').trim());
       }):null;
       if(sendBtn){sendBtn.click();}
-      else{
-        editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
-        setTimeout(()=>{
-          if(!disposed&&!instDisposed&&editor?.isConnected&&(editor.textContent||'').replace(/\u200B/g,'').trim()){
-            editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
-          }
-        },60);
-      }
+      else{editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));}
     },90);
   }
   function refreshManually(syncUsage=false){
