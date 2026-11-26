@@ -194,6 +194,7 @@ function makeControllers() {
   const cacheHitTone = language.connectCacheHitTone({ write });
   const cacheHitTiers = language.connectCacheHitTiers({ write });
   const inlineCacheHit = language.connectInlineCacheHit({ write });
+  const cacheChipMode = language.connectCacheChipMode({ write });
   const quotaDisplay = language.connectQuotaDisplay({ write });
   const speedStyle = language.connectSpeedStyle({ write });
   const hostUiLocalization = language.connectHostUiLocalization({ write });
@@ -209,6 +210,7 @@ function makeControllers() {
     cacheHitTone,
     cacheHitTiers,
     inlineCacheHit,
+    cacheChipMode,
     quotaDisplay,
     speedStyle,
     hostUiLocalization,
@@ -223,6 +225,7 @@ function makeControllers() {
       cacheHitTone.dispose();
       cacheHitTiers.dispose();
       inlineCacheHit.dispose();
+      cacheChipMode.dispose();
       quotaDisplay.dispose();
       speedStyle.dispose();
       hostUiLocalization.dispose();
@@ -461,10 +464,24 @@ test('host-settings toggles barPlacement to footer and resets back to inline', a
   await new Promise(r => setTimeout(r, 10));
   assert.equal(ctrls.turnFooter.enabled, false);
 
+  const weeklyBtn = panelHost.querySelector('[data-quota-display-choice="weekly"]');
+  assert.ok(weeklyBtn, 'quotaDisplay weekly button rendered in System Settings');
+  weeklyBtn.click();
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(ctrls.quotaDisplay.value, 'weekly');
+
+  const hitOnlyBtn = panelHost.querySelector('[data-cache-chip-mode="hit"]');
+  assert.ok(hitOnlyBtn, 'cacheChipMode hit button rendered in System Settings');
+  hitOnlyBtn.click();
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(ctrls.cacheChipMode.value, 'hit');
+
   const resetBtn = panelHost.querySelector('.hs-reset');
   assert.ok(resetBtn);
   resetBtn.click();
   await new Promise(r => setTimeout(r, 10));
   assert.equal(ctrls.barPlacement.placement, 'inline');
   assert.equal(ctrls.turnFooter.enabled, true);
+  assert.equal(ctrls.quotaDisplay.value, 'both');
+  assert.equal(ctrls.cacheChipMode.value, 'both');
 });

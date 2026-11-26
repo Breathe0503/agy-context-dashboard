@@ -182,21 +182,23 @@ try {
   assert.notEqual(medState.cacheHit, 'none', 'cache-hit stays visible at 758px');
   assert.notEqual(medState.tps, 'none', 'tps stays visible at 758px');
 
-  // 0b. Issue #97: long Orchestrator model name in 758px composer uses tight-text
-  // instead of dropping straight to icons-only.
+  // 0b. Issue #97: long Orchestrator model name in 758px composer stays in text density
+  // instead of dropping straight to icons-only, preserving primary metrics + dual quota.
   await evalJs(() => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon (Medium)';
   });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
   const longModelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
     const span = document.querySelector('[data-testid="model-selector-trigger"] span');
+    const qSec = sr.querySelector('.quota-secondary');
     return {
       density: n.dataset.density,
       cacheHit: getComputedStyle(sr.getElementById('cache-hit')).display,
       tps: getComputedStyle(sr.getElementById('tps')).display,
       quotaText: getComputedStyle(sr.getElementById('quota-text')).display,
+      quotaSecondary: qSec ? getComputedStyle(qSec).display : 'missing',
       ctxPct: getComputedStyle(sr.getElementById('context-percent')).display,
       ctxRounds: getComputedStyle(sr.getElementById('context-rounds')).display,
       modelTruncated: span.scrollWidth > span.clientWidth + 1,
@@ -206,23 +208,63 @@ try {
   assert.notEqual(longModelState.cacheHit, 'none', 'cache-hit stays visible with long model name');
   assert.notEqual(longModelState.tps, 'none', 'tps stays visible with long model name');
   assert.notEqual(longModelState.quotaText, 'none', 'primary quota stays visible with long model name');
+  assert.notEqual(longModelState.quotaSecondary, 'none', 'dual quota stays visible with long model name');
   assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
-  assert.notEqual(longModelState.ctxRounds, 'none', 'context rounds stays visible with long model name at 758px');
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
 
+  // Verify 758px composer with Orchestrator Gemini 4 Neon Extra High + 165px right controls
+  // fits in tight-text/snug-text while keeping both #cache-hit and .quota-secondary visible,
+  // and hiding speed (3-chip mode) preserves airy 11px spacing without shrinking fonts.
+  await evalJs(() => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
+    document.querySelector('.right').style.minWidth = '165px';
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n?.shadowRoot;
+    const hit = sr?.getElementById('cache-hit');
+    const sec = sr?.querySelector('.quota-secondary');
+    return ['full', 'compact-text', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
+  }, '758px Orchestrator Extra High + 165px right keeps cache-hit and dual quota');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && !n.classList.contains('snug-text');
+  }, '3-chip Orchestrator mode avoids snug-text compression');
+  const airy3Chip = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    return {
+      barGap: getComputedStyle(sr.querySelector('.bar')).gap,
+      fontSize: getComputedStyle(sr.querySelector('[data-card="cache"]')).fontSize,
+    };
+  });
+  assert.equal(airy3Chip.fontSize, '11px', '3-chip Orchestrator keeps crisp 11px font');
+  assert.equal(airy3Chip.barGap, '3px', '3-chip Orchestrator keeps 3px gap');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
+    sr.getElementById('pulse-settings-close').click();
+    document.querySelector('.right').style.minWidth = '';
+  });
+
   // Verify label / compact / rounds context sub-label modes stay responsive under
-  // Orchestrator Gemini 4 Neon Extra High in compact-text / tight-text.
+  // Orchestrator Gemini 4 Neon Extra High in compact-text (before tight-text drops rounds/label).
   await evalJs(`async () => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
-    for (let w = 758; w >= 460; w -= 12) {
+    for (let w = 840; w >= 460; w -= 12) {
       document.querySelector('.composer').style.width = w + 'px';
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
       const d = document.getElementById('ag-pulse-status-bar')?.dataset.density;
-      if (d === 'compact-text' || d === 'tight-text') break;
+      if (d === 'compact-text') break;
     }
   }`);
-  await waitUntil(() => ['compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long Orchestrator name reaches compact/tight tier');
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'compact-text', 'long Orchestrator name reaches compact-text tier');
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     sr.querySelector('[data-card="context"]').click();
@@ -233,7 +275,7 @@ try {
   await waitUntil(() => {
     const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
     return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display !== 'none';
-  }, 'context label stays visible in compact/tight tier');
+  }, 'context label stays visible in compact-text tier');
   const labelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -243,7 +285,7 @@ try {
       rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
     };
   });
-  assert.ok(['compact-text', 'tight-text'].includes(labelState.density), 'label check runs in compact/tight tier: ' + labelState.density);
+  assert.equal(labelState.density, 'compact-text', 'label check runs in compact-text tier: ' + labelState.density);
   assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
   assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
 
@@ -277,8 +319,8 @@ try {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Gemini 4 Hydrogen (Medium)';
   });
 
-  // 0c. Issue #106: narrow widths preserve #context-rounds through compact-text and tight-text,
-  // hiding it only at dense-text while keeping all 4 primary metrics visible.
+  // 0c. Narrow widths degrade context rounds first (tight-text), then cache hit
+  // (trim-hit), preserving dual-window quota until dense-text before icons-only.
   const setWidthAndSettle = async w => {
     return await evalJs(`async () => {
       document.querySelector('.composer').style.width = '${w}px';
@@ -306,23 +348,31 @@ try {
   };
   let compactSnapshot = null;
   let tightSnapshot = null;
+  let trimHitSnapshot = null;
   let denseSnapshot = null;
-  for (let w = 640; w >= 320; w -= 6) {
+  for (let w = 680; w >= 320; w -= 6) {
     const snap = await setWidthAndSettle(w);
     if (!compactSnapshot && snap.density === 'compact-text') compactSnapshot = { width: w, ...snap };
     if (!tightSnapshot && snap.density === 'tight-text') tightSnapshot = { width: w, ...snap };
+    if (!trimHitSnapshot && snap.density === 'trim-hit') trimHitSnapshot = { width: w, ...snap };
     if (!denseSnapshot && snap.density === 'dense-text') denseSnapshot = { width: w, ...snap };
-    if (compactSnapshot && tightSnapshot && denseSnapshot) break;
+    if (compactSnapshot && tightSnapshot && trimHitSnapshot && denseSnapshot) break;
   }
   if (compactSnapshot) assert.notEqual(compactSnapshot.quotaSecondary, 'none', 'compact-text preserves both-mode secondary quota');
-  assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before icons');
-  assert.notEqual(tightSnapshot.rounds, 'none', 'tight-text still keeps #context-rounds visible');
+  assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before trim-hit');
+  assert.equal(tightSnapshot.rounds, 'none', 'tight-text hides #context-rounds first');
   assert.equal(tightSnapshot.cacheUnit, 'none', 'tight-text hides cache tok unit');
-  assert.equal(tightSnapshot.cacheHit, 'none', 'tight-text hides inline cache hit');
-  assert.equal(tightSnapshot.quotaTag, 'none', 'tight-text hides quota tag');
-  assert.equal(tightSnapshot.quotaSecondary, 'none', 'tight-text hides secondary quota');
+  assert.notEqual(tightSnapshot.cacheHit, 'none', 'tight-text still keeps inline cache hit');
+  assert.notEqual(tightSnapshot.quotaTag, 'none', 'tight-text still keeps quota tag');
+  assert.notEqual(tightSnapshot.quotaSecondary, 'none', 'tight-text still keeps dual-window secondary quota');
+  assert.ok(trimHitSnapshot, 'stepping down further must hit trim-hit tier before dense-text');
+  assert.equal(trimHitSnapshot.cacheHit, 'none', 'trim-hit hides inline cache hit');
+  assert.notEqual(trimHitSnapshot.quotaSecondary, 'none', 'trim-hit still preserves dual-window secondary quota');
   assert.ok(denseSnapshot, 'stepping down further must hit dense-text tier before icons');
   assert.equal(denseSnapshot.rounds, 'none', 'dense-text hides #context-rounds');
+  assert.equal(denseSnapshot.cacheHit, 'none', 'dense-text hides #cache-hit');
+  assert.equal(denseSnapshot.quotaTag, 'none', 'dense-text hides quota tag');
+  assert.equal(denseSnapshot.quotaSecondary, 'none', 'dense-text hides secondary quota');
   assert.notEqual(denseSnapshot.tps, 'none', 'dense-text keeps #tps visible');
   assert.notEqual(denseSnapshot.cacheNum, 'none', 'dense-text keeps #cache-total-num visible');
   assert.notEqual(denseSnapshot.quotaText, 'none', 'dense-text keeps #quota-text visible');
@@ -355,7 +405,7 @@ try {
   let recoveryWidth = null;
   for (let w = 640; w >= 360; w -= 8) {
     const snap = await setWidthAndSettle(w);
-    if (snap.density === 'compact-text' || snap.density === 'tight-text') { recoveryWidth = w; break; }
+    if (['compact-text', 'tight-text', 'snug-text', 'trim-hit', 'dense-text'].includes(snap.density)) { recoveryWidth = w; break; }
   }
   assert.ok(recoveryWidth !== null, 'found tight width where both mode degrades');
   await evalJs(() => {
@@ -375,8 +425,91 @@ try {
   });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot.querySelector('.quota-secondary') !== null, 'restored both quota before PR #84 check');
 
+  // 0e. Issue #113: quotaDisplay='weekly' pins the weekly window without 5h,
+  // and cacheChipMode='hit' shows only hit rate without total tokens or leading dot even at trim-hit width.
+  await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'full width before Issue #113 check');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="weekly"]').click();
+    sr.querySelector('[data-cache-chip-mode="hit"]').click();
+    sr.querySelector('#pulse-settings-dialog [data-language-choice="zh-CN"]').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr?.getElementById('pulse-settings-dialog')?.textContent?.includes('缓存显示');
+  }, 'settings modal renders zh-CN labels');
+  const kvLayout = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    return Array.from(sr.querySelectorAll('#pulse-settings-dialog .settings-kv')).map(row => {
+      const label = row.querySelector(':scope > span');
+      return {
+        text: label?.textContent || '',
+        labelHeight: label ? label.getBoundingClientRect().height : 0,
+        scrollWidth: row.scrollWidth,
+        clientWidth: row.clientWidth,
+      };
+    });
+  });
+  assert.ok(kvLayout.length >= 6, 'settings modal lists kv rows');
+  for (const row of kvLayout) {
+    assert.ok(row.labelHeight <= 22, `settings label "${row.text}" wrapped (${row.labelHeight}px)`);
+    assert.ok(row.scrollWidth <= row.clientWidth + 1, `settings row "${row.text}" overflows (${row.scrollWidth} > ${row.clientWidth})`);
+  }
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('#pulse-settings-dialog [data-language-choice="en"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const qText = n?.shadowRoot?.getElementById('quota-text')?.textContent || '';
+    return n?.getAttribute('data-cache-chip-mode') === 'hit' && qText.includes('90%') && !qText.includes('5h');
+  }, 'weekly quota and hit-only cache mode applied');
+  const issue113Full = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const hitEl = sr.getElementById('cache-hit');
+    return {
+      quotaText: sr.getElementById('quota-text').textContent,
+      cacheTotalDisplay: getComputedStyle(sr.getElementById('cache-total')).display,
+      cacheHitDisplay: getComputedStyle(hitEl).display,
+      cacheHitText: hitEl.textContent,
+      cacheHitBefore: getComputedStyle(hitEl, '::before').content,
+    };
+  });
+  assert.match(issue113Full.quotaText, /90%/, 'weekly mode pins 90% weekly quota');
+  assert.equal(issue113Full.quotaText.includes('80%'), false, 'weekly mode omits 5h percentage');
+  assert.equal(issue113Full.cacheTotalDisplay, 'none', 'hit-only mode hides total token count');
+  assert.notEqual(issue113Full.cacheHitDisplay, 'none', 'hit-only mode keeps #cache-hit visible');
+  assert.match(issue113Full.cacheHitText, /44\.4%/, 'hit-only mode shows cache hit rate');
+  assert.equal(issue113Full.cacheHitBefore, 'none', 'hit-only mode omits leading separator dot');
+
+  let narrowHitCheck = null;
+  for (let w = 640; w >= 360; w -= 8) {
+    const snap = await setWidthAndSettle(w);
+    if (snap.density === 'tight-text' || snap.density === 'snug-text' || snap.density === 'trim-hit') { narrowHitCheck = snap; break; }
+  }
+  assert.ok(narrowHitCheck, 'hit-only mode hits tight text tier before icons');
+  assert.notEqual(narrowHitCheck.cacheHit, 'none', 'hit-only mode preserves #cache-hit under tight/trim-hit tiers');
+
+  await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="both"]').click();
+    sr.querySelector('[data-cache-chip-mode="both"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    return n?.getAttribute('data-cache-chip-mode') === 'both' && n?.shadowRoot?.querySelector('.quota-secondary') !== null;
+  }, 'restored both quota and cache modes');
+
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
-  await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });
+  await evalJs(() => { document.querySelector('.composer').style.width = '400px'; });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'icons', 'narrow main composer drops to icons');
   const modelTruncated = await evalJs(() => {
     const span = document.querySelector('[data-testid="model-selector-trigger"] span');

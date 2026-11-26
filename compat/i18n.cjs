@@ -52,7 +52,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       cacheBasis:'Cached input ÷ total input, weighted across requests. Cache writes are not hits.',cacheMissing:'{n} requests have unavailable cache statistics.',cacheUnavailable:'Cache statistics are unavailable for this conversation.',
       cacheCoverage:'{measured} of {total} requests',language:'Language',dashboardLanguage:'Dashboard language',switchLanguage:'Switch to Chinese',languageSaveFailed:'Language preference could not be saved. Please retry.',checkUpdate:'Check for updates',reconnecting:'Waiting to reconnect',panelUnavailable:'The statistics panel cannot connect right now.',invalidData:'Incompatible statistics data',
       usageScopeLocal:'All local',usageScopeAccount:'Current account',quotaWindowUsage:'Window tokens',quotaWindowFullRef:'~{full} full',quotaWindowBasis:'Recorded local tokens for this account in this quota window; estimated full capacity is a proportional reference only (weighting varies by model and cache).',
-      quotaRingTitle:'Remaining quota',quotaRingUnknown:'Balance unknown',quotaDisplay:'Quota display',quotaDisplayBoth:'Two numbers',quotaDisplayAuto:'Auto',quotaDisplayCompact:'Dot',quotaDisplaySaveFailed:'Display setting could not be saved. Try again.',
+      quotaRingTitle:'Remaining quota',quotaRingUnknown:'Balance unknown',quotaDisplay:'Quota display',quotaDisplayBoth:'Two numbers',quotaDisplayAuto:'Auto',quotaDisplayCompact:'Dot',quotaDisplayWeekly:'Weekly',quotaDisplaySaveFailed:'Display setting could not be saved. Try again.',
       inlineReconnecting:'Inline widget is reconnecting automatically; statistics remain available in this panel.',panelInlineReconnecting:'Inline widget is reconnecting automatically; statistics remain available in this panel.',panelDebugPortReady:'Host started without remote debugging (launch shortcut configured); fully quit and reopen Antigravity for the inline bar. Statistics remain available here.',panelDebugPortManual:'Antigravity 2.33+ requires --remote-debugging-port=0 --remote-debugging-address=127.0.0.1 (or python3 manage.py launch) for the inline bar; statistics remain available here.',missingDebugPort:'Antigravity started without a debug port. Relaunch to restore the inline status bar.',relaunchDebugButton:'Relaunch with Debug Port',relaunchingDebug:'Relaunching Antigravity…',relaunchDebugFailed:'Could not relaunch automatically. Use the Antigravity (Debug) launcher.',relaunchDebugCooldown:'Relaunch already requested; waiting for Antigravity to restart.',relaunchDebugNotRunning:'Antigravity is not running right now.',autoRelaunchLabel:'Auto-relaunch when debug port is missing (e.g. after app update)',autoRelaunchSaveFailed:'Auto-relaunch setting could not be saved.',
       poolGemini:'Gemini',pool3p:'Claude / 3p',poolLocal:'Local / BYOM',poolOther:'Other',poolRollup:'Quota pools',
       multiAgentDetails:'Multi-agent & model breakdown',sessionRoleLabel:'Agent role',roleCoordinator:'Coordinator',roleWorker:'Worker',roleMonitor:'Monitor',roleSidecar:'Scheduled sidecar',
@@ -61,6 +61,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'Heavy tool calls',bloatBadge:'{n} bloat',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'Single payload >= 20K (critical >= 50K)',
       hostUiLocalization:'Host UI Chinese',hostUiLocalizationHint:'Translate Antigravity desktop UI labels into Simplified Chinese (restart-free)',hostUiLocalizationOn:'On',hostUiLocalizationOff:'Off',hostUiLocalizationSaveFailed:'Host localization setting could not be saved. Try again.',hostUiLocalizationEnableAction:'Enable Host UI Chinese',hostUiLocalizationDisableAction:'Disable Host UI Chinese',
       inlineCacheHit:'Inline cache hit',inlineCacheHitOn:'On',inlineCacheHitOff:'Off',inlineCacheHitSaveFailed:'Display setting could not be saved. Try again.',
+      cacheChipMode:'Cache display',cacheChipModeTokens:'Tokens',cacheChipModeBoth:'Both',cacheChipModeHit:'Hit rate',cacheChipModeSaveFailed:'Cache display could not be saved. Try again.',
       taskSwarm:'Swarm ({n} members)',swarmDetails:'Swarm & models',swarmRoster:'Swarm roster',swarmShowAll:'Show all {n}',swarmShowLess:'Collapse',swarmStatusKilled:'Ended',swarmStatusActive:'Active',swarmStatusAll:'All',
       orchSplitTitle:'Orchestrator split',orchCardTitle:'Orchestrator · Single-session split',orchScopeHint:'Same session · Planner switches to Executor',orchSwitchCount:'{n}× switch',orchReadOnlyTag:'Plan only',swarmScopeHint:'Multi-session team · Independent worker chats',orchRolePlanner:'Planner',orchRoleExecutor:'Executor',orchConfiguredPair:'Configured: {planner} → {executor}',orchNoSwitchYet:'Read-only turn · no switch yet',orchColdStartNote:'{n}× switch cache cold-start',orchColdStartLabel:'Switch cold-starts',orchColdStartTip:'First request after switching to Executor had 0 cached tokens (different models do not share KV cache)',cacheMissSurgeLabel:'Large cache-miss surge',cacheMissSurgeTip:'Requests with 0 cached tokens and >= 100K uncached input (e.g. after compaction, model switch, or cache expiry)',reqCountShort:'{n} req',countTimes:'{n}×',
       insightsProjectsSubtotal:'{n} projects · {tokens} toks',insightsSkillsSubtotal:'{n} skills · {runs} runs',insightsToolsSubtotal:'{n} tools · {calls} calls',insightsCommandsSubtotal:'{n} cmds · {runs} runs',insightsUnitSessions:'{n} sess',insightsUnitRuns:'{n} runs',insightsUnitCalls:'{n} calls',
@@ -119,7 +120,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       cacheRate:'缓存命中',cacheHitRateColon:'缓存命中率：',cacheRead:'缓存读取',cacheInput:'总输入',cacheMiss:'未缓存输入',cacheWrite:'缓存写入',cacheOutput:'输出',cacheBasis:'缓存读取 token ÷ 总输入 token，按请求 token 总量加权；缓存写入不算命中。',cacheMissing:'{n} 次请求缺少缓存统计。',cacheUnavailable:'此会话暂无可用缓存统计。',cacheCoverage:'{measured} / {total} 次请求',
       language:'语言',dashboardLanguage:'仪表盘语言',switchLanguage:'Switch to English',languageSaveFailed:'语言设置暂时无法保存，请重试。',checkUpdate:'检查更新',reconnecting:'等待控件重新连接',panelUnavailable:'统计面板暂时无法连接',invalidData:'统计数据格式不兼容',
       usageScopeLocal:'本机全部',usageScopeAccount:'当前账号',quotaWindowUsage:'周期用量',quotaWindowFullRef:'约 {full} 满额',quotaWindowBasis:'当前账号该额度周期内本机实测流经 Token；估算满额仅作同比例参考（不同模型与缓存折算权重不同）。',
-      quotaRingTitle:'剩余额度',quotaRingUnknown:'余额未知',quotaDisplay:'额度显示',quotaDisplayBoth:'双数字',quotaDisplayAuto:'自动',quotaDisplayCompact:'角标',quotaDisplaySaveFailed:'显示模式暂时无法保存，请重试。',
+      quotaRingTitle:'剩余额度',quotaRingUnknown:'余额未知',quotaDisplay:'额度显示',quotaDisplayBoth:'双数字',quotaDisplayAuto:'自动',quotaDisplayCompact:'角标',quotaDisplayWeekly:'仅周',quotaDisplaySaveFailed:'显示模式暂时无法保存，请重试。',
       inlineReconnecting:'内嵌栏正在自动重连；此面板仍可查看统计。',panelInlineReconnecting:'内嵌栏正在自动重连；此面板仍可查看统计。',panelDebugPortReady:'宿主未开启调试端口（已自动配置启动入口）；请完全退出并从快捷方式重开 Antigravity 以恢复内嵌栏，当前可在此面板查看统计。',panelDebugPortManual:'Antigravity 2.33+ 需带 --remote-debugging-port=0 --remote-debugging-address=127.0.0.1（或运行 python3 manage.py launch）启动以显示内嵌栏；此面板仍可查看统计。',missingDebugPort:'当前 Antigravity 未开启调试端口，无法挂载内嵌状态栏。',relaunchDebugButton:'一键重启并恢复状态栏',relaunchingDebug:'正在重启 Antigravity…',relaunchDebugFailed:'自动重启未能触发，请使用 Antigravity (Debug) 启动器重新打开。',relaunchDebugCooldown:'已发起重启请求，请稍候等待 Antigravity 重新打开。',relaunchDebugNotRunning:'未检测到运行中的 Antigravity 主程序。',autoRelaunchLabel:'缺少调试端口时自动重启恢复（如更新后）',autoRelaunchSaveFailed:'自动重启设置暂时无法保存。',
       poolGemini:'Gemini',pool3p:'Claude / 3p',poolLocal:'本地 / BYOM',poolOther:'其他',poolRollup:'额度池汇总',
       multiAgentDetails:'多代理与模型拆分',sessionRoleLabel:'代理角色',roleCoordinator:'协调主代理',roleWorker:'执行子代理',roleMonitor:'监控看守',roleSidecar:'定时后台任务',
@@ -128,6 +129,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'高占用工具',bloatBadge:'{n} 项膨胀',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'单次负载 ≥ 20K（严重 ≥ 50K）',
       hostUiLocalization:'宿主界面汉化',hostUiLocalizationHint:'将 Antigravity 宿主界面菜单与按钮汉化为简体中文（热切换无需重启）',hostUiLocalizationOn:'开启',hostUiLocalizationOff:'关闭',hostUiLocalizationSaveFailed:'宿主汉化设置暂时无法保存，请重试。',hostUiLocalizationEnableAction:'开启宿主界面汉化',hostUiLocalizationDisableAction:'关闭宿主界面汉化',
       inlineCacheHit:'底栏显示命中率',inlineCacheHitOn:'开启',inlineCacheHitOff:'关闭',inlineCacheHitSaveFailed:'显示设置暂时无法保存，请重试。',
+      cacheChipMode:'缓存显示',cacheChipModeTokens:'仅总量',cacheChipModeBoth:'总量+命中',cacheChipModeHit:'仅命中',cacheChipModeSaveFailed:'缓存显示设置暂时无法保存，请重试。',
       taskSwarm:'Swarm（{n} 成员）',swarmDetails:'Swarm 协同与模型',swarmRoster:'Swarm 成员',swarmShowAll:'展开全部 {n} 个',swarmShowLess:'收起',swarmStatusKilled:'已结束',swarmStatusActive:'活跃',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/执行分工',orchCardTitle:'Orchestrator · 单会话双模型',orchScopeHint:'同一会话内 · 规划与执行切模型',orchSwitchCount:'切换 {n} 次',orchReadOnlyTag:'仅规划',swarmScopeHint:'多会话并行团队 · 主协调与各成员独立对话',orchRolePlanner:'主调度',orchRoleExecutor:'干活执行',orchConfiguredPair:'已配组合：{planner} → {executor}',orchNoSwitchYet:'仅规划/只读 · 尚未切执行模型',orchColdStartNote:'切模型冷缓存 {n} 次',orchColdStartLabel:'切模型冷缓存',orchColdStartTip:'切到执行模型后首步缓存读为 0（不同模型不共享 KV 缓存，需重新计算上下文）',cacheMissSurgeLabel:'大额冷缓存',cacheMissSurgeTip:'单次请求缓存读为 0 且未缓存输入 ≥ 100K 的次数与累计量（常见于压缩、切模型或缓存过期后重算）',reqCountShort:'{n} 次请求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 项目 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 命令 · {runs} 次',insightsUnitSessions:'{n} 会话',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
@@ -186,7 +188,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       cacheRate:'快取命中率',cacheHitRateColon:'快取命中率：',cacheRead:'快取讀取',cacheInput:'總輸入',cacheMiss:'未快取輸入',cacheWrite:'快取寫入',cacheOutput:'輸出',cacheBasis:'快取讀取 Token ÷ 總輸入 Token，依各請求之 Token 總量加權計算；快取寫入不列入命中。',cacheMissing:'{n} 次請求缺少快取統計資料。',cacheUnavailable:'此對話目前無法取得快取統計資料。',cacheCoverage:'{measured} / {total} 次請求',
       language:'語言',dashboardLanguage:'儀表板語言',switchLanguage:'Switch to English',languageSaveFailed:'語言設定暫時無法儲存，請再試一次。',checkUpdate:'檢查更新',reconnecting:'等待控制項重新連線',panelUnavailable:'統計面板暫時無法連線',invalidData:'統計資料格式不相容',
       usageScopeLocal:'本機全部',usageScopeAccount:'目前帳號',quotaWindowUsage:'週期用量',quotaWindowFullRef:'約 {full} 滿額',quotaWindowBasis:'目前帳號此配額週期內本機實測流經 Token；預估滿額僅作等比例參考（不同模型與快取換算權重不同）。',
-      quotaRingTitle:'剩餘額度',quotaRingUnknown:'餘額未知',quotaDisplay:'額度顯示',quotaDisplayBoth:'雙數字',quotaDisplayAuto:'自動',quotaDisplayCompact:'角標',quotaDisplaySaveFailed:'顯示模式暫時無法儲存，請再試一次。',
+      quotaRingTitle:'剩餘額度',quotaRingUnknown:'餘額未知',quotaDisplay:'額度顯示',quotaDisplayBoth:'雙數字',quotaDisplayAuto:'自動',quotaDisplayCompact:'角標',quotaDisplayWeekly:'僅週',quotaDisplaySaveFailed:'顯示模式暫時無法儲存，請再試一次。',
       inlineReconnecting:'內嵌狀態列正在自動重新連線；此面板仍可檢視統計資料。',panelInlineReconnecting:'內嵌狀態列正在自動重新連線；此面板仍可檢視統計資料。',panelDebugPortReady:'宿主未開啟偵錯連接埠（已自動設定啟動捷徑）；請完全退出並由捷徑重開 Antigravity 以恢復內嵌狀態列，目前可在此面板檢視統計資料。',panelDebugPortManual:'Antigravity 2.33+ 需帶 --remote-debugging-port=0 --remote-debugging-address=127.0.0.1（或執行 python3 manage.py launch）啟動以顯示內嵌狀態列；此面板仍可檢視統計資料。',missingDebugPort:'目前的 Antigravity 未開啟除錯連接埠，無法掛載內嵌狀態列。',relaunchDebugButton:'一鍵重啟並恢復狀態列',relaunchingDebug:'正在重啟 Antigravity…',relaunchDebugFailed:'無法自動觸發重啟，請使用 Antigravity (Debug) 啟動器重新開啟。',relaunchDebugCooldown:'已發起重啟請求，請稍候等待 Antigravity 重新開啟。',relaunchDebugNotRunning:'目前未偵測到執行中的 Antigravity 主程式。',autoRelaunchLabel:'缺少除錯連接埠時自動重啟恢復（如更新後）',autoRelaunchSaveFailed:'自動重啟設定暫時無法儲存。',
       poolGemini:'Gemini',pool3p:'Claude / 3p',poolLocal:'本機 / BYOM',poolOther:'其他',poolRollup:'配額池彙總',
       multiAgentDetails:'多代理與模型拆分',sessionRoleLabel:'代理角色',roleCoordinator:'協調主代理',roleWorker:'執行子代理',roleMonitor:'監控守望',roleSidecar:'定時背景工作',
@@ -195,6 +197,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       topTools:'高佔用工具',bloatBadge:'{n} 項膨脹',bloatWarningLine:'{tool} #{step}: {tokens}',bloatHint:'單次負載 ≥ 20K（嚴重 ≥ 50K）',
       hostUiLocalization:'宿主介面漢化',hostUiLocalizationHint:'將 Antigravity 宿主介面選單與按鈕翻譯為簡體中文（熱切換無需重啟）',hostUiLocalizationOn:'開啟',hostUiLocalizationOff:'關閉',hostUiLocalizationSaveFailed:'宿主漢化設定暫時無法儲存，請重試。',hostUiLocalizationEnableAction:'開啟宿主介面漢化',hostUiLocalizationDisableAction:'關閉宿主介面漢化',
       inlineCacheHit:'底欄顯示命中率',inlineCacheHitOn:'開啟',inlineCacheHitOff:'關閉',inlineCacheHitSaveFailed:'顯示設定暫時無法儲存，請再試一次。',
+      cacheChipMode:'快取顯示',cacheChipModeTokens:'僅總量',cacheChipModeBoth:'總量+命中',cacheChipModeHit:'僅命中',cacheChipModeSaveFailed:'快取顯示設定暫時無法儲存，請再試一次。',
       taskSwarm:'Swarm（{n} 成員）',swarmDetails:'Swarm 協同與模型',swarmRoster:'Swarm 成員',swarmShowAll:'展開全部 {n} 個',swarmShowLess:'收合',swarmStatusKilled:'已結束',swarmStatusActive:'活躍',swarmStatusAll:'全部',
       orchSplitTitle:'Orchestrator 主/執行分工',orchCardTitle:'Orchestrator · 單工作階段雙模型',orchScopeHint:'同一工作階段內 · 規劃與執行切模型',orchSwitchCount:'切換 {n} 次',orchReadOnlyTag:'僅規劃',swarmScopeHint:'多工作階段並行團隊 · 主協調與各成員獨立對話',orchRolePlanner:'主調度',orchRoleExecutor:'執行模型',orchConfiguredPair:'已配組合：{planner} → {executor}',orchNoSwitchYet:'僅規劃/只讀 · 尚未切執行模型',orchColdStartNote:'切模型冷快取 {n} 次',orchColdStartLabel:'切模型冷快取',orchColdStartTip:'切至執行模型後首步快取讀為 0（不同模型不共用 KV 快取，需重新計算上下文）',cacheMissSurgeLabel:'大額冷快取',cacheMissSurgeTip:'單次請求快取讀為 0 且未快取輸入 ≥ 100K 的次數與累計量（常見於壓縮、切模型或快取過期後重算）',reqCountShort:'{n} 次請求',countTimes:'{n} 次',
       insightsProjectsSubtotal:'{n} 專案 · {tokens} toks',insightsSkillsSubtotal:'{n} 技能 · {runs} 次',insightsToolsSubtotal:'{n} 工具 · {calls} 次',insightsCommandsSubtotal:'{n} 指令 · {runs} 次',insightsUnitSessions:'{n} 工作階段',insightsUnitRuns:'{n} 次',insightsUnitCalls:'{n} 次',
@@ -356,9 +359,10 @@ module.exports = function createDashboardI18n(initialLanguage) {
   }
   const SPEED_STYLES=['minimal','cat'];
   const USAGE_SCOPES=['local','account'];
-  const QUOTA_DISPLAYS=['both','auto','compact'];
+  const QUOTA_DISPLAYS=['both','auto','compact','weekly'];
   const HOST_UI_LOCALIZATIONS=[false,true];
   const INLINE_CACHE_HITS=[false,true];
+  const CACHE_CHIP_MODES=['both','tokens','hit'];
   const STRIP_MODES=['full','minimal'];
   const BAR_PLACEMENTS=['inline','footer'];
   const TURN_FOOTERS=[false,true];
@@ -395,9 +399,43 @@ module.exports = function createDashboardI18n(initialLanguage) {
     const ctrl=connectChoicePreference({key:'hostUiLocalization',allowed:HOST_UI_LOCALIZATIONS,fallback:false,...options});
     return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value===true;},get error(){return ctrl.error;},dispose:ctrl.dispose};
   }
+  function normalizeCacheChipMode(value,legacyInlineCacheHit){
+    return CACHE_CHIP_MODES.includes(value)?value:(legacyInlineCacheHit===false?'tokens':'both');
+  }
   function connectInlineCacheHit(options){
     const ctrl=connectChoicePreference({key:'inlineCacheHit',allowed:INLINE_CACHE_HITS,fallback:true,...options});
     return {sync:ctrl.sync,choose:value=>ctrl.choose(value===true),get enabled(){return ctrl.value!==false;},get error(){return ctrl.error;},dispose:ctrl.dispose};
+  }
+  function connectCacheChipMode({write,initial=null,cache=()=>{},changed=()=>{}}){
+    let current=normalizeCacheChipMode(initial),epoch=0,writes=0,revision=-1,error=false,disposed=false,queue=Promise.resolve();
+    const notify=()=>{if(!disposed)changed();};
+    const remember=()=>{try{cache(current);}catch{}};
+    function sync(value){
+      if(disposed||writes||!value||typeof value!=='object'||value.error)return;
+      const next=Number.isSafeInteger(value.revision)?value.revision:0;
+      if(next<revision)return;
+      const incoming=normalizeCacheChipMode(value.cacheChipMode,value.inlineCacheHit);
+      if(error&&epoch>0&&incoming!==current)return;
+      revision=next;
+      const dirty=incoming!==current||error;error=false;
+      if(incoming!==current){current=incoming;remember();}
+      if(dirty)notify();
+    }
+    function choose(value){
+      if(disposed||!CACHE_CHIP_MODES.includes(value))return Promise.resolve();
+      const choice=++epoch;current=value;writes++;error=false;remember();notify();
+      const pending=queue.then(async()=>{
+        try{
+          const saved=await write({cacheChipMode:value,inlineCacheHit:value!=='tokens'});
+          if(!saved||saved.error||saved.cacheChipMode!==value)throw new Error('Preference acknowledgement differs');
+          revision=Math.max(revision,Number.isSafeInteger(saved.revision)?saved.revision:0);
+          if(choice===epoch)error=false;
+        }catch{if(choice===epoch)error=true;}
+        finally{writes--;notify();}
+      });
+      queue=pending;return pending;
+    }
+    return {normalize:normalizeCacheChipMode,sync,choose,get value(){return current;},get error(){return error;},dispose(){disposed=true;}};
   }
   function connectStripMode(options){
     const ctrl=connectChoicePreference({key:'stripMode',allowed:STRIP_MODES,fallback:'full',...options});
@@ -718,6 +756,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
     const min=nums.length?Math.min(...nums):null;
     let show=null;
     if(mode==='compact')show=five?'5h':(week?'weekly':null);
+    else if(mode==='weekly')show=week?'weekly':(five?'5h':null);
     else if(mode==='auto')show=min!==null&&min<=0.25?(fv===min?'5h':'weekly'):(five?'5h':(week?'weekly':null));
     else show=five&&fv!==null&&(!week||wv===null||fv<=wv)?'5h':(wv!==null?'weekly':(five?'5h':(week?'weekly':null)));
     const arcValue=show==='5h'?fv:show==='weekly'?wv:null;
@@ -726,5 +765,5 @@ module.exports = function createDashboardI18n(initialLanguage) {
     if(mode==='compact'&&show){const other=show==='5h'?wv:fv;if(other!==null&&other<=0.25)dot=other<=0.10?'danger':'warn';}
     return {five,week,min,show,arcValue,level,dot};
   }
-  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeInlineCacheHit,connectInlineCacheHit,normalizeStripMode,connectStripMode,normalizeBarPlacement,connectBarPlacement,normalizeTurnFooter,connectTurnFooter,normalizeBarColors,connectBarColors,normalizeThemeMode,connectThemeMode,normalizeCacheHitTone,connectCacheHitTone,normalizeCacheHitTiers,connectCacheHitTiers,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
+  return {mountLanguagePicker,normalizeSpeedStyle,connectSpeedStyle,normalizeUsageScope,connectUsageScope,normalizeQuotaDisplay,connectQuotaDisplay,normalizeHostUiLocalization,connectHostUiLocalization,normalizeInlineCacheHit,connectInlineCacheHit,normalizeCacheChipMode,connectCacheChipMode,normalizeStripMode,connectStripMode,normalizeBarPlacement,connectBarPlacement,normalizeTurnFooter,connectTurnFooter,normalizeBarColors,connectBarColors,normalizeThemeMode,connectThemeMode,normalizeCacheHitTone,connectCacheHitTone,normalizeCacheHitTiers,connectCacheHitTiers,normalizeBarOrder,normalizeBarHidden,normalizeContextChipMode,connectBarPreferences,quotaRingView,minimalTrail,t,rateNote,quotaGroupKind,quotaGroupLabel,chooseQuotaGroup,quotaWindows,quotaRemaining,shortEta,quotaForecast,groupQuotaPace,countdown,elapsed,resetDate,errorMessage,connectPreferences,get language(){return language;},setLanguage(value){language=value==='zh-CN'||value==='zh-TW'?value:'en';if(language!=='en')lastZh=language;},toggle(){language=language==='en'?(lastZh||'zh-TW'):'en';return language;}};
 };
