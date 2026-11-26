@@ -1500,8 +1500,10 @@ function render() {
     }
   }
   const isFiniteRate=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
-  const legacyRate=speed?.latestRateStatus==='legacy',unreliableRate=speed?.latestRateStatus==='unreliable';
-  const latestVal=!speed||legacyRate?null:!unreliableRate&&isFiniteRate(speed.latestTps)?speed.latestTps:isFiniteRate(speed.tps)?speed.tps:null;
+  const rateStatus=speed?.latestRateStatus;
+  const legacyRate=rateStatus==='legacy',shortRate=rateStatus==='short',bufferedRate=rateStatus==='buffered',unreliableRate=rateStatus==='unreliable';
+  const statusRate=legacyRate||shortRate||bufferedRate||unreliableRate;
+  const latestVal=!speed||legacyRate?null:!statusRate&&isFiniteRate(speed.latestTps)?speed.latestTps:isFiniteRate(speed.tps)?speed.tps:null;
   const trailSamples=speed&&!legacyRate?(Array.isArray(speed.recentTps)&&speed.recentTps.length?speed.recentTps.filter(v=>isFiniteRate(v)&&v>0):latestVal>0?[Math.round(latestVal*10)/10]:[]):[];
   renderPanelTrail(trailSamples);
   $('strip-tps').textContent = rate(speed?.tps);
@@ -1512,11 +1514,25 @@ function render() {
   text('e2e-tps', legacyRate?t('ratePending'):rate(speed?.e2eTps));
   hidden('panel-e2e-unit',Boolean(legacyRate));
   setTip($('e2e-speed-cell'), t('e2eBasis'));
-  $('latest-tps').textContent = unreliableRate?t('timingUnreliable'):legacyRate?t('ratePending'):rate(latestVal);
-  if(unreliableRate||legacyRate)$('latest-tps').setAttribute('data-status','true');else $('latest-tps').removeAttribute('data-status');
-  hidden('panel-latest-unit',Boolean(unreliableRate||legacyRate));
-  setTip($('speed-hero-row'), t('latestSpeedTip'));
-  const peakCandidate=legacyRate||!speed?-1:isFiniteRate(speed.peakTps)?speed.peakTps:Math.max(isFiniteRate(speed.tps)?speed.tps:-1,!unreliableRate&&isFiniteRate(speed.latestTps)?speed.latestTps:-1);
+  $('latest-tps').textContent = shortRate?t('timingShort'):bufferedRate?t('timingBuffered'):unreliableRate?t('timingUnreliable'):legacyRate?t('ratePending'):rate(latestVal);
+  setAttr($('latest-tps'),'data-status',statusRate?'true':null);
+  setAttr($('latest-tps'),'data-rate-state',statusRate?rateStatus:null);
+  hidden('panel-latest-unit',Boolean(statusRate));
+  const durVal=speed?.latestDurationSeconds;
+  const durStr=isFiniteRate(durVal)?(durVal>=10?`${durVal.toFixed(1)}s`:`${durVal.toFixed(2)}s`):'';
+  const tokStr=typeof speed?.latestOutputTokens==='number'&&Number.isSafeInteger(speed.latestOutputTokens)?count(speed.latestOutputTokens):'';
+  const hasPrevRef=Boolean(speed?.prevQualifiedSameModel&&isFiniteRate(speed?.prevQualifiedTps));
+  const subText=shortRate&&tokStr&&durStr?(hasPrevRef?t('shortSublineRef',{tokens:tokStr,dur:durStr,prev:rate(speed.prevQualifiedTps)}):t('shortSubline',{tokens:tokStr,dur:durStr})):bufferedRate&&tokStr&&durStr?(isFiniteRate(speed?.latestE2eTps)?t('bufferedSublineE2e',{tokens:tokStr,dur:durStr,e2e:rate(speed.latestE2eTps)}):t('shortSubline',{tokens:tokStr,dur:durStr})):'';
+  text('latest-sub',subText);
+  hidden('latest-sub',!subText);
+  let heroTip=t('latestSpeedTip');
+  if((shortRate||bufferedRate)&&tokStr&&durStr){
+    heroTip=t(shortRate?'shortSpeedTip':'bufferedSpeedTip',{tokens:tokStr,dur:durStr});
+    if(isFiniteRate(speed?.latestE2eTps))heroTip+=t('latestTipE2e',{e2e:rate(speed.latestE2eTps)});
+    if(hasPrevRef)heroTip+=t('latestTipPrev',{prev:rate(speed.prevQualifiedTps)});
+  }
+  setTip($('speed-hero-row'), heroTip);
+  const peakCandidate=legacyRate||!speed?-1:isFiniteRate(speed.peakTps)?speed.peakTps:Math.max(isFiniteRate(speed.tps)?speed.tps:-1,!statusRate&&isFiniteRate(speed.latestTps)?speed.latestTps:-1);
   text('peak-tps',peakCandidate>=0?rate(peakCandidate):'—');
   setTip($('peak-speed-cell'), t('peakBasis'));
   $('request-count').textContent = t('sampleCount',{n:speed?.measuredRequests??0});

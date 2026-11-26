@@ -1349,7 +1349,7 @@ module.exports = function installAgPulseInlineWidget() {
       @keyframes cat-frame-8{0%{opacity:1}12.5%,100%{opacity:0}}@keyframes cat-frame-6{0%{opacity:1}16.667%,100%{opacity:0}}@keyframes cat-frame-2{0%{opacity:1}50%,100%{opacity:0}}
       @keyframes cat-upright{0%,19%,67.857%,81.857%{opacity:1}17.143%,31.429%,80%{opacity:0}}@keyframes cat-blink{17.143%,80%{opacity:1}0%,19%,81.857%{opacity:0}}@keyframes cat-tilting{31.429%,65.714%{opacity:1}0%,33.571%,67.857%{opacity:0}}@keyframes cat-tilted{33.571%,50.286%{opacity:1}0%,48.571%,65.714%{opacity:0}}@keyframes cat-tilted-blink{48.571%{opacity:1}0%,50.286%{opacity:0}}
       @keyframes cat-badge-blink{0%,93%{transform:none}94%,97%{transform:scaleY(.2)}}@keyframes cat-streak{from{transform:translateX(3px);opacity:1}to{transform:translateX(-5px);opacity:0}}@keyframes cat-sparkle{0%{transform:translate(0,0);opacity:0}30%{opacity:1}100%{transform:translate(4px,-8px);opacity:0}}
-      .heading.speed-hero{align-items:flex-end;gap:10px;padding-bottom:9px;margin-bottom:0;font-weight:400}.heading.speed-hero span{display:inline}.speed-hero-main{min-width:0;flex:1 1 auto}.speed-hero-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--pulse-muted)}.speed-hero-rate{display:flex;align-items:baseline;gap:4px;margin-top:3px;white-space:nowrap;line-height:1.1}#latest-rate{font-size:24px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--pulse-foreground)}#latest-rate[data-status=true]{font-size:15px;letter-spacing:0}
+      .heading.speed-hero{align-items:flex-end;gap:10px;padding-bottom:9px;margin-bottom:0;font-weight:400}.heading.speed-hero span{display:inline}.speed-hero-main{min-width:0;flex:1 1 auto}.speed-hero-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--pulse-muted)}.speed-hero-rate{display:flex;align-items:baseline;gap:4px;margin-top:3px;white-space:nowrap;line-height:1.1}#latest-rate{font-size:24px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--pulse-foreground)}#latest-rate[data-status=true]{font-size:15px;letter-spacing:0}#latest-rate[data-rate-state=buffered]{color:var(--pulse-warning)}.speed-hero-rate-wrap{min-width:0}.speed-hero-sub{margin-top:2px;font-size:10.5px;line-height:1.3;color:var(--pulse-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}.speed-hero-sub[hidden]{display:none!important}
       dl.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:9px}#speed-card .speed-stats{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:7px}.ttft-latest{color:var(--pulse-muted);font-weight:400}dl.stats-grid>div{display:block;margin:0;min-width:0}dl.stats-grid dt{font-size:11px;color:var(--pulse-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}dl.stats-grid dd{margin:0;font-size:12px;text-align:left;white-space:nowrap;color:var(--pulse-foreground);overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}dl.stats-grid strong{font-weight:600}
       dl.stats-grid>.span-row{grid-column:1 / -1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-top:6px;border-top:1px solid var(--pulse-separator)}dl.stats-grid>.span-row[hidden]{display:none}dl.stats-grid>.span-row dt{margin:0}dl.stats-grid>.span-row dd{text-align:right}
       .speed-unit{font-size:11px;font-weight:400;color:var(--pulse-muted)}.speed-unit[hidden]{display:none!important}
@@ -1423,7 +1423,7 @@ module.exports = function installAgPulseInlineWidget() {
       #guide-open{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;width:calc(100% + 8px);margin:5px -4px -3px;padding:4px;line-height:16px}
       #guide-open>span{display:grid;gap:1px}#guide-open span[lang]{font-size:11px;color:var(--pulse-muted)}#guide-open svg{width:14px;height:14px;flex:none}
       #guide-save-note:empty,#language-save-note:empty{display:none}#guide-save-note,#language-save-note{color:var(--pulse-warning)}
-      .heading.speed-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"label toggle" "rate trail";align-items:end;column-gap:10px;row-gap:2px}.speed-hero-main{display:contents}.speed-hero-label{grid-area:label;align-self:center}.speed-hero-rate{grid-area:rate}
+      .heading.speed-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"label toggle" "rate trail";align-items:end;column-gap:10px;row-gap:2px}.speed-hero-main{display:contents}.speed-hero-label{grid-area:label;align-self:center}.speed-hero-rate-wrap{grid-area:rate;min-width:0}
       .heading.speed-hero svg.dashboard-speed-trail{grid-area:trail;justify-self:end;width:120px;height:46px;max-width:none;flex:none}
       .style-toggle{grid-area:toggle;justify-self:end;align-self:center;display:inline-flex;gap:1px;padding:2px;border-radius:6px;background:var(--pulse-control)}
       .style-toggle-button{display:grid;place-items:center;width:22px;height:18px;padding:0;margin:0;border:0;border-radius:4px;background:none;color:var(--pulse-muted);opacity:.7;cursor:pointer;transition:background-color 140ms ease,color 140ms ease,opacity 140ms ease,transform 120ms ease}
@@ -1445,7 +1445,7 @@ module.exports = function installAgPulseInlineWidget() {
       <button class="chip" data-card="quota" data-i18n-aria="quotaRingTitle" aria-controls="quota-card" aria-expanded="false"><svg class="quota-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="ring-track" cx="10" cy="10" r="8"/><circle class="ring-arc" id="quota-ring-arc" cx="10" cy="10" r="8" transform="rotate(-90 10 10)"/></svg><span class="quota-text" id="quota-text">—</span></button>
       <button class="chip" data-card="context" data-i18n-aria="context" aria-controls="context-card" aria-expanded="false"><span class="context-ring" id="context-ring" aria-hidden="true"></span><span class="context-label" data-i18n="contextShort">Ctx</span><strong id="context-percent">—</strong><span class="context-rounds dim" id="context-rounds" hidden></span></button>
     </div><section class="card" id="speed-card" role="region" data-i18n-aria="session" aria-label="Session statistics" hidden>
-      <div class="heading speed-hero" id="speed-hero"><div class="speed-hero-main"><div class="speed-hero-label"><svg class="cat-badge" id="card-cat-badge" viewBox="0 0 16 10" aria-hidden="true"></svg><span data-i18n="latestSpeed">${t('latestSpeed')}</span></div><div class="speed-hero-rate"><strong id="latest-rate">—</strong><span class="speed-unit" id="latest-unit">tok/s</span></div></div><svg class="dashboard-speed-trail" id="speed-trail" viewBox="0 0 140 54" aria-hidden="true"></svg><div class="style-toggle" role="group" data-i18n-aria="speedStyle"><button type="button" class="style-toggle-button" id="speed-style-minimal" data-speed-style-choice="minimal"><svg viewBox="0 0 16 10" aria-hidden="true"><path class="speed-pulse-icon" d="M1 5h3l2-4 3 8 2-4h4"/></svg></button><button type="button" class="style-toggle-button" id="speed-style-cat" data-speed-style-choice="cat"><svg class="cat-badge" id="style-cat-icon" viewBox="0 0 16 10" aria-hidden="true"></svg></button></div></div>
+      <div class="heading speed-hero" id="speed-hero"><div class="speed-hero-main"><div class="speed-hero-label"><svg class="cat-badge" id="card-cat-badge" viewBox="0 0 16 10" aria-hidden="true"></svg><span data-i18n="latestSpeed">${t('latestSpeed')}</span></div><div class="speed-hero-rate-wrap"><div class="speed-hero-rate"><strong id="latest-rate">—</strong><span class="speed-unit" id="latest-unit">tok/s</span></div><div class="speed-hero-sub" id="latest-sub" hidden></div></div></div><svg class="dashboard-speed-trail" id="speed-trail" viewBox="0 0 140 54" aria-hidden="true"></svg><div class="style-toggle" role="group" data-i18n-aria="speedStyle"><button type="button" class="style-toggle-button" id="speed-style-minimal" data-speed-style-choice="minimal"><svg viewBox="0 0 16 10" aria-hidden="true"><path class="speed-pulse-icon" d="M1 5h3l2-4 3 8 2-4h4"/></svg></button><button type="button" class="style-toggle-button" id="speed-style-cat" data-speed-style-choice="cat"><svg class="cat-badge" id="style-cat-icon" viewBox="0 0 16 10" aria-hidden="true"></svg></button></div></div>
       <dl class="stats-grid speed-stats"><div id="session-speed-cell"><dt data-i18n="sessionAvg">${t('sessionAvg')}</dt><dd><strong id="session-rate">—</strong><span class="speed-unit" id="session-unit"> tok/s</span></dd></div><div id="e2e-speed-cell"><dt data-i18n="e2eSpeed">${t('e2eSpeed')}</dt><dd><strong id="e2e-rate">—</strong><span class="speed-unit" id="e2e-unit"> tok/s</span></dd></div><div id="ttft-cell"><dt data-i18n="ttftShort">${t('ttftShort')}</dt><dd><strong id="ttft">—</strong><span class="speed-unit" id="ttft-unit"></span><span class="ttft-latest" id="ttft-latest"></span></dd></div><div id="peak-speed-cell"><dt data-i18n="peakSpeed">${t('peakSpeed')}</dt><dd><strong id="peak-rate">—</strong><span class="speed-unit" id="peak-unit"> tok/s</span></dd></div></dl>
       <div class="speed-meta" id="speed-meta"><span id="speed-times">—</span><span id="tokens">—</span></div>
       <div class="speed-foot" id="speed-foot"><span id="speed-basis-tag"></span><span id="samples">—</span></div>
@@ -2092,9 +2092,12 @@ module.exports = function installAgPulseInlineWidget() {
     const usage=taskUsage||speed,cache=usage?.cache;
     renderComposition(speed?.contextComposition,cache);
     const isFiniteRate=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
-    const stripRate=!speed||speed.latestRateStatus==='legacy'?null:speed.latestRateStatus!=='unreliable'&&isFiniteRate(speed.latestTps)?speed.latestTps:isFiniteRate(speed.tps)?speed.tps:null;
+    const rateStatus=speed?.latestRateStatus;
+    const legacyRate=rateStatus==='legacy',shortRate=rateStatus==='short',bufferedRate=rateStatus==='buffered',unreliableRate=rateStatus==='unreliable';
+    const statusRate=legacyRate||shortRate||bufferedRate||unreliableRate;
+    const stripRate=!speed||legacyRate?null:!statusRate&&isFiniteRate(speed.latestTps)?speed.latestTps:isFiniteRate(speed.tps)?speed.tps:null;
     const isRunning=Boolean(speed&&/RUNNING/i.test(String(speed.status||'')));
-    const trailSamples=speed&&speed.latestRateStatus!=='legacy'?(Array.isArray(speed.recentTps)&&speed.recentTps.length?speed.recentTps.filter(v=>isFiniteRate(v)&&v>0):stripRate>0?[Math.round(stripRate*10)/10]:[]):[];
+    const trailSamples=speed&&!legacyRate?(Array.isArray(speed.recentTps)&&speed.recentTps.length?speed.recentTps.filter(v=>isFiniteRate(v)&&v>0):stripRate>0?[Math.round(stripRate*10)/10]:[]):[];
     const relSpeed=trailSamples.length>=2?(()=>{const mean=trailSamples.reduce((a,b)=>a+b,0)/trailSamples.length;return mean>0?trailSamples[trailSamples.length-1]/mean:1;})():1;
     const catStride=Number.isFinite(relSpeed)&&relSpeed>0?Math.min(0.7,Math.max(0.14,0.36/(relSpeed*relSpeed))):0.36;
     const activeAge=Date.now()-Date.parse(speed?.lastActiveAt||speed?.context?.sampledAt||speed?.savedAt||'');
@@ -2113,16 +2116,29 @@ module.exports = function installAgPulseInlineWidget() {
     else{text('ttft',seconds(ttftVal));text('ttft-unit','');}
     text('ttft-latest',isFiniteRate(ttftLast)?` / ${ttftShort(ttftLast)}`:'');
     attribute($('ttft-cell'),'title',t('ttftBasis',{p50:seconds(ttftVal),latest:seconds(ttftLast)}));
-    const legacyRate=speed?.latestRateStatus==='legacy',unreliableRate=speed?.latestRateStatus==='unreliable';
     text('session-rate',legacyRate?t('ratePending'):rate(speed?.tps));hidden($('session-unit'),Boolean(legacyRate));
     attribute($('session-speed-cell'),'title',speed?language.rateNote(speed):null);
     text('e2e-rate',legacyRate?t('ratePending'):rate(speed?.e2eTps));hidden($('e2e-unit'),Boolean(legacyRate));
     attribute($('e2e-speed-cell'),'title',t('e2eBasis'));
-    text('latest-rate',unreliableRate?t('timingUnreliable'):legacyRate?t('ratePending'):rate(stripRate));
-    attribute($('latest-rate'),'data-status',unreliableRate||legacyRate?'true':null);
-    hidden($('latest-unit'),Boolean(unreliableRate||legacyRate));
-    attribute($('speed-hero'),'title',t('latestSpeedTip'));
-    const peakCandidate=legacyRate||!speed?-1:isFiniteRate(speed.peakTps)?speed.peakTps:Math.max(isFiniteRate(speed.tps)?speed.tps:-1,!unreliableRate&&isFiniteRate(speed.latestTps)?speed.latestTps:-1);
+    text('latest-rate',shortRate?t('timingShort'):bufferedRate?t('timingBuffered'):unreliableRate?t('timingUnreliable'):legacyRate?t('ratePending'):rate(stripRate));
+    attribute($('latest-rate'),'data-status',statusRate?'true':null);
+    attribute($('latest-rate'),'data-rate-state',statusRate?rateStatus:null);
+    hidden($('latest-unit'),Boolean(statusRate));
+    const durVal=speed?.latestDurationSeconds;
+    const durStr=isFiniteRate(durVal)?(durVal>=10?`${durVal.toFixed(1)}s`:`${durVal.toFixed(2)}s`):'';
+    const tokStr=typeof speed?.latestOutputTokens==='number'&&Number.isSafeInteger(speed.latestOutputTokens)?count(speed.latestOutputTokens):'';
+    const hasPrevRef=Boolean(speed?.prevQualifiedSameModel&&isFiniteRate(speed?.prevQualifiedTps));
+    const subText=shortRate&&tokStr&&durStr?(hasPrevRef?t('shortSublineRef',{tokens:tokStr,dur:durStr,prev:rate(speed.prevQualifiedTps)}):t('shortSubline',{tokens:tokStr,dur:durStr})):bufferedRate&&tokStr&&durStr?(isFiniteRate(speed?.latestE2eTps)?t('bufferedSublineE2e',{tokens:tokStr,dur:durStr,e2e:rate(speed.latestE2eTps)}):t('shortSubline',{tokens:tokStr,dur:durStr})):'';
+    text('latest-sub',subText);
+    hidden($('latest-sub'),!subText);
+    let heroTip=t('latestSpeedTip');
+    if((shortRate||bufferedRate)&&tokStr&&durStr){
+      heroTip=t(shortRate?'shortSpeedTip':'bufferedSpeedTip',{tokens:tokStr,dur:durStr});
+      if(isFiniteRate(speed?.latestE2eTps))heroTip+=t('latestTipE2e',{e2e:rate(speed.latestE2eTps)});
+      if(hasPrevRef)heroTip+=t('latestTipPrev',{prev:rate(speed.prevQualifiedTps)});
+    }
+    attribute($('speed-hero'),'title',heroTip);
+    const peakCandidate=legacyRate||!speed?-1:isFiniteRate(speed.peakTps)?speed.peakTps:Math.max(isFiniteRate(speed.tps)?speed.tps:-1,!statusRate&&isFiniteRate(speed.latestTps)?speed.latestTps:-1);
     text('peak-rate',peakCandidate>=0?rate(peakCandidate):'—');hidden($('peak-unit'),false);
     attribute($('peak-speed-cell'),'title',t('peakBasis'));
     text('speed-times',speed?`${seconds(speed.modelSeconds)} / ${seconds(speed.toolSeconds)}`:'—');

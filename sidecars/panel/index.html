@@ -66,7 +66,10 @@
         <div class="hero-row" id="speed-hero-row">
           <div class="hero-main" id="speed-hero-main">
             <div class="hero-label"><svg class="icon"><use id="speed-hero-icon" href="#gauge"/></svg><span data-i18n="latestSpeed">Latest decode</span></div>
-            <div class="hero-value"><strong id="latest-tps">—</strong><span class="hero-unit" id="panel-latest-unit">tok/s</span></div>
+            <div class="hero-rate-wrap">
+              <div class="hero-value"><strong id="latest-tps">—</strong><span class="hero-unit" id="panel-latest-unit">tok/s</span></div>
+              <div class="hero-sub" id="latest-sub" hidden></div>
+            </div>
           </div>
           <svg class="panel-speed-trail" id="panel-speed-trail" viewBox="0 0 120 44" aria-hidden="true"></svg>
           <div class="style-toggle" role="group" data-i18n-aria="speedStyle" aria-label="Speed card style"><button class="style-toggle-button" type="button" id="speed-style-minimal" data-speed-style-choice="minimal"><svg class="icon"><use href="#pulse"/></svg></button><button class="style-toggle-button" type="button" id="speed-style-cat" data-speed-style-choice="cat"><svg class="icon"><use href="#cat"/></svg></button></div>
