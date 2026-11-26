@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4 — 2026-11-26
+
+- **Optional dedicated footer row layout ([#112](https://github.com/wycocoyu/agy-context-dashboard/issues/112))**: Added `barPlacement` (`inline` / `footer`) in both the inline Settings popover and Antigravity System Settings, allowing the status bar to occupy a dedicated full-width row below the composer toolbar with a `1px` top divider and automatic fallback on non-vertical layouts.
+- **Per-turn reply telemetry footer ([#79](https://github.com/wycocoyu/agy-context-dashboard/issues/79))**: Added an optional single-line per-turn telemetry summary (`model`, `In/Out`, `Cache%`, `Avg tok/s` filtered by `classifyRates()`, trilingual labels) above each completed assistant reply toolbar with Fail-Closed alignment and a hover-only gear shortcut that jumps to and highlights the `turnFooter` row in Settings.
+- **5-tier density fallback & quota visibility ([#106](https://github.com/wycocoyu/agy-context-dashboard/issues/106))**: Prioritized context rounds/label and both quota windows in `compact-text`, added `dense-text` tier before `icons-only`, omitted redundant `5h` prefix in `compact` quota mode, and respected host `min-width`.
+- **System Settings integration & branding ([#102](https://github.com/wycocoyu/agy-context-dashboard/issues/102), [#108](https://github.com/wycocoyu/agy-context-dashboard/issues/108), [#110](https://github.com/wycocoyu/agy-context-dashboard/pull/110))**: Integrated Antigravity Dashboard settings into Antigravity System Settings and unified user-facing branding to Antigravity Dashboard.
+- **Usage chart polish & rate diagnostics ([#67](https://github.com/wycocoyu/agy-context-dashboard/issues/67), [#82](https://github.com/wycocoyu/agy-context-dashboard/pull/82), [#103](https://github.com/wycocoyu/agy-context-dashboard/issues/103), [#111](https://github.com/wycocoyu/agy-context-dashboard/pull/111))**: Refined Usage by Model chart palette, dense embedded bars, and 2-row foldable legend, and split short-window samples and buffered bursts from uncertain timing.
+- **Sidecar hot-restart & installer lock fix (`manage.py`)**: Fixed `restart_active_sidecar()` to read `active-sidecar.json` from the real `sidecar_data` directory with PID verification (`main.mjs`) and restored `@lifecycle_operation` on `install()`.
+
 ## 1.0.3 — 2026-11-25
 
 - **Prevent abrupt `icons-only` collapse in 758px composer ([#97](https://github.com/wycocoyu/agy-context-dashboard/issues/97), [#98](https://github.com/wycocoyu/agy-context-dashboard/pull/98))**: Added a `tight-text` intermediate density tier between `compact-text` and `icons-only` (hiding secondary quota window text and `tok/s` unit suffixes while preserving speed, token totals, cache hit rate, primary quota, and context percentage) for long model names and active running states, plus a 300ms hover-hijack guard during density transitions.
