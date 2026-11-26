@@ -26,7 +26,7 @@ module.exports = function installAgPulseInlineWidget() {
   const densityEase='cubic-bezier(0.32,0.72,0,1)';
   const densitySpringEase='cubic-bezier(0.26,1.52,0.5,1)';
   const isPulseBar=e=>Boolean(e?.hasAttribute?.('data-ag-pulse-bar')||String(e?.id||'').startsWith(ID)||e?.closest?.('[data-ag-pulse-bar],[id^="'+ID+'"]'));
-  const isOwnNode=target=>Boolean(target instanceof Node&&(instances.some(inst=>inst.node&&(target===inst.node||inst.node.contains(target)))||(target instanceof Element?target.closest?.('[data-ag-pulse-turn-footer],[data-ag-pulse-turn-footer-menu]'):target.parentElement?.closest?.('[data-ag-pulse-turn-footer],[data-ag-pulse-turn-footer-menu]'))));
+  const isOwnNode=target=>Boolean(target instanceof Node&&(instances.some(inst=>inst.node&&(target===inst.node||inst.node.contains(target)))||(target instanceof Element?target.closest?.('[data-ag-pulse-turn-footer]'):target.parentElement?.closest?.('[data-ag-pulse-turn-footer]'))));
   let guideReady=false,guideDismissed=false,guideOpened=false,guideSaving=false,guideError=false,usageGuideDismissed=false;
   let hostSettings=null;
   const speedStyle=language.connectSpeedStyle({
@@ -507,7 +507,7 @@ module.exports = function installAgPulseInlineWidget() {
   let chosen=null,group=null,autoGroupId=null,lastModelSig=null,quotaSigCache=null,quotaObservedAt=0;
   let refreshRequest=null,manualRequest=null,hoverQuotaRequest=null,lastQuotaHoverAt=0,requestEpoch=0,scopeRequestEpoch=0;
   let composer=null,usageDashboard=null,updateMenu=null;
-  let remoteSessionNote=null,languageRow=null,settingsDialog=null,settingsOpen=false,settingsTrigger=null,saveNote=null,lastBarLayoutSig='',lastFooterHost='context',lastSettingsSig='',draggingChipId=null;
+  let remoteSessionNote=null,languageRow=null,settingsDialog=null,settingsOpen=false,settingsTrigger=null,settingsHighlightTimer=0,saveNote=null,lastBarLayoutSig='',lastFooterHost='context',lastSettingsSig='',draggingChipId=null;
   let stickyRemoteHost=null;
   const detectRemoteHost=()=>{
     if(surface&&typeof surface.remoteHost==='function'){
@@ -1262,6 +1262,7 @@ module.exports = function installAgPulseInlineWidget() {
     resizeObserver?.disconnect();modelObserver?.disconnect();themeController?.dispose();hide();
     usageDashboard?.dispose();usageDashboard=null;updateMenu?.dispose();updateMenu=null;themeController=null;
     if(settingsOpen)closeSettingsModal({restoreFocus:false});
+    clearTimeout(settingsHighlightTimer);settingsHighlightTimer=0;
     remoteSessionNote=languageRow=settingsDialog=settingsTrigger=saveNote=null;settingsOpen=false;lastBarLayoutSig='';lastFooterHost='context';lastSettingsSig='';draggingChipId=null;
     node?.remove();node=null;root=null;
   }
@@ -1440,7 +1441,7 @@ module.exports = function installAgPulseInlineWidget() {
       .bar-color-list{display:grid;gap:6px}.bar-color-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 7px;border-radius:7px;background:var(--pulse-background);border:1px solid var(--pulse-separator)}.bar-color-label{font-size:11px;font-weight:500;color:var(--pulse-foreground);white-space:nowrap}.bar-color-ctrls{display:inline-flex;align-items:center;gap:5px;flex:none}.bar-color-default{border:1px solid var(--pulse-separator);background:var(--pulse-control);color:var(--pulse-muted);border-radius:5px;padding:2px 6px;font:inherit;font-size:10.5px;line-height:14px;cursor:pointer;transition:border-color 120ms ease,background-color 120ms ease,color 120ms ease}.bar-color-default:hover{background:var(--pulse-hover);color:var(--pulse-foreground)}.bar-color-default[aria-pressed=true]{border-color:var(--pulse-accent);color:var(--pulse-accent);background:color-mix(in srgb,var(--pulse-accent) 12%,var(--pulse-background));font-weight:600}.color-dot{width:14px;height:14px;padding:0;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--pulse-foreground) 22%,transparent);cursor:pointer;flex:none;transition:transform 120ms ease,box-shadow 120ms ease}.color-dot:hover{transform:scale(1.12)}.color-dot[aria-pressed=true]{box-shadow:0 0 0 2px var(--pulse-card),0 0 0 3.5px var(--pulse-foreground)}.color-picker-input{width:22px;height:18px;padding:0;border:1px solid var(--pulse-border);border-radius:5px;background:transparent;cursor:pointer}.color-picker-input::-webkit-color-swatch-wrapper{padding:1px}.color-picker-input::-webkit-color-swatch{border:0;border-radius:3px}
       .settings-tone-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:2px;font-size:11px;color:var(--pulse-muted)}
       .settings-hint{margin:0;font-size:10px;line-height:1.4;color:var(--pulse-muted)}
-      .settings-kv-list{display:grid;gap:7px}.settings-kv{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--pulse-muted)}
+      .settings-kv-list{display:grid;gap:7px}.settings-kv{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--pulse-muted);border-radius:7px;transition:background-color 300ms ease,box-shadow 300ms ease,color 200ms ease}.settings-kv.is-highlight{padding:4px 6px;margin:-4px -6px;background:color-mix(in srgb,var(--pulse-accent) 16%,transparent);box-shadow:0 0 0 1.5px color-mix(in srgb,var(--pulse-accent) 70%,transparent);color:var(--pulse-foreground)}
       .bar-customize-reset{border:0;background:none;padding:0;color:var(--pulse-muted);font:inherit;font-size:10.5px;cursor:pointer}.bar-customize-reset:hover{color:var(--pulse-foreground);text-decoration:underline}
       .bar-customize-section{display:grid;gap:4px}.bar-customize-label{font-size:10.5px;color:var(--pulse-muted)}
       .bar-ctx-modes{display:grid;grid-template-columns:repeat(3,1fr)}.bar-ctx-modes .segmented-button{text-align:center;font-size:10.5px;padding:2px 4px}
@@ -1687,6 +1688,8 @@ module.exports = function installAgPulseInlineWidget() {
   function closeSettingsModal({restoreFocus=true}={}){
     if(!settingsOpen)return;
     settingsOpen=false;
+    clearTimeout(settingsHighlightTimer);settingsHighlightTimer=0;
+    for(const row of root?.querySelectorAll('.settings-kv.is-highlight')||[]){row.classList.remove('is-highlight');row.removeAttribute('data-highlighted');}
     const opener=settingsTrigger;settingsTrigger=null;
     if(settingsDialog){
       attribute(settingsDialog,'data-open',null);
@@ -1697,7 +1700,7 @@ module.exports = function installAgPulseInlineWidget() {
       if(restoreFocus&&opener?.isConnected)try{opener.focus({preventScroll:true});}catch{}
     }
   }
-  function openSettingsModal(trigger=null){
+  function openSettingsModal(trigger=null,options=null){
     if(!settingsDialog)return;
     settingsTrigger=trigger||root?.activeElement||null;
     for(const other of instances){if(other.node!==node)other.hide();other.closeSettings?.({restoreFocus:false});}
@@ -1709,6 +1712,17 @@ module.exports = function installAgPulseInlineWidget() {
     cardVisibility(settingsDialog,true);
     localize();
     positionSettings();
+    clearTimeout(settingsHighlightTimer);settingsHighlightTimer=0;
+    for(const row of root?.querySelectorAll('.settings-kv.is-highlight')||[]){row.classList.remove('is-highlight');row.removeAttribute('data-highlighted');}
+    if(options?.focusSetting){
+      const targetRow=root?.querySelector(`[data-setting-key="${options.focusSetting}"]`);
+      if(targetRow){
+        targetRow.classList.add('is-highlight');
+        targetRow.setAttribute('data-highlighted','true');
+        requestAnimationFrame(()=>{if(settingsOpen&&targetRow.isConnected)targetRow.scrollIntoView({block:'center',behavior:'instant'});});
+        settingsHighlightTimer=setTimeout(()=>{settingsHighlightTimer=0;if(targetRow.isConnected){targetRow.classList.remove('is-highlight');targetRow.removeAttribute('data-highlighted');}},2800);
+      }
+    }
   }
   function renderSettingsModal(){
     if(!root||!settingsDialog)return;
@@ -1835,7 +1849,7 @@ module.exports = function installAgPulseInlineWidget() {
     const secGeneral=mk('section','settings-section');
     secGeneral.append(mk('div','settings-sec-head',t('settingsSectionGeneral')));
     const kv=mk('div','settings-kv-list');
-    const addKv=(labelText,ctrlEl,labelId)=>{const r=mk('div','settings-kv'),lbl=mk('span','',labelText);if(labelId)lbl.id=labelId;r.append(lbl,ctrlEl);kv.append(r);};
+    const addKv=(labelText,ctrlEl,labelId,settingKey)=>{const r=mk('div','settings-kv'),lbl=mk('span','',labelText);if(labelId)lbl.id=labelId;if(settingKey)r.setAttribute('data-setting-key',settingKey);r.append(lbl,ctrlEl);kv.append(r);};
     addKv(t('barPlacement'),segGroup('barPlacement',[
       {label:t('barPlacementInline'),attrs:{'data-bar-placement-choice':'inline'},active:barPlacement.placement==='inline',onClick:()=>void barPlacement.choose('inline')},
       {label:t('barPlacementFooter'),attrs:{'data-bar-placement-choice':'footer'},active:barPlacement.placement==='footer',onClick:()=>void barPlacement.choose('footer')},
@@ -1843,7 +1857,7 @@ module.exports = function installAgPulseInlineWidget() {
     addKv(t('turnFooter'),segGroup('turnFooter',[
       {label:t('turnFooterOff'),attrs:{'data-turn-footer-choice':'false'},active:!turnFooter.enabled,onClick:()=>void turnFooter.choose(false)},
       {label:t('turnFooterOn'),attrs:{'data-turn-footer-choice':'true'},active:turnFooter.enabled,onClick:()=>void turnFooter.choose(true)},
-    ]));
+    ]),null,'turnFooter');
     addKv(t('inlineCacheHit'),segGroup('inlineCacheHit',[
       {label:t('inlineCacheHitOff'),attrs:{'data-inline-cache-hit-choice':'false'},active:!inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(false)},
       {label:t('inlineCacheHitOn'),attrs:{'data-inline-cache-hit-choice':'true'},active:inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(true)},
@@ -2600,54 +2614,8 @@ module.exports = function installAgPulseInlineWidget() {
     attribute($('dot'),'class',`dot ${data.connection}`);attribute($('dot'),'title',t(data.connection==='live'?'live':data.connection==='stale'?'stale':'offline'));tick();fit();position();syncTurnFooters();
   }
   const TURN_FOOTER_STYLE_ID='ag-pulse-turn-footer-style';
-  let turnFooterMenu=null;
-  function closeTurnFooterMenu(){
-    if(turnFooterMenu){turnFooterMenu.remove();turnFooterMenu=null;}
-  }
   function clearTurnFooters(){
-    closeTurnFooterMenu();
     for(const el of document.querySelectorAll('[data-ag-pulse-turn-footer]'))el.remove();
-  }
-  function openTurnFooterMenu(anchorBtn){
-    if(!anchorBtn?.isConnected)return;
-    if(turnFooterMenu&&turnFooterMenu._anchor===anchorBtn){closeTurnFooterMenu();return;}
-    closeTurnFooterMenu();
-    const menu=document.createElement('div');
-    menu.className='ag-pulse-turn-footer-menu';
-    menu.setAttribute('data-ag-pulse-turn-footer-menu','true');
-    menu.setAttribute('role','dialog');
-    menu.setAttribute('data-theme',node?.dataset.pulseTheme==='light'?'light':'dark');
-    menu.setAttribute('aria-label',t('turnFooter'));
-    const label=document.createElement('span');
-    label.className='ag-pulse-turn-footer-menu-label';
-    label.textContent=t('turnFooter');
-    const seg=document.createElement('div');
-    seg.className='ag-pulse-turn-footer-menu-seg';
-    seg.setAttribute('role','group');
-    seg.setAttribute('aria-label',t('turnFooter'));
-    const mkChoice=(val,txt)=>{
-      const b=document.createElement('button');
-      b.type='button';
-      b.className='ag-pulse-turn-footer-menu-btn';
-      b.setAttribute('data-turn-footer-quick',String(val));
-      b.setAttribute('aria-pressed',String(turnFooter.enabled===val));
-      b.textContent=txt;
-      b.addEventListener('click',e=>{e.stopPropagation();closeTurnFooterMenu();void turnFooter.choose(val);});
-      return b;
-    };
-    seg.append(mkChoice(false,t('turnFooterOff')),mkChoice(true,t('turnFooterOn')));
-    menu.append(label,seg);
-    menu.style.visibility='hidden';
-    document.body.append(menu);
-    const ar=anchorBtn.getBoundingClientRect(),mr=menu.getBoundingClientRect();
-    let top=ar.top-mr.height-6;
-    if(top<8)top=ar.bottom+6;
-    const left=Math.max(8,Math.min(innerWidth-mr.width-8,ar.right-mr.width));
-    menu.style.top=`${Math.round(top)}px`;
-    menu.style.left=`${Math.round(left)}px`;
-    menu.style.visibility='';
-    menu._anchor=anchorBtn;
-    turnFooterMenu=menu;
   }
   function formatTurnFooter(turn){
     if(!turn||typeof turn!=='object')return '';
@@ -2677,7 +2645,7 @@ module.exports = function installAgPulseInlineWidget() {
         svgEl('circle',{cx:8,cy:8,r:2.3}),
         svgEl('path',{d:'M13.3 8a5.3 5.3 0 0 0-.1-.9l1.4-1.1-1.3-2.2-1.7.6a5.4 5.4 0 0 0-1.5-.9L9.7 2H6.3l-.4 1.5a5.4 5.4 0 0 0-1.5.9l-1.7-.6L1.4 6l1.4 1.1a5.3 5.3 0 0 0 0 1.8L1.4 10l1.3 2.2 1.7-.6c.5.4 1 .7 1.5.9l.4 1.5h3.4l.4-1.5c.5-.2 1-.5 1.5-.9l1.7.6 1.3-2.2-1.4-1.1c.1-.3.1-.6.1-.9Z'}),
       ]));
-      btn.addEventListener('click',e=>{e.stopPropagation();openTurnFooterMenu(btn);});
+      btn.addEventListener('click',e=>{e.stopPropagation();openSettingsModal(btn,{focusSetting:'turnFooter'});});
       el.append(textEl,btn);
       toolbar.prepend(el);
     }else{
@@ -2700,7 +2668,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!document.getElementById(TURN_FOOTER_STYLE_ID)){
       const st=document.createElement('style');
       st.id=TURN_FOOTER_STYLE_ID;
-      st.textContent='.ag-pulse-turn-footer{display:flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:4px 0 0;opacity:.85;user-select:none;min-width:0}.ag-pulse-turn-footer-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ag-pulse-turn-footer-settings{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 120ms ease,background-color 120ms ease}.ag-pulse-turn-footer:hover .ag-pulse-turn-footer-settings,.ag-pulse-turn-footer:focus-within .ag-pulse-turn-footer-settings{opacity:.72;pointer-events:auto}.ag-pulse-turn-footer-settings:hover,.ag-pulse-turn-footer-settings:focus-visible{opacity:1;background:rgba(128,128,128,.14)}.ag-pulse-turn-footer-menu{position:fixed;z-index:2147483646;display:inline-flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;font:500 12px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);user-select:none}.ag-pulse-turn-footer-menu[data-theme=light]{background:#fff;color:#111827;border:1px solid #e5e7eb}.ag-pulse-turn-footer-menu[data-theme=dark]{background:#1f2430;color:#e5e7eb;border:1px solid #323948}.ag-pulse-turn-footer-menu-seg{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:rgba(128,128,128,.14)}.ag-pulse-turn-footer-menu-btn{border:0;border-radius:4px;padding:3px 8px;font:inherit;font-size:11px;color:inherit;background:transparent;opacity:.75;cursor:pointer}.ag-pulse-turn-footer-menu-btn[aria-pressed=true]{opacity:1;font-weight:600;background:rgba(128,128,128,.22)}.ag-pulse-turn-footer-menu[data-theme=light] .ag-pulse-turn-footer-menu-btn[aria-pressed=true]{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}';
+      st.textContent='.ag-pulse-turn-footer{display:flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:4px 0 0;opacity:.85;user-select:none;min-width:0}.ag-pulse-turn-footer-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ag-pulse-turn-footer-settings{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 120ms ease,background-color 120ms ease}.ag-pulse-turn-footer:hover .ag-pulse-turn-footer-settings,.ag-pulse-turn-footer:focus-within .ag-pulse-turn-footer-settings{opacity:.72;pointer-events:auto}.ag-pulse-turn-footer-settings:hover,.ag-pulse-turn-footer-settings:focus-visible{opacity:1;background:rgba(128,128,128,.14)}';
       (document.head||document.documentElement).append(st);
     }
     const toolbars=Array.from(document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]'));
@@ -2992,7 +2960,7 @@ module.exports = function installAgPulseInlineWidget() {
     onStripModeChanged(){if(root){if(stripMode.mode==='minimal'&&cardName&&cardName!=='context')hide();localize();densityProbe=null;if(!parked&&composer){fit();position();}}},
     onBarPlacementChanged(){if(!root)return;stopDensityMotion();densityFrame=null;densityProbe=null;if(!parked&&composer)mountTo(composer);if(settingsOpen&&settingsDialog&&!settingsDialog.hidden)cardVisibility(settingsDialog,true);localize();if(settingsOpen)renderSettingsModal();if(!parked&&composer){render();fit();position();}},
     onTurnFooterChanged(){if(root){if(settingsOpen)renderSettingsModal();syncTurnFooters();}},
-    syncTurnFooters,clearTurnFooters,closeTurnFooterMenu,
+    syncTurnFooters,clearTurnFooters,
     get isPrimary(){return isPrimary;},
     onCompositionViewChanged(){if(root){clearTimeout(hoverTimer);hoverTimer=null;ignoreLeaveUntil=Date.now()+250;localize();render();position();}},
     onUsageScopeChanged(){if(root){render();}},
@@ -3059,7 +3027,7 @@ module.exports = function installAgPulseInlineWidget() {
   let turnFooterTimer=0;
   const scheduleTurnFooters=()=>{if(turnFooterTimer)return;turnFooterTimer=setTimeout(()=>{turnFooterTimer=0;if(!disposed)for(const inst of instances)if(inst.isPrimary)inst.syncTurnFooters?.();},200);};
   const observer=new MutationObserver(records=>{if(records.some(record=>!isOwnNode(record.target))){scheduleLayout();if(turnFooter.enabled)scheduleTurnFooters();}});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','hidden','inert','data-cascade-id','data-testid','data-tooltip-id','aria-label','role','contenteditable']});
-  const onKey=e=>{if(e.key==='Escape')for(const inst of instances){inst.hide();if(inst.isSettingsOpen)inst.closeSettings?.();inst.closeTurnFooterMenu?.();}}, onPointer=e=>{const path=e.composedPath();const inFooterMenu=path.some(n=>n instanceof Element&&n.closest?.('[data-ag-pulse-turn-footer-settings],[data-ag-pulse-turn-footer-menu]'));if(!inFooterMenu)for(const inst of instances)inst.closeTurnFooterMenu?.();if(path.some(n=>n instanceof Element&&n.closest?.('[data-ag-pulse-turn-footer-settings]')))return;for(const inst of instances)if(inst.node&&!path.includes(inst.node)){inst.hide();inst.closeSettings?.({restoreFocus:false});}};
+  const onKey=e=>{if(e.key==='Escape')for(const inst of instances){inst.hide();if(inst.isSettingsOpen)inst.closeSettings?.();}}, onPointer=e=>{const path=e.composedPath();if(path.some(n=>n instanceof Element&&n.closest?.('[data-ag-pulse-turn-footer-settings]')))return;for(const inst of instances)if(inst.node&&!path.includes(inst.node)){inst.hide();inst.closeSettings?.({restoreFocus:false});}};
   const onFocus=e=>{if(!instances.length||!e.composedPath().some(isOwnNode))scheduleLayout();};
   const onMotionChange=()=>{for(const inst of instances)inst.stopDensityMotion();};
   document.addEventListener('keydown',onKey);document.addEventListener('pointerdown',onPointer);document.addEventListener('focusin',onFocus);
@@ -3076,7 +3044,7 @@ module.exports = function installAgPulseInlineWidget() {
   window.__agPulseDispose=()=>{
     disposed=true;hostI18nEpoch++;
     clearInterval(timerId);clearTimeout(turnFooterTimer);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();barPlacement.dispose();turnFooter.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
-    for(const el of document.querySelectorAll('[data-ag-pulse-turn-footer],[data-ag-pulse-turn-footer-menu]'))el.remove();
+    for(const el of document.querySelectorAll('[data-ag-pulse-turn-footer]'))el.remove();
     document.getElementById('ag-pulse-turn-footer-style')?.remove();
     for(const inst of instances.splice(0))inst.dispose();
     document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);document.removeEventListener('focusin',onFocus);
