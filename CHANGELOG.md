@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6 — 2026-11-26
+
+- **IDE VSIX missing runtime modules fix ([#119](https://github.com/wycocoyu/agy-context-dashboard/issues/119))**: Added `compat/host-theme.mjs` and `compat/remote-ssh.mjs` to the `ide/package.py` allowlist and `tools/publish-release.py` verification checklist, and added an unpacked-VSIX static dependency closure and collector startup test in `tests/test_ide.py`.
+- **Jetski `#t=<hex>` fragment discovery fix ([#119](https://github.com/wycocoyu/agy-context-dashboard/issues/119))**: Allowed valid `#t=[0-9a-f]{16,128}` fragments and CDP `Page.Frame.urlFragment` in `ide/webview-targets.mjs` and `compat/runtime-ui.mjs` while keeping arbitrary `#untrusted` fragments blocked, resolving `waiting-for-composer` on Antigravity IDE (`hostVersion 1.13.0`).
+- **IDE 2.6 unified directory migration support ([#119](https://github.com/wycocoyu/agy-context-dashboard/issues/119))**: Updated `sidecars/panel/local-conversations.mjs` and `sidecars/panel/transcript.mjs` to resolve `~/.gemini/antigravity` when `~/.gemini/antigravity-ide/.ide_migration` is present (and fall back in `local-conversations.mjs` when legacy `antigravity-ide/{conversations,brain}` are absent) while preserving symlink fail-closed checks. (Low-contrast dark-mode `--primary` is tracked separately in [#120](https://github.com/wycocoyu/agy-context-dashboard/issues/120).)
+- **CI density threshold & manual full Windows verification**: Aligned `tools/check-density-motion.mjs` `classChanges` threshold (`<= 6`) with the 7-tier density fallback and added a manual `workflow_dispatch` full Windows suite job in `.github/workflows/ci.yml`.
+
 ## 1.0.5 — 2026-11-26
 
 - **Weekly-only quota & hit-rate-only cache modes ([#113](https://github.com/wycocoyu/agy-context-dashboard/issues/113))**: Added `weekly` (`仅周` / `僅週` / `Weekly`) to `quotaDisplay` and upgraded inline cache display to a 3-way `cacheChipMode` (`tokens` / `both` / `hit` — `仅总量` / `总量+命中` / `仅命中`) across the inline Settings popover, `Token · Cache` card, and Antigravity System Settings, with full backward compatibility for existing `inlineCacheHit` preferences.
