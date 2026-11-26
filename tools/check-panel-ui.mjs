@@ -15,9 +15,9 @@ const releaseVersion=JSON.parse(await readFile(join(repo,'plugin.json'),'utf8'))
 const html=panelPageSource();
 const code=panelAppSource(),requests=[],errors=[],results=[];
 const id='11111111-1111-1111-1111-111111111111';
-let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7,collectionFixture=null,integrationFixture=null,relaunchCalls=[];
+let prefs={language:'en',revision:1},metricsCalls=0,failMetrics=false,rate=38.7,collectionFixture=null,integrationFixture=null,relaunchCalls=[],overshootFixture=false;
 const transcriptSample={version:1,status:'ready',complete:true,userTokens:100,assistantTokens:200,toolTokens:50,systemTokens:10,totalTokens:360,matchedSteps:4,compactionMarkers:1,imageSteps:0};
-const sample=()=>({connection:'live',serverTime:new Date().toISOString(),quotaUpdatedAt:new Date().toISOString(),preferences:prefs,...(integrationFixture?{integration:integrationFixture}:{}),groups:[{id:'gemini',name:'Gemini',windows:{'5h':{available:true,remaining:.8,resetAt:new Date(Date.now()+3600000).toISOString()},weekly:{available:true,remaining:.75,resetAt:new Date(Date.now()+86400000).toISOString()}}}],speed:{transcriptStats:transcriptSample,...trajectoryMetrics({trajectory:{cascadeId:id,steps:[{type:'USER_INPUT'}],generatorMetadata:Array.from({length:23},(_,i)=>({chatModel:{modelDisplayName:'Gemini 3.8 Flash',streamingDuration:(100/rate)+'s',timeToFirstToken:'1.2s',usage:{messageId:'fixture-'+i,inputTokens:100,cacheReadTokens:300,outputTokens:100,responseOutputTokens:100,cacheWriteTokens:0,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:20000,maxContextTokens:100000}}}}))}})}});
+const sample=()=>({connection:'live',serverTime:new Date().toISOString(),quotaUpdatedAt:new Date().toISOString(),preferences:prefs,...(integrationFixture?{integration:integrationFixture}:{}),groups:[{id:'gemini',name:'Gemini',windows:{'5h':{available:true,remaining:.8,resetAt:new Date(Date.now()+3600000).toISOString()},weekly:{available:true,remaining:.75,resetAt:new Date(Date.now()+86400000).toISOString()}}}],speed:{transcriptStats:transcriptSample,...trajectoryMetrics({trajectory:{cascadeId:id,steps:[{type:'USER_INPUT'}],generatorMetadata:Array.from({length:23},(_,i)=>({chatModel:{modelDisplayName:'Gemini 3.8 Flash',streamingDuration:(100/rate)+'s',timeToFirstToken:'1.2s',usage:{messageId:'fixture-'+i,inputTokens:overshootFixture?526567:4975,cacheReadTokens:overshootFixture?0:14925,outputTokens:100,responseOutputTokens:100,cacheWriteTokens:0,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:overshootFixture?526667:20000,maxContextTokens:overshootFixture?512000:100000}}}}))}})}});
 const server=createServer(async(req,res)=>{
  const url=new URL(req.url,'http://localhost'),path=url.pathname;requests.push(path);
  if(path==='/api/metrics'||path==='/api/preferences'||path==='/api/relaunch-debug'){
@@ -212,9 +212,15 @@ try{
  await page.waitForFunction(()=>document.getElementById('relaunch-debug-status')?.textContent.includes('重启'));
  assert.equal(relaunchCalls.length,1);
  integrationFixture={state:'mounted',mode:'runtime',message:'ok',windows:1,checkedAt:new Date().toISOString()};
+ overshootFixture=true;
  await page.locator('#refresh-button').click();
  await page.waitForFunction(()=>{const n=document.getElementById('integration-note');return n.childNodes.length===0&&getComputedStyle(n).display==='none';});
+ await page.locator('#context-tab').click();
+ await page.locator('#context-tokens').filter({hasText:'526.7K / 512K toks'}).waitFor();
+ assert.equal(await page.locator('#strip-context').textContent(),'100%');
+ assert.equal(await page.locator('#context-summary').textContent(),'100% 已用');
+ assert.match(await page.locator('#context-summary').getAttribute('title')||'',/103%/);
  assert.deepEqual(errors,[]);
  await page.close();
- console.log(JSON.stringify({checks:results,automaticRecovery:true,duplicateInitSafe:true,missingDebugPortUi:true,moduleRequests:0,pageErrors:errors}));
+ console.log(JSON.stringify({checks:results,automaticRecovery:true,duplicateInitSafe:true,missingDebugPortUi:true,overWindowCapUi:true,moduleRequests:0,pageErrors:errors}));
 }finally{await browser.close();await new Promise(r=>server.close(r));}

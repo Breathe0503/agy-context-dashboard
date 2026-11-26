@@ -36,7 +36,7 @@ const EDGE_EXE = findEdge();
 
 async function launchBrowser(userDataDir, initialUrl) {
   const child = spawn(EDGE_EXE, [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--window-size=1280,900',
     '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, initialUrl,
   ], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   child.unref();
@@ -180,7 +180,12 @@ test('font sync, scope switching and quota window reference render end-to-end in
     groups: [{ id: 'gemini', name: 'Gemini', windows: { '5h': { available: true, remaining: 0.874, resetAt: reset5h }, weekly: { available: true, remaining: 0.399, resetAt: resetWk } } }],
     usage: usageData(overrideScope),
     ...(integrationState ? { integration: integrationState } : {}),
-    speed: trajectoryMetrics({ trajectory: { cascadeId: id, steps: [{ type: 'USER_INPUT' }], generatorMetadata: [{ chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (XHigh)', chatStartMetadata: { contextWindowMetadata: { estimatedTokensUsed: 100000, maxContextTokens: 512000 } }, usage: billionSpeed ? { messageId: 'm2', inputTokens: '80000000', cacheReadTokens: '1150000000', outputTokens: '4567890', responseOutputTokens: '4000000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' } : { messageId: 'm1', inputTokens: '5384106', cacheReadTokens: '55937971', outputTokens: '473719', responseOutputTokens: '400000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' }, streamingDuration: '2s' } }] } }),
+    speed: trajectoryMetrics({ trajectory: { cascadeId: id, steps: [{ type: 'USER_INPUT' }], generatorMetadata: billionSpeed
+      ? [{ chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (XHigh)', chatStartMetadata: { contextWindowMetadata: { estimatedTokensUsed: 100000, maxContextTokens: 512000 } }, usage: { messageId: 'm2', inputTokens: '80000000', cacheReadTokens: '1150000000', outputTokens: '4567890', responseOutputTokens: '4000000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' }, streamingDuration: '2s' } }]
+      : [
+          { chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (XHigh)', usage: { messageId: 'm1-prev', inputTokens: '5374106', cacheReadTokens: '55857971', outputTokens: '463719', responseOutputTokens: '390000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' }, streamingDuration: '2s' } },
+          { chatModel: { modelDisplayName: 'Gemini 4 Hydrogen (XHigh)', chatStartMetadata: { contextWindowMetadata: { estimatedTokensUsed: 100000, maxContextTokens: 512000 } }, usage: { messageId: 'm1', inputTokens: '10000', cacheReadTokens: '80000', outputTokens: '10000', responseOutputTokens: '10000', apiProvider: 'API_PROVIDER_GOOGLE_GEMINI' }, streamingDuration: '2s' } },
+        ] } }),
   });
   const inlineHtml = `<!doctype html><html><head><meta charset="utf-8"><style>
     body{margin:0;padding:40px;background:#17181a;color:#ddd;font:13px "Segoe UI",sans-serif}

@@ -13,6 +13,7 @@ import {DelegatedUsage} from './delegated-usage.mjs';
 import {safeTaskUsage} from './task-usage.mjs';
 import {delegatedIds} from './delegation.mjs';
 import {classifyAgentRole} from './swarm.mjs';
+import {contextMetrics} from './context.mjs';
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LOCAL_SCOPE = createHash('sha256').update('ag-pulse:local-unauthenticated').digest('hex');
@@ -433,14 +434,25 @@ export class MetricsStore {
         ]);
       }
       let nextComposition = speed.contextComposition;
+      let nextContext = speed.context;
       if (this.tokenBase) nextComposition = attachTokenBase(nextComposition, this.tokenBase);
       if (targetId) {
-        const cachedHost = this.hostContextCache.get(targetId.toLowerCase())?.value;
+        const cachedEntry = this.hostContextCache.get(targetId.toLowerCase());
+        const cachedHost = cachedEntry?.value;
         if (cachedHost?.hostUsage) {
           nextComposition = attachHostContextUsage(nextComposition, cachedHost.hostUsage, cachedHost.creditUsage);
+          if (cachedEntry.mark === hostMark && cachedHost.hostUsage.usedTokens > 0 && cachedHost.hostUsage.maxTokens > 0) {
+            const synced = contextMetrics(
+              { estimatedTokensUsed: cachedHost.hostUsage.usedTokens, maxContextTokens: cachedHost.hostUsage.maxTokens },
+              { model: speed.context?.model || speed.model, sampledAt: speed.context?.sampledAt || speed.lastActiveAt, estimated: false },
+            );
+            if (synced) nextContext = synced;
+          }
         }
       }
-      if (nextComposition !== speed.contextComposition) speed = { ...speed, contextComposition: nextComposition };
+      if (nextComposition !== speed.contextComposition || nextContext !== speed.context) {
+        speed = { ...speed, context: nextContext, contextComposition: nextComposition };
+      }
     }
     if (speed?.model && speed?.tokens && !speed.estimatedCost) {
       const est = estimateModelsCost({
