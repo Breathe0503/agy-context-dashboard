@@ -27,6 +27,18 @@
 
 ## 看看效果
 
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark-zh.webp?v=1.0.3" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light-zh.webp?v=1.0.3" />
+  <img src="docs/assets/hero-light-zh.webp?v=1.0.3" width="100%" alt="Antigrative Dashboard 交互动效演示：悬停展开四类详情卡与侧栏标签切换。" />
+</picture>
+
+<sub>以上动效由离线渲染舞台直接运行本仓库前端源码逐帧录制，示例数据均为虚构。</sub>
+
+</div>
+
 <img src="docs/assets/responsive-zh.png?v=1.0.1" width="100%" alt="v1.0.1 主对话窄窗口四图标布局，以及子代理输入框旁的独立统计。">
 
 <table>
