@@ -198,6 +198,7 @@ try {
       tps: getComputedStyle(sr.getElementById('tps')).display,
       quotaText: getComputedStyle(sr.getElementById('quota-text')).display,
       ctxPct: getComputedStyle(sr.getElementById('context-percent')).display,
+      ctxRounds: getComputedStyle(sr.getElementById('context-rounds')).display,
       modelTruncated: span.scrollWidth > span.clientWidth + 1,
     };
   });
@@ -206,10 +207,173 @@ try {
   assert.notEqual(longModelState.tps, 'none', 'tps stays visible with long model name');
   assert.notEqual(longModelState.quotaText, 'none', 'primary quota stays visible with long model name');
   assert.notEqual(longModelState.ctxPct, 'none', 'context percent stays visible with long model name');
+  assert.notEqual(longModelState.ctxRounds, 'none', 'context rounds stays visible with long model name at 758px');
   assert.equal(longModelState.modelTruncated, false, 'long model selector text must not be truncated');
+
+  // Verify label / compact / rounds context sub-label modes stay responsive under
+  // Orchestrator Gemini 4 Neon Extra High in compact-text / tight-text.
+  await evalJs(`async () => {
+    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
+    for (let w = 758; w >= 460; w -= 12) {
+      document.querySelector('.composer').style.width = w + 'px';
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const d = document.getElementById('ag-pulse-status-bar')?.dataset.density;
+      if (d === 'compact-text' || d === 'tight-text') break;
+    }
+  }`);
+  await waitUntil(() => ['compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long Orchestrator name reaches compact/tight tier');
   await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="label"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display !== 'none';
+  }, 'context label stays visible in compact/tight tier');
+  const labelState = await evalJs(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const sr = n.shadowRoot;
+    return {
+      density: n.dataset.density,
+      label: getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display,
+      rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
+    };
+  });
+  assert.ok(['compact-text', 'tight-text'].includes(labelState.density), 'label check runs in compact/tight tier: ' + labelState.density);
+  assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
+  assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="compact"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.querySelector('[data-card="context"] .context-label')).display === 'none';
+  }, 'compact mode hides context label');
+  assert.equal(await evalJs(() => getComputedStyle(document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('context-rounds')).display), 'none', 'compact mode hides rounds');
+
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-ctx-chip-mode="rounds"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const sr = document.getElementById('ag-pulse-status-bar')?.shadowRoot;
+    return sr && getComputedStyle(sr.getElementById('context-rounds')).display !== 'none';
+  }, 'rounds mode restores context rounds');
+
+  await evalJs(() => {
+    document.querySelector('.composer').style.width = '758px';
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Gemini 4 Hydrogen (Medium)';
   });
+
+  // 0c. Issue #106: narrow widths preserve #context-rounds through compact-text and tight-text,
+  // hiding it only at dense-text while keeping all 4 primary metrics visible.
+  const setWidthAndSettle = async w => {
+    return await evalJs(`async () => {
+      document.querySelector('.composer').style.width = '${w}px';
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const n = document.getElementById('ag-pulse-status-bar');
+      const sr = n.shadowRoot;
+      const disp = sel => {
+        const el = sr.querySelector(sel);
+        return el ? getComputedStyle(el).display : 'missing';
+      };
+      return {
+        density: n.dataset.density,
+        rounds: disp('#context-rounds'),
+        cacheHit: disp('#cache-hit'),
+        cacheUnit: disp('.cache-unit'),
+        quotaTag: disp('.quota-tag'),
+        quotaSecondary: disp('.quota-secondary'),
+        tps: disp('#tps'),
+        cacheNum: disp('#cache-total-num'),
+        quotaText: disp('#quota-text'),
+        ctxPct: disp('#context-percent'),
+      };
+    }`);
+  };
+  let compactSnapshot = null;
+  let tightSnapshot = null;
+  let denseSnapshot = null;
+  for (let w = 640; w >= 320; w -= 6) {
+    const snap = await setWidthAndSettle(w);
+    if (!compactSnapshot && snap.density === 'compact-text') compactSnapshot = { width: w, ...snap };
+    if (!tightSnapshot && snap.density === 'tight-text') tightSnapshot = { width: w, ...snap };
+    if (!denseSnapshot && snap.density === 'dense-text') denseSnapshot = { width: w, ...snap };
+    if (compactSnapshot && tightSnapshot && denseSnapshot) break;
+  }
+  if (compactSnapshot) assert.notEqual(compactSnapshot.quotaSecondary, 'none', 'compact-text preserves both-mode secondary quota');
+  assert.ok(tightSnapshot, 'stepping down composer width must hit tight-text tier before icons');
+  assert.notEqual(tightSnapshot.rounds, 'none', 'tight-text still keeps #context-rounds visible');
+  assert.equal(tightSnapshot.cacheUnit, 'none', 'tight-text hides cache tok unit');
+  assert.equal(tightSnapshot.cacheHit, 'none', 'tight-text hides inline cache hit');
+  assert.equal(tightSnapshot.quotaTag, 'none', 'tight-text hides quota tag');
+  assert.equal(tightSnapshot.quotaSecondary, 'none', 'tight-text hides secondary quota');
+  assert.ok(denseSnapshot, 'stepping down further must hit dense-text tier before icons');
+  assert.equal(denseSnapshot.rounds, 'none', 'dense-text hides #context-rounds');
+  assert.notEqual(denseSnapshot.tps, 'none', 'dense-text keeps #tps visible');
+  assert.notEqual(denseSnapshot.cacheNum, 'none', 'dense-text keeps #cache-total-num visible');
+  assert.notEqual(denseSnapshot.quotaText, 'none', 'dense-text keeps #quota-text visible');
+  assert.notEqual(denseSnapshot.ctxPct, 'none', 'dense-text keeps #context-percent visible');
+
+  // 0d. Issue #106: quotaDisplay='compact' omits 5h prefix and resets density hysteresis cleanly.
+  await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'restore full before quotaDisplay check');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="compact"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => !document.getElementById('ag-pulse-status-bar')?.shadowRoot.getElementById('quota-text')?.textContent.includes('5h'), 'compact quota omits 5h prefix');
+  const compactQuotaText = await evalJs(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('quota-text').textContent);
+  assert.match(compactQuotaText, /^\d+%$/, 'compact quota renders percentage without 5h prefix');
+
+  // Switch back to 'both' at a tight width where 'both' degrades to compact-text,
+  // then switch to 'compact' and verify it recovers to full without dragging wider.
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="both"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot.querySelector('.quota-secondary') !== null, 'both quota restored');
+  let recoveryWidth = null;
+  for (let w = 640; w >= 360; w -= 8) {
+    const snap = await setWidthAndSettle(w);
+    if (snap.density === 'compact-text' || snap.density === 'tight-text') { recoveryWidth = w; break; }
+  }
+  assert.ok(recoveryWidth !== null, 'found tight width where both mode degrades');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="compact"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'switching to compact quota breaks hysteresis and recovers to full');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="both"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot.querySelector('.quota-secondary') !== null, 'restored both quota before PR #84 check');
 
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
   await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });

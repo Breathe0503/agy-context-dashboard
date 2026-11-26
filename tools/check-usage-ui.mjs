@@ -228,6 +228,55 @@ try{
   embedHeatCols.push(hCheck.cols);
  }
  assert.ok(embedHeatCols[0]>embedHeatCols[1],`embed 420px (${embedHeatCols[0]}w) should render more columns than 280px (${embedHeatCols[1]}w)`);
+ // Issue #67: embedded dense daily stacked bars, pill legend without internal scrollbar, and 7+ model foldable toggle
+ await embedPage.evaluate(()=>{
+  window.__embedHost.style.width='420px';
+  window.__embedUd.setTab('details');
+  const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+  sr.querySelector('[data-period="day"]').click();
+ });
+ await embedPage.waitForTimeout(80);
+ const chart67=await embedPage.evaluate(()=>{
+  const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+  const plot=sr.getElementById('plot'),legend=sr.getElementById('legend'),stack=sr.querySelector('.plot .stack'),btn=sr.querySelector('#legend button');
+  return {
+   dense:plot.classList.contains('is-dense'),
+   stackPct:stack?Math.round((stack.getBoundingClientRect().width/stack.parentElement.getBoundingClientRect().width)*100):0,
+   stackRadius:stack?getComputedStyle(stack).borderTopLeftRadius:'',
+   legendOverflowY:getComputedStyle(legend).overflowY,
+   pillRadius:btn?getComputedStyle(btn).borderTopLeftRadius:'',
+   toggleHidden:sr.getElementById('legend-toggle').hidden,
+  };
+ });
+ assert.equal(chart67.dense,true);
+ assert.ok(chart67.stackPct>=80,`Dense day bar width should fill ~84%, got ${chart67.stackPct}%`);
+ assert.equal(chart67.stackRadius,'2px');
+ assert.notEqual(chart67.legendOverflowY,'auto','Legend should use flow pills/toggle rather than an inner scrollbar');
+ assert.equal(chart67.pillRadius,'999px');
+ assert.equal(chart67.toggleHidden,true,'5 models fit cleanly without needing fold toggle');
+ // Feed 8 models into embedded view and test #legend-toggle fold/expand while keeping all 8 buttons in #legend
+ await embedPage.evaluate(()=>{
+  const extraModels=['Gemini 4 Neon','Gemini 4 Flash','Claude Sonnet 4.6','Claude Opus 4.6','GPT-5.4','o4-mini','DeepSeek R1','Qwen Max'];
+  const dayModels=Object.fromEntries(extraModels.map((m,i)=>[m,{input:40000-i*3000,output:8000,total:48000-i*3000,requests:4,cached:20000}]));
+  const clone={...testData,accountKey:'acct-8-models',models:extraModels,days:testData.days.map(d=>({...d,models:dayModels}))};
+  window.__embedUd.open(clone);
+ });
+ await embedPage.waitForTimeout(80);
+ const foldBefore=await embedPage.evaluate(()=>{
+  const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+  return {buttons:sr.querySelectorAll('#legend button').length,folded:sr.getElementById('legend').classList.contains('is-folded'),toggleHidden:sr.getElementById('legend-toggle').hidden,expanded:sr.getElementById('legend-toggle').getAttribute('aria-expanded')};
+ });
+ assert.equal(foldBefore.buttons,8);
+ assert.equal(foldBefore.folded,true);
+ assert.equal(foldBefore.toggleHidden,false);
+ assert.equal(foldBefore.expanded,'false');
+ await embedPage.evaluate(()=>{window.__embedHost.querySelector('#usage-embed > div').shadowRoot.getElementById('legend-toggle').click();});
+ const foldAfter=await embedPage.evaluate(()=>{
+  const sr=window.__embedHost.querySelector('#usage-embed > div').shadowRoot;
+  return {folded:sr.getElementById('legend').classList.contains('is-folded'),expanded:sr.getElementById('legend-toggle').getAttribute('aria-expanded')};
+ });
+ assert.equal(foldAfter.folded,false);
+ assert.equal(foldAfter.expanded,'true');
  await embedPage.close();
  assert.deepEqual(errors,[]);console.log(JSON.stringify({host:ide?'ide':'desktop',trustedTypes:ide,checks:'Usage entry and onboarding persistence/retry/local replay; hover dismissal and keyboard return; themed year menu; stable frame; heatmap and model chart/filter; polling; language/theme; narrow layout; account isolation; missing snapshots and composer replacement',passed:true}));
 }finally{await browser.close();await new Promise(r=>server.close(r));}

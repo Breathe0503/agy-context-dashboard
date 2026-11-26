@@ -142,15 +142,46 @@ def _current_profile():
     return _paths_module.platform_paths(home=HOME, env={})['profile']
 
 
-@lifecycle_operation
+def _sidecar_data_dir():
+    override = os.environ.get('ANTIGRAVITY_EXECUTABLE_DATA_DIR', '').strip()
+    if HOME == _paths['home'] and override:
+        return Path(override).expanduser()
+    return HOME / '.gemini' / 'antigravity' / 'sidecar_data' / 'antigravity-pulse' / 'panel' / 'data'
+
+
+def _is_sidecar_process(pid):
+    try:
+        if sys.platform == 'win32':
+            result = subprocess.run(
+                ['powershell', '-NoProfile', '-Command',
+                 f"(Get-CimInstance Win32_Process -Filter 'ProcessId={int(pid)}').CommandLine"],
+                capture_output=True, text=True, timeout=3, check=False,
+            )
+            cmdline = result.stdout or ''
+            return result.returncode == 0 and 'main.mjs' in cmdline
+        result = subprocess.run(
+            ['ps', '-ww', '-p', str(int(pid)), '-o', 'command='],
+            capture_output=True, text=True, timeout=2, check=False,
+        )
+        cmdline = result.stdout or ''
+        lower = cmdline.lower()
+        return (
+            result.returncode == 0
+            and 'main.mjs' in cmdline
+            and ('sidecar_sdk' in cmdline or 'antigravity' in lower or 'node' in lower)
+        )
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+
+
 def restart_active_sidecar():
-    marker = SETTINGS.parent / 'active-sidecar.json'
+    marker = _sidecar_data_dir() / 'active-sidecar.json'
     try:
         record = json.loads(marker.read_text(encoding='utf-8-sig'))
         pid = int(record.get('pid') or 0)
     except Exception:
         return False
-    if pid <= 0 or pid == os.getpid():
+    if pid <= 0 or pid == os.getpid() or not _is_sidecar_process(pid):
         return False
     try:
         os.kill(pid, signal.SIGTERM)
@@ -159,6 +190,7 @@ def restart_active_sidecar():
         return False
 
 
+@lifecycle_operation
 def install(panel_only=False, legacy_loader=False, with_cli=False, node=None, language=None, with_launcher=False, remote_bridge_port=None):
     own_plugin()
     config = json_read(CONFIG)
@@ -444,7 +476,7 @@ def uninstall():
 def status():
     installed = (PLUGIN / 'plugin.json').is_file()
     enabled = installed and json_read(CONFIG).get('plugins', {}).get('antigravity-pulse', {}).get('enabled', True)
-    health_file = HOME / '.gemini' / 'antigravity' / 'sidecar_data' / 'antigravity-pulse' / 'panel' / 'data' / 'integration-state.json'
+    health_file = _sidecar_data_dir() / 'integration-state.json'
     lc = launch_config()
     host = lc.inspect_host_archive(APP)
     try:

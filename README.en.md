@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input.">
+<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigravity Dashboard: speed, cache, quota and context controls beside the input.">
 
-# Agy Context Dashboard (Antigrative Dashboard)
+# Agy Context Dashboard (Antigravity Dashboard)
 
 DSH-style Antigravity (`agy`) context composition, token throughput, cache hit rate, quota pace, and global insights dashboard beside the model selector and inside the Side Panel.<br>
 Keep the summary visible. Hover or switch tabs for full details.
@@ -173,7 +173,7 @@ The installer copies and enables the plugin and restores any exactly verified le
 <summary><strong>Ask an agent to install it</strong></summary>
 
 ```text
-Install and enable Antigrative Dashboard on this computer.
+Install and enable Antigravity Dashboard on this computer.
 Repository: https://github.com/wycocoyu/agy-context-dashboard
 1. Read README.md, COMPATIBILITY.md, docs/CLI.md and ide/README.md. Inspect the OS,
    available executables, host versions and existing dashboard configuration with
@@ -215,7 +215,7 @@ Repository: https://github.com/wycocoyu/agy-context-dashboard
 
 ### Open the App side panel
 
-Open the right auxiliary pane using its top-right toggle, then choose **+ → Extensions → Antigrative Dashboard** in that pane's toolbar. The Side Panel exposes four top-level tabs ordered for quick access: **Daily/Weekly**, **By model** (with quota pool rollups and per-model **Cache hit** column), **Session** (Speed/Cache/Context cards, `Audit` files/commands/steps viewer, USD cost estimate, multi-agent rollup & `cacheMissSurges`), and **Insights** (Prompt/Flow credits, cross-session totals, 7-day trend, heatmap, and project/skill/tool distributions). A quick `汉` header button toggles lossless host UI Chinese translation live without restarting; clicking metric cards selects details without hiding on pointer departure, and the standalone modal can still be launched from the inline cache card.
+Open the right auxiliary pane using its top-right toggle, then choose **+ → Extensions → Antigravity Dashboard** in that pane's toolbar. The Side Panel exposes four top-level tabs ordered for quick access: **Daily/Weekly**, **By model** (with quota pool rollups and per-model **Cache hit** column), **Session** (Speed/Cache/Context cards, `Audit` files/commands/steps viewer, USD cost estimate, multi-agent rollup & `cacheMissSurges`), and **Insights** (Prompt/Flow credits, cross-session totals, 7-day trend, heatmap, and project/skill/tool distributions). A quick `汉` header button toggles lossless host UI Chinese translation live without restarting; clicking metric cards selects details without hiding on pointer departure, and the standalone modal can still be launched from the inline cache card.
 
 If Antigravity Desktop `2.33.0+` was launched from a regular Dock/shortcut icon—or lost CLI flags after an automatic `quitAndInstall()` update restart—the inline strip enters the `missing-debug-port` diagnostic state. The Side Panel stays open and displays:
 
@@ -282,7 +282,7 @@ The Side Panel `汉` toggle and Context Card **Host UI Chinese** switch enable l
 
 <details><summary><strong>The strip did not appear after installation.</strong></summary>
 
-Fully quit the main app process and reopen it. Run `python3 manage.py status` (use `python` on Windows) and inspect `debugPortAvailable`, `inlineIntegration`, and `debugPortHint`. On Antigravity 2.33.0+, if it reports `missing-debug-port`, reopen via the launcher created by `python3 manage.py install-launcher` (e.g., `~/Applications/Antigravity (Debug).app` on macOS), run `python3 manage.py launch --relaunch`, or click the 1-click relaunch button inside **+ → Extensions → Antigrative Dashboard**. Also inspect `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` and `data/integration-state.json`. Review raw host logs for local information before publishing them.
+Fully quit the main app process and reopen it. Run `python3 manage.py status` (use `python` on Windows) and inspect `debugPortAvailable`, `inlineIntegration`, and `debugPortHint`. On Antigravity 2.33.0+, if it reports `missing-debug-port`, reopen via the launcher created by `python3 manage.py install-launcher` (e.g., `~/Applications/Antigravity (Debug).app` on macOS), run `python3 manage.py launch --relaunch`, or click the 1-click relaunch button inside **+ → Extensions → Antigravity Dashboard**. Also inspect `~/.gemini/antigravity/sidecar_data/antigravity-pulse/panel/logs/sidecar.log` and `data/integration-state.json`. Review raw host logs for local information before publishing them.
 
 </details>
 
@@ -300,7 +300,7 @@ The service returns independent quota groups: `Gemini`, dedicated `Argon` weekly
 
 <details><summary><strong>What happens after an Antigravity update?</strong></summary>
 
-App updates cannot overwrite the runtime adapter in the user plugin directory. On 2.32 and earlier, it rediscovers ports, credentials and the renderer automatically. On **Antigravity 2.33.0+**, in-app updates restart via `autoUpdater.quitAndInstall()`, which drops `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`: starting in `v0.9.5`, the sidecar self-heals Windows/Linux shortcuts and `autoRelaunchDebug` is enabled by default for inline installs (`20s` startup window, single-shot per sidecar, `2` distinct-PID tries per `60s` sliding guard) so the app automatically relaunches once with debug flags and reattaches. If you turn `autoRelaunchDebug` off in the Side Panel (**+ → Extensions → Antigrative Dashboard**), you can still recover via the 1-click relaunch button, `python3 manage.py launch --relaunch`, or the generated debug launcher. If the inline strip is missing, inspect `python3 manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
+App updates cannot overwrite the runtime adapter in the user plugin directory. On 2.32 and earlier, it rediscovers ports, credentials and the renderer automatically. On **Antigravity 2.33.0+**, in-app updates restart via `autoUpdater.quitAndInstall()`, which drops `--remote-debugging-port=0 --remote-debugging-address=127.0.0.1`: starting in `v0.9.5`, the sidecar self-heals Windows/Linux shortcuts and `autoRelaunchDebug` is enabled by default for inline installs (`20s` startup window, single-shot per sidecar, `2` distinct-PID tries per `60s` sliding guard) so the app automatically relaunches once with debug flags and reattaches. If you turn `autoRelaunchDebug` off in the Side Panel (**+ → Extensions → Antigravity Dashboard**), you can still recover via the 1-click relaunch button, `python3 manage.py launch --relaunch`, or the generated debug launcher. If the inline strip is missing, inspect `python3 manage.py status`; use the native panel while a changed host interface is adapted. Never copy an old app archive over a newer installation. See [robustness analysis](docs/ROBUSTNESS.md).
 
 </details>
 

@@ -174,6 +174,27 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   const tokens = { inputTokens:0, cachedTokens:0, cacheWriteTokens:0, uncachedTokens:0, outputTokens:0,
     measuredRequests:0, inputRequests:0, outputRequests:0, missingInputRequests:0, missingOutputRequests:0,
     uncachedRequests:0, cachedRequests:0, cacheWriteRequests:0 };
+  const turnSegments = [];
+  let turnSeg = { start: 0, end: -1, hasVisible: false, completed: false };
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    const typeText = String(s?.type || '');
+    const isUser = /USER_INPUT/.test(typeText);
+    const isSystem = /SYSTEM_MESSAGE/.test(typeText);
+    if (isUser || (isSystem && turnSeg.hasVisible && turnSeg.completed)) {
+      if (turnSeg.hasVisible && turnSeg.completed) turnSegments.push({ start: turnSeg.start, end: i - 1 });
+      turnSeg = { start: i, end: i, hasVisible: false, completed: false };
+    }
+    turnSeg.end = i;
+    if (/PLANNER_RESPONSE/.test(typeText) && String(s?.plannerResponse?.response || '').trim()) {
+      turnSeg.hasVisible = true;
+      turnSeg.completed = !/RUNNING|PENDING|GENERATING/.test(String(s?.status || ''));
+    }
+  }
+  if (turnSeg.hasVisible && turnSeg.completed) turnSegments.push({ start: turnSeg.start, end: turnSeg.end });
+  const turnAcc = turnSegments.map(() => ({
+    model: '', models: new Set(), requests: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0, streamTokens: 0, streamSeconds: 0,
+  }));
   let lastSettledContext = null, lastChatStepIdx = -1;
   for (const [index, generator] of generators.entries()) {
     const chat = generator.chatModel;
@@ -330,7 +351,21 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       addToOrchBucket(pendingPlannerBucket, modelKey, pool, reqUncached, reqRead, reqInput, reqOutput);
       inActiveExecutorSegment = false;
     }
+    let turnSegIdx = -1;
+    const firstTurnStep = gStepIndices.find(si => Number.isInteger(si) && si >= 0 && si < steps.length);
+    if (firstTurnStep !== undefined) {
+      turnSegIdx = turnSegments.findIndex(seg => firstTurnStep >= seg.start && firstTurnStep <= seg.end);
+      if (turnSegIdx >= 0) {
+        const acc = turnAcc[turnSegIdx];
+        if (formattedModel) { acc.model = formattedModel; acc.models.add(formattedModel); }
+        acc.requests++;
+        acc.inputTokens += reqInput;
+        acc.cachedTokens += reqRead;
+        acc.outputTokens += reqOutput;
+      }
+    }
     const sample = { outputTokens: streamTokens, responseTokens, duration, ttft, reasons, toolOnly,
+      turnSegIdx,
       tps: streamTokens !== null && duration > 0 ? streamTokens / duration : null,
       model: formattedModel, basis,
       profile: JSON.stringify([usage.apiProvider || '',chat.responseModel || usage.model || chat.model || chat.modelDisplayName || '',basis]) };
@@ -339,7 +374,7 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   }
   (storage?.classify || classifyRates)(samples);
   let acceptedCount = 0, streamingSeconds = 0, sampledTokens = 0, e2eTokens = 0, e2eSeconds = 0, peakTps = null;
-  let missingTiming = 0, excludedTiming = 0, rateWarnings = 0, sampleCount = 0, latest = null;
+  let missingTiming = 0, excludedTiming = 0, rateWarnings = 0, sampleCount = 0, latest = null, lastQualified = null;
   let allResponse = true, acceptedResponse = true;
   const timingReasons = Object.fromEntries(RATE_REASONS.map(reason=>[reason,0]));
   const recentTps = [], ttftValues = [];
@@ -350,13 +385,18 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     if (typeof s.ttft === 'number' && Number.isFinite(s.ttft)) ttftValues.push(s.ttft);
     for (const reason of s.reasons) if (Object.hasOwn(timingReasons, reason)) timingReasons[reason]++;
     if (s.status === 'missing' && (s.outputTokens ?? 0) > 0) missingTiming++;
-    else if (s.status === 'unreliable') excludedTiming++;
+    else if (s.status === 'unreliable' || s.status === 'buffered' || s.status === 'short') excludedTiming++;
     else if (s.status === 'ok') {
+      lastQualified = s;
       if (s.basis !== 'response') acceptedResponse = false;
-      if (s.duration < 1 || s.outlier) rateWarnings++;
+      if (s.outlier) rateWarnings++;
       acceptedCount++;
       streamingSeconds += s.duration;
       sampledTokens += s.outputTokens;
+      if (s.turnSegIdx >= 0 && s.duration > 0 && s.outputTokens !== null) {
+        turnAcc[s.turnSegIdx].streamTokens += s.outputTokens;
+        turnAcc[s.turnSegIdx].streamSeconds += s.duration;
+      }
       if (typeof s.ttft === 'number' && Number.isFinite(s.ttft) && s.ttft + s.duration > 0) {
         e2eTokens += s.outputTokens;
         e2eSeconds += s.ttft + s.duration;
@@ -370,6 +410,12 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   }
   const ttftMedianSeconds = median(ttftValues);
   const latestTtftSeconds = typeof latest?.ttft === 'number' && Number.isFinite(latest.ttft) ? latest.ttft : null;
+  const latestOutputTokens = typeof latest?.outputTokens === 'number' && Number.isSafeInteger(latest.outputTokens) ? latest.outputTokens : null;
+  const latestDurationSeconds = typeof latest?.duration === 'number' && Number.isFinite(latest.duration) ? latest.duration : null;
+  const latestE2eTps = latest && typeof latest.outputTokens === 'number' && latestTtftSeconds !== null && latestDurationSeconds !== null && latestTtftSeconds + latestDurationSeconds > 0
+    ? latest.outputTokens / (latestTtftSeconds + latestDurationSeconds) : null;
+  const prevQualifiedTps = lastQualified && typeof lastQualified.tps === 'number' && Number.isFinite(lastQualified.tps) ? lastQualified.tps : null;
+  const prevQualifiedSameModel = Boolean(lastQualified && latest?.model && lastQualified.model === latest.model);
   let rounds = 0, toolTotalCalls = 0, toolArgTokens = 0, lastCompactCmdIdx = -1, lastCompactionIdx = -1, compactingInProgress = false;
   const stepBreakdown = { user: 0, planner: 0, tool: 0, compaction: 0, other: 0 };
   const toolIntervals = storage ? null : [];
@@ -481,7 +527,8 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     rateBasis: (acceptedCount ? acceptedResponse : sampleCount > 0 && allResponse) ? 'response' : 'all-output',
     streamingSeconds, modelSeconds, toolSeconds,
     ttftSeconds: ttftMedianSeconds, ttftMedianSeconds, latestTtftSeconds,
-    latestShortSample: latest?.status === 'ok' && latest.duration < 1, model: latest?.model || null,
+    latestOutputTokens, latestDurationSeconds, latestE2eTps, prevQualifiedTps, prevQualifiedSameModel,
+    model: latest?.model || null,
     context: (() => {
       const lastCwm = lastChat?.chatStartMetadata?.contextWindowMetadata;
       if (!lastCwm || typeof lastCwm !== 'object' || Array.isArray(lastCwm)) return null;
@@ -503,6 +550,17 @@ export function trajectoryMetrics(response, storage = null, options = null) {
       }
       return contextMetrics(lastCwm, { model: lastModelRaw, sampledAt, estimated: true });
     })(),
+    turns: turnAcc.slice(-64).map(item => ({
+      model: item.model || null,
+      multiModel: item.models.size > 1,
+      requests: item.requests,
+      inputTokens: item.inputTokens,
+      cachedTokens: item.cachedTokens,
+      outputTokens: item.outputTokens,
+      hitRate: item.inputTokens > 0 ? item.cachedTokens / item.inputTokens : null,
+      tps: item.streamSeconds > 0 && item.streamTokens > 0 ? item.streamTokens / item.streamSeconds : null,
+    })),
+    totalCompletedTurns: turnSegments.length,
     complete: Number(response.numTotalGeneratorMetadata ?? generators.length) === generators.length,
   };
 }
