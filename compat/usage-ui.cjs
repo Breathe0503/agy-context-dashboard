@@ -1,4 +1,5 @@
 // Shared local usage views. Values and model labels are inserted as text.
+const {baseModelName,mergeModelTiers}=require('./usage-model-tiers.cjs');
 module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope,embedded=false,showHeaderTabs=!embedded,onTabChange=null,themeHost=null}) {
   setMarkup||=(target,markup)=>{
     const fragment=document.createDocumentFragment(),stack=[fragment];let offset=0;
@@ -249,25 +250,15 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     let changed=false;
     const modelSet=new Set();
     for(const m of Array.isArray(data.models)?data.models:[]){
-      const canon=modelName(String(m||''));
+      const canon=baseModelName(modelName(String(m||'')));
       if(canon!==m)changed=true;
       if(canon)modelSet.add(canon);
     }
     const days=data.days.map(day=>{
       if(!day||!day.models||typeof day.models!=='object')return day;
-      let dayChanged=false;
-      const merged={};
-      for(const [rawModel,r]of Object.entries(day.models)){
-        const canon=modelName(rawModel);
-        if(canon!==rawModel||Object.hasOwn(merged,canon))dayChanged=true;
-        modelSet.add(canon);
-        if(!Object.hasOwn(merged,canon)){
-          Object.defineProperty(merged,canon,{value:{total:0,requests:0,uncached:0,cacheRead:0,cacheWrite:0,output:0},enumerable:true,writable:true,configurable:true});
-        }
-        const target=merged[canon];
-        for(const key of Object.keys(target))target[key]+=Number(r?.[key])||0;
-      }
+      const {merged,changed:dayChanged}=mergeModelTiers(day.models,modelName,baseModelName);
       if(dayChanged)changed=true;
+      for(const base of Object.keys(merged))modelSet.add(base);
       return dayChanged?{...day,models:merged}:day;
     });
     const models=[...modelSet];
@@ -303,7 +294,14 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
   const totals=(from,to,filter=false)=>{
     const models={};for(const day of value?.days||[])if(day.date>=from&&day.date<=to)for(const [model,r]of Object.entries(day.models)){
       if(filter&&disabledModels.has(model))continue;
-      models[model]||={total:0,requests:0,uncached:0,cacheRead:0,cacheWrite:0,output:0};for(const key of Object.keys(models[model]))models[model][key]+=r[key]||0;
+      models[model]||={total:0,requests:0,uncached:0,cacheRead:0,cacheWrite:0,output:0,tiers:null};
+      for(const [key,v]of Object.entries(r)){
+        if(key==='tiers'){
+          if(v&&typeof v==='object'){models[model].tiers||(models[model].tiers={});for(const [tier,tr]of Object.entries(v)){const dst=models[model].tiers[tier]||(models[model].tiers[tier]={total:0,requests:0,uncached:0,cacheRead:0,cacheWrite:0,output:0});for(const k of Object.keys(dst))dst[k]+=Number(tr?.[k])||0;}}
+          continue;
+        }
+        models[model][key]+=Number(v)||0;
+      }
     }
     return {from,to,models,total:Object.values(models).reduce((n,r)=>n+r.total,0),requests:Object.values(models).reduce((n,r)=>n+r.requests,0)};
   };
@@ -469,7 +467,10 @@ module.exports = function createUsageDashboard({root,language,setMarkup,hostLabe
     }
     for(const [model,r]of Object.entries(rangeTotals.models).sort((a,b)=>b[1].total-a[1].total||modelName(a[0]).localeCompare(modelName(b[0])))){
       const hitInput=(r.uncached||0)+(r.cacheRead||0)+(r.cacheWrite||0),hitCell=hitInput>0?`${((r.cacheRead||0)/hitInput*100).toFixed(1)}%`:'—';
-      const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead].map(n=>node('td','',full(n))),node('td','',hitCell),...[r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));$('table-body').append(row);
+      const row=node('tr',''),label=node('td',''),dot=node('span','dot');dot.style.setProperty('--model-color',color(model));label.append(dot,document.createTextNode(modelName(model)));row.append(label,...[r.total,r.uncached,r.cacheRead].map(n=>node('td','',full(n))),node('td','',hitCell),...[r.cacheWrite,r.output].map(n=>node('td','',full(n))));row.addEventListener('pointerenter',()=>highlightModel(model));row.addEventListener('pointerleave',()=>highlightModel(null));
+      const tiers=Object.entries(r.tiers||{}).filter(([,tr])=>(tr?.total||0)>0);
+      if(tiers.length>1)row.title=w('档位明细','Tier breakdown','檔位明細')+'\n'+tiers.sort((a,b)=>b[1].total-a[1].total).map(([tier,tr])=>`${tier}: ${full(tr.total)}`).join('\n');
+      $('table-body').append(row);
     }
     for(const b of view.querySelectorAll('[data-period]'))b.setAttribute('aria-pressed',String(b.dataset.period===period));
     if(pendingScrollChart){pendingScrollChart=false;const wrap=view.querySelector('.chart-wrap');const lastIdx=buckets.findLastIndex(b=>b.total>0);const align=()=>{if(!disposed&&wrap&&wrap.scrollWidth>wrap.clientWidth){wrap.scrollLeft=lastIdx>=Math.floor(buckets.length/2)?Math.max(0,wrap.scrollWidth-wrap.clientWidth):0;}};align();requestAnimationFrame(align);}
