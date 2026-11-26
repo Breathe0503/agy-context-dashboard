@@ -2610,7 +2610,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(Number.isSafeInteger(turn.inputTokens))parts.push(`${t('turnFooterIn')} ${compact(turn.inputTokens)}`);
     if(Number.isSafeInteger(turn.outputTokens))parts.push(`${t('turnFooterOut')} ${compact(turn.outputTokens)}`);
     if(typeof turn.hitRate==='number'&&Number.isFinite(turn.hitRate))parts.push(`${t('turnFooterCache')} ${pct(turn.hitRate)}`);
-    if(typeof turn.tps==='number'&&Number.isFinite(turn.tps))parts.push(`${Math.round(turn.tps)} tok/s`);
+    if(typeof turn.tps==='number'&&Number.isFinite(turn.tps))parts.push(`${t('turnFooterSpeed')} ${Math.round(turn.tps)} tok/s`);
     return parts.join(' · ');
   }
   function upsertTurnFooter(toolbar,textValue){

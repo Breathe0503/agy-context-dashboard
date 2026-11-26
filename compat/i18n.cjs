@@ -69,7 +69,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       remoteFallbackUnconfigured:'Remote SSH ({host}): inline bar shows shared quota only. Open Antigravity Dashboard in the right sidebar for remote session stats, or configure SSH port forwarding in settings.json.',remoteFallbackUnreachable:'Remote SSH ({host}): remote bridge unreachable — showing shared quota only. Check SSH port forwarding or use the right sidebar.',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'Remote SSH ({host}) · Shared quota',
       stripMode:'Inline bar display',stripFull:'Full bar',stripMinimal:'Minimal bar',stripCollapse:'Collapse to minimal bar',stripExpand:'Expand full bar',stripModeSaveFailed:'Display mode could not be saved. Try again.',
       barPlacement:'Bar placement',barPlacementInline:'Inline',barPlacementFooter:'Bottom row',barPlacementSaveFailed:'Bar placement could not be saved. Try again.',
-      turnFooter:'Per-turn reply footer',turnFooterOn:'On',turnFooterOff:'Off',turnFooterSaveFailed:'Reply footer setting could not be saved. Try again.',turnFooterIn:'In',turnFooterOut:'Out',turnFooterCache:'Cache',
+      turnFooter:'Per-turn reply footer',turnFooterOn:'On',turnFooterOff:'Off',turnFooterSaveFailed:'Reply footer setting could not be saved. Try again.',turnFooterIn:'In',turnFooterOut:'Out',turnFooterCache:'Cache',turnFooterSpeed:'Avg',
     },
     'zh-CN':{
       collectionBackgroundFailed:'后台暂时无法完成，稍后会自动重试。',collectionProcessing:'正在补全统计',collectionProcessingReason:'后台处理中，可继续使用。',collectionProgress:'查看进度',collectionProgressCounts:'已处理 {steps} 个步骤 · {requests} 条请求记录',collectionQueued:'等待处理',collectionSteps:'读取步骤',collectionGenerators:'读取请求记录',collectionReducing:'计算统计',collectionPublishing:'保存已校验统计',
@@ -136,7 +136,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       remoteFallbackUnconfigured:'远程 SSH（{host}）：底栏仅显示共享额度；请在右侧辅助栏打开 Antigravity Dashboard 查看远程会话统计，或配置 SSH 端口转发以同步完整底栏。',remoteFallbackUnreachable:'远程 SSH（{host}）：未连上远程转发端点，底栏暂仅显示共享额度；请确认 SSH 端口转发已开启，或使用右侧辅助栏查看。',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'远程 SSH（{host}）· 共享额度',
       stripMode:'状态条显示模式',stripFull:'完整状态条',stripMinimal:'极简状态条',stripCollapse:'收起为极简状态条',stripExpand:'展开完整状态条',stripModeSaveFailed:'显示模式暂时无法保存，请重试。',
       barPlacement:'底栏位置',barPlacementInline:'同行嵌入',barPlacementFooter:'底部独立一行',barPlacementSaveFailed:'底栏位置暂时无法保存，请重试。',
-      turnFooter:'回复末尾统计条',turnFooterOn:'开启',turnFooterOff:'关闭',turnFooterSaveFailed:'统计条设置暂时无法保存，请重试。',turnFooterIn:'输入',turnFooterOut:'输出',turnFooterCache:'缓存',
+      turnFooter:'回复末尾统计条',turnFooterOn:'开启',turnFooterOff:'关闭',turnFooterSaveFailed:'统计条设置暂时无法保存，请重试。',turnFooterIn:'输入',turnFooterOut:'输出',turnFooterCache:'缓存',turnFooterSpeed:'均速',
     },
     'zh-TW':{
       collectionBackgroundFailed:'背景暫時無法完成，稍後會自動重試。',collectionProcessing:'正在補全統計',collectionProcessingReason:'背景處理中，可繼續使用。',collectionProgress:'查看進度',collectionProgressCounts:'已處理 {steps} 個步驟 · {requests} 筆請求記錄',collectionQueued:'等待處理',collectionSteps:'讀取步驟',collectionGenerators:'讀取請求記錄',collectionReducing:'計算統計',collectionPublishing:'儲存已驗證統計',
@@ -203,7 +203,7 @@ module.exports = function createDashboardI18n(initialLanguage) {
       remoteFallbackUnconfigured:'遠端 SSH（{host}）：底欄僅顯示共享額度；請在右側輔助欄開啟 Antigravity Dashboard 查看遠端工作階段統計，或設定 SSH 連接埠轉發以同步完整底欄。',remoteFallbackUnreachable:'遠端 SSH（{host}）：無法連線至遠端轉發端點，底欄暫僅顯示共享額度；請確認 SSH 連接埠轉發已開啟，或使用右側輔助欄查看。',remoteConnectedBadge:'SSH · {host}',remoteQuotaTitle:'遠端 SSH（{host}）· 共享額度',
       stripMode:'狀態列顯示模式',stripFull:'完整狀態列',stripMinimal:'極簡狀態列',stripCollapse:'收合為極簡狀態列',stripExpand:'展開完整狀態列',stripModeSaveFailed:'顯示模式暫時無法儲存，請重試。',
       barPlacement:'底欄位置',barPlacementInline:'同行嵌入',barPlacementFooter:'底部獨立一行',barPlacementSaveFailed:'底欄位置暫時無法儲存，請再試一次。',
-      turnFooter:'回覆末尾統計列',turnFooterOn:'開啟',turnFooterOff:'關閉',turnFooterSaveFailed:'統計列設定暫時無法儲存，請再試一次。',turnFooterIn:'輸入',turnFooterOut:'輸出',turnFooterCache:'快取',
+      turnFooter:'回覆末尾統計列',turnFooterOn:'開啟',turnFooterOff:'關閉',turnFooterSaveFailed:'統計列設定暫時無法儲存，請再試一次。',turnFooterIn:'輸入',turnFooterOut:'輸出',turnFooterCache:'快取',turnFooterSpeed:'均速',
     },
   };
   let language=initialLanguage==='zh-CN'||initialLanguage==='zh-TW'?initialLanguage:'en';
