@@ -28,9 +28,10 @@ module.exports = function installAgPulseInlineWidget() {
   const isPulseBar=e=>Boolean(e?.hasAttribute?.('data-ag-pulse-bar')||String(e?.id||'').startsWith(ID)||e?.closest?.('[data-ag-pulse-bar],[id^="'+ID+'"]'));
   const isOwnNode=target=>Boolean(target instanceof Node&&instances.some(inst=>inst.node&&(target===inst.node||inst.node.contains(target))));
   let guideReady=false,guideDismissed=false,guideOpened=false,guideSaving=false,guideError=false,usageGuideDismissed=false;
+  let hostSettings=null;
   const speedStyle=language.connectSpeedStyle({
     initial:localGet('ag-pulse-speed-style'),cache:value=>localSet('ag-pulse-speed-style',value),
-    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onSpeedStyleChanged();},
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onSpeedStyleChanged();hostSettings?.sync();},
   });
   const usageScope=language.connectUsageScope({
     initial:localGet('ag-pulse-usage-scope'),cache:value=>localSet('ag-pulse-usage-scope',value),
@@ -38,7 +39,7 @@ module.exports = function installAgPulseInlineWidget() {
   });
   const quotaDisplay=language.connectQuotaDisplay({
     initial:localGet('ag-pulse-quota-display'),cache:value=>localSet('ag-pulse-quota-display',value),
-    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onQuotaDisplayChanged();},
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onQuotaDisplayChanged();hostSettings?.sync();},
   });
   let compositionView=localGet('ag-pulse-composition-view')==='bar'?'bar':'list';
   let stepsDrawerOpen=false,pendingCompact=null,compactPollTimer=0,compactDispatching=false;
@@ -53,49 +54,49 @@ module.exports = function installAgPulseInlineWidget() {
   const hostUiLocalization=language.connectHostUiLocalization({
     initial:localGet('ag-pulse-host-ui-localization')==='true',cache:value=>localSet('ag-pulse-host-ui-localization',value?'true':'false'),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{void syncHostUiLocalizationState();for(const inst of instances)inst.onHostUiLocalizationChanged();},
+    changed:()=>{void syncHostUiLocalizationState();for(const inst of instances)inst.onHostUiLocalizationChanged();hostSettings?.sync();},
   });
   const storedInlineCacheHit=localGet('ag-pulse-inline-cache-hit');
   const inlineCacheHit=language.connectInlineCacheHit({
     initial:storedInlineCacheHit==='false'?false:storedInlineCacheHit==='true'?true:null,
     cache:value=>localSet('ag-pulse-inline-cache-hit',value?'true':'false'),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{for(const inst of instances)inst.onInlineCacheHitChanged();},
+    changed:()=>{for(const inst of instances)inst.onInlineCacheHitChanged();hostSettings?.sync();},
   });
   const readBarColorsCache=()=>{try{const raw=localGet('ag-pulse-bar-colors');return raw?JSON.parse(raw):null;}catch{return null;}};
   const barColorsPref=language.connectBarColors({
     initial:readBarColorsCache(),
     cache:value=>localSet('ag-pulse-bar-colors',JSON.stringify(value)),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{for(const inst of instances)inst.onBarColorsChanged();},
+    changed:()=>{for(const inst of instances)inst.onBarColorsChanged();hostSettings?.sync();},
   });
   const themeModePref=language.connectThemeMode({
     initial:localGet('ag-pulse-theme-mode'),
     cache:value=>localSet('ag-pulse-theme-mode',value),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{for(const inst of instances)inst.onThemeModeChanged();},
+    changed:()=>{for(const inst of instances)inst.onThemeModeChanged();hostSettings?.sync();},
   });
   const cacheHitTone=language.connectCacheHitTone({
     initial:localGet('ag-pulse-cache-hit-tone'),
     cache:value=>localSet('ag-pulse-cache-hit-tone',value),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{for(const inst of instances)inst.onCacheHitToneChanged();},
+    changed:()=>{for(const inst of instances)inst.onCacheHitToneChanged();hostSettings?.sync();},
   });
   const storedCacheHitTiers=localGet('ag-pulse-cache-hit-tiers');
   const cacheHitTiers=language.connectCacheHitTiers({
     initial:storedCacheHitTiers==='true'?true:storedCacheHitTiers==='false'?false:null,
     cache:value=>localSet('ag-pulse-cache-hit-tiers',value?'true':'false'),
     write:input=>window.agPulseHost.setPreferences(input),
-    changed:()=>{for(const inst of instances)inst.onCacheHitTiersChanged();},
+    changed:()=>{for(const inst of instances)inst.onCacheHitTiersChanged();hostSettings?.sync();},
   });
   const readBarPrefsCache=()=>{try{const raw=localGet('ag-pulse-bar-prefs');return raw?JSON.parse(raw):null;}catch{return null;}};
   const barPrefs=language.connectBarPreferences({
     initial:readBarPrefsCache(),cache:value=>localSet('ag-pulse-bar-prefs',JSON.stringify(value)),
-    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onBarPrefsChanged();},
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onBarPrefsChanged();hostSettings?.sync();},
   });
   const stripMode=language.connectStripMode({
     initial:localGet('ag-pulse-strip-mode'),cache:value=>localSet('ag-pulse-strip-mode',value),
-    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onStripModeChanged();},
+    write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onStripModeChanged();hostSettings?.sync();},
   });
   async function syncHostUiLocalizationState(){
     if(disposed||!hostI18n)return;
@@ -112,14 +113,19 @@ module.exports = function installAgPulseInlineWidget() {
     if(!disposed&&epoch===hostI18nEpoch&&hostUiLocalization.enabled)hostI18n.setEnabled(true);
   }
   if(hostUiLocalization.enabled)void syncHostUiLocalizationState();
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}}
-  window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);}};
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}hostSettings?.sync();}
+  window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);hostSettings?.sync();}};
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
     write:async input=>{const value=await window.agPulseHost.setPreferences(input);syncGuide(value);return value;},
-    cache:value=>localSet('ag-pulse-language',value),changed:()=>{for(const inst of instances)inst.onLocaleChanged();},
+    cache:value=>localSet('ag-pulse-language',value),changed:()=>{for(const inst of instances)inst.onLocaleChanged();hostSettings?.sync();},
   });
-  void preferences.ready.then(()=>{if(disposed)return;guideReady=!preferences.error;scheduleLayout();});
+  hostSettings=typeof window.__agPulseHostSettingsFactory==='function'?window.__agPulseHostSettingsFactory({
+    language,theme,preferences,barPrefs,barColorsPref,themeModePref,cacheHitTone,cacheHitTiers,inlineCacheHit,quotaDisplay,speedStyle,hostUiLocalization,stripMode,
+    version:typeof window.__agPulseVersion==='string'?window.__agPulseVersion:'',
+    allowNested:window.__agPulseAllowNested===true,
+  }):null;
+  void preferences.ready.then(()=>{if(disposed)return;guideReady=!preferences.error;hostSettings?.sync();scheduleLayout();});
   const icon=(name)=>({cache:'<ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/>',five:'<circle cx="8" cy="8" r="5.6"/><path d="M8 4.7v3.6l2.3 1.4"/>',week:'<rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M5 2v3m6-3v3M3 7h10"/>'}[name]);
   const svg=name=>`<svg viewBox="0 0 16 16" aria-hidden="true">${name==='context'?'<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4V8l4.8 2.8"/>':icon(name)}</svg>`;
   const SVG_NS='http://www.w3.org/2000/svg';
@@ -1809,7 +1815,7 @@ module.exports = function installAgPulseInlineWidget() {
       {label:t('hostUiLocalizationOff'),attrs:{'data-host-i18n-choice':'false'},active:!hostUiLocalization.enabled,onClick:()=>void hostUiLocalization.choose(false)},
       {label:t('hostUiLocalizationOn'),attrs:{'data-host-i18n-choice':'true'},active:hostUiLocalization.enabled,onClick:()=>void hostUiLocalization.choose(true)},
     ]),'host-i18n-label');
-    addKv(t('language'),segGroup('language',[
+    addKv(t('dashboardLanguage'),segGroup('dashboardLanguage',[
       {label:'EN',attrs:{'data-language-choice':'en'},active:language.language==='en',onClick:()=>void preferences.choose('en')},
       {label:'简',attrs:{'data-language-choice':'zh-CN'},active:language.language==='zh-CN',onClick:()=>void preferences.choose('zh-CN')},
       {label:'繁',attrs:{'data-language-choice':'zh-TW'},active:language.language==='zh-TW',onClick:()=>void preferences.choose('zh-TW')},
@@ -2869,7 +2875,7 @@ module.exports = function installAgPulseInlineWidget() {
   const timerId=setInterval(()=>{mount();if(!instances.length)pollHostPrefs();for(const inst of instances)inst.poll();},1000);
   window.__agPulseDispose=()=>{
     disposed=true;hostI18nEpoch++;
-    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();hostI18n?.dispose();delete window.__agPulseOnPreferences;
+    clearInterval(timerId);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
     for(const inst of instances.splice(0))inst.dispose();
     document.removeEventListener('keydown',onKey);document.removeEventListener('pointerdown',onPointer);document.removeEventListener('focusin',onFocus);
     document.removeEventListener('scroll',scheduleLayout,true);window.removeEventListener('resize',scheduleLayout);
