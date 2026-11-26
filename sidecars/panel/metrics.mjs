@@ -339,7 +339,7 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   }
   (storage?.classify || classifyRates)(samples);
   let acceptedCount = 0, streamingSeconds = 0, sampledTokens = 0, e2eTokens = 0, e2eSeconds = 0, peakTps = null;
-  let missingTiming = 0, excludedTiming = 0, rateWarnings = 0, sampleCount = 0, latest = null;
+  let missingTiming = 0, excludedTiming = 0, rateWarnings = 0, sampleCount = 0, latest = null, lastQualified = null;
   let allResponse = true, acceptedResponse = true;
   const timingReasons = Object.fromEntries(RATE_REASONS.map(reason=>[reason,0]));
   const recentTps = [], ttftValues = [];
@@ -350,10 +350,11 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     if (typeof s.ttft === 'number' && Number.isFinite(s.ttft)) ttftValues.push(s.ttft);
     for (const reason of s.reasons) if (Object.hasOwn(timingReasons, reason)) timingReasons[reason]++;
     if (s.status === 'missing' && (s.outputTokens ?? 0) > 0) missingTiming++;
-    else if (s.status === 'unreliable') excludedTiming++;
+    else if (s.status === 'unreliable' || s.status === 'buffered' || s.status === 'short') excludedTiming++;
     else if (s.status === 'ok') {
+      lastQualified = s;
       if (s.basis !== 'response') acceptedResponse = false;
-      if (s.duration < 1 || s.outlier) rateWarnings++;
+      if (s.outlier) rateWarnings++;
       acceptedCount++;
       streamingSeconds += s.duration;
       sampledTokens += s.outputTokens;
@@ -370,6 +371,12 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   }
   const ttftMedianSeconds = median(ttftValues);
   const latestTtftSeconds = typeof latest?.ttft === 'number' && Number.isFinite(latest.ttft) ? latest.ttft : null;
+  const latestOutputTokens = typeof latest?.outputTokens === 'number' && Number.isSafeInteger(latest.outputTokens) ? latest.outputTokens : null;
+  const latestDurationSeconds = typeof latest?.duration === 'number' && Number.isFinite(latest.duration) ? latest.duration : null;
+  const latestE2eTps = latest && typeof latest.outputTokens === 'number' && latestTtftSeconds !== null && latestDurationSeconds !== null && latestTtftSeconds + latestDurationSeconds > 0
+    ? latest.outputTokens / (latestTtftSeconds + latestDurationSeconds) : null;
+  const prevQualifiedTps = lastQualified && typeof lastQualified.tps === 'number' && Number.isFinite(lastQualified.tps) ? lastQualified.tps : null;
+  const prevQualifiedSameModel = Boolean(lastQualified && latest?.model && lastQualified.model === latest.model);
   let rounds = 0, toolTotalCalls = 0, toolArgTokens = 0, lastCompactCmdIdx = -1, lastCompactionIdx = -1, compactingInProgress = false;
   const stepBreakdown = { user: 0, planner: 0, tool: 0, compaction: 0, other: 0 };
   const toolIntervals = storage ? null : [];
@@ -481,7 +488,8 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     rateBasis: (acceptedCount ? acceptedResponse : sampleCount > 0 && allResponse) ? 'response' : 'all-output',
     streamingSeconds, modelSeconds, toolSeconds,
     ttftSeconds: ttftMedianSeconds, ttftMedianSeconds, latestTtftSeconds,
-    latestShortSample: latest?.status === 'ok' && latest.duration < 1, model: latest?.model || null,
+    latestOutputTokens, latestDurationSeconds, latestE2eTps, prevQualifiedTps, prevQualifiedSameModel,
+    model: latest?.model || null,
     context: (() => {
       const lastCwm = lastChat?.chatStartMetadata?.contextWindowMetadata;
       if (!lastCwm || typeof lastCwm !== 'object' || Array.isArray(lastCwm)) return null;
