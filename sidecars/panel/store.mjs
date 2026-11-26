@@ -229,7 +229,8 @@ export class MetricsStore {
     const orchKey = orchestratorSettings ? `${orchestratorSettings.orchestratorModel || ''}\0${orchestratorSettings.orchestratorExecutorModel || ''}` : '';
     let entry = this.sessions.get(id);
     if (entry?.pending) return entry.pending;
-    if (!force && entry?.data && Date.now() - entry.updatedAt < 1800 && (entry.orchKey || '') === orchKey) return entry.data;
+    const ttlMs = entry?.data?.compactionState === 'compacting' ? 400 : 1800;
+    if (!force && entry?.data && Date.now() - entry.updatedAt < ttlMs && (entry.orchKey || '') === orchKey) return entry.data;
     entry ||= {};
     this.sessions.set(id, entry);
     const current = () => this.owned() && identity === this.identity && epoch === this.epoch && this.sessions.get(id) === entry;
@@ -427,9 +428,9 @@ export class MetricsStore {
     if (speed?.contextComposition) {
       const targetId = speed.conversationId || conversationId || null;
       const hostMark = `${speed.steps ?? ''}:${speed.requests ?? ''}:${speed.lastActiveAt ?? ''}`;
-      if (contextDetail) {
+      if (contextDetail || speed?.compactionState === 'compacted') {
         await Promise.allSettled([
-          this.refreshTokenBase(),
+          contextDetail ? this.refreshTokenBase() : Promise.resolve(null),
           targetId ? this.refreshHostContext(targetId, hostMark) : Promise.resolve(null),
         ]);
       }

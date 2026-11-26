@@ -657,6 +657,24 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('card-language-zh').click()`);
   await waitUntil(`() => (document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('week-usage').getAttribute('title') || '').includes('129.9M toks (约 216.2M 满额)')`, 'restore zh-CN');
 
+  const compactCheck = await evalJs(`() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const btn = sr.getElementById('context-compact-btn');
+    const editor = document.querySelector('[contenteditable="true"]');
+    const before = { visible: btn && !btn.hidden, text: btn?.textContent?.trim(), disabled: btn?.disabled };
+    btn?.click();
+    const after = {
+      editorText: editor?.textContent?.trim(),
+      chipText: sr.getElementById('context-percent')?.textContent,
+      ringCompacting: sr.getElementById('context-ring')?.getAttribute('data-compacting'),
+      btnDisabled: btn?.disabled,
+    };
+    if (editor) editor.textContent = '';
+    return { before, after };
+  }`);
+  assert.deepEqual(compactCheck.before, { visible: true, text: '压缩', disabled: false });
+  assert.deepEqual(compactCheck.after, { editorText: '/compact', chipText: '压缩中', ringCompacting: 'true', btnDisabled: true });
+
   // 2. Navigate to Sidecar Panel and verify Fira Code font sync + compact quota height + toks cache card
   signedIn = true;
   await cdp.command('Page.navigate', { url: `${baseUrl}/` });

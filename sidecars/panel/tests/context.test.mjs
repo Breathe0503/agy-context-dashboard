@@ -323,3 +323,55 @@ test('settled usage calibrates Gemini overestimate and Claude underestimate; abo
  const s2=await store2.snapshot({conversationId:id,force:true,contextDetail:false});
  assert.equal(s2.speed.context.usedTokens,40200);
 });
+
+test('compactionState tracks in-flight /compact and refreshes host context immediately upon compaction',async t=>{
+ const id='33333333-3333-4333-8333-333333333333';
+ const inFlight=trajectoryMetrics({
+  status:'CASCADE_RUN_STATUS_RUNNING',
+  trajectory:{
+   cascadeId:id,
+   steps:[
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',userInput:{userResponse:'hello'}},
+    {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE'},
+    {type:'CORTEX_STEP_TYPE_USER_INPUT',userInput:{userResponse:'/compact'}},
+   ],
+   generatorMetadata:[
+    {stepIndices:[1],chatModel:{modelDisplayName:'Gemini 4 Hydrogen (High)',usage:{messageId:'m1',inputTokens:'480000',outputTokens:'500',apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:485000,maxContextTokens:512000}}}},
+   ],
+  },
+ });
+ assert.equal(inFlight.compactionState,'compacting');
+
+ const dir=await mkdtemp(join(tmpdir(),'ag-compact-sync-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ let stage='compacting';
+ const store=new MetricsStore({
+  discover:async()=>({pid:1}),
+  call:async m=>m==='GetUserStatus'?{userStatus:{email:'a@b.test'}}:m==='RetrieveUserQuotaSummary'?{}:{customizationTokenBase:{totalTokens:5000,groups:[]}},
+  trajectory:async()=>stage==='compacting'
+   ?{status:'CASCADE_RUN_STATUS_RUNNING',trajectory:{cascadeId:id,steps:[
+     {type:'CORTEX_STEP_TYPE_USER_INPUT',userInput:{userResponse:'hello'}},
+     {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE'},
+     {type:'CORTEX_STEP_TYPE_COMPACTION',status:'CORTEX_STEP_STATUS_RUNNING'},
+    ],generatorMetadata:[
+     {stepIndices:[1],chatModel:{modelDisplayName:'Gemini 4 Hydrogen (High)',usage:{messageId:'m1',inputTokens:'480000',outputTokens:'500',apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:485000,maxContextTokens:512000}}}},
+    ]}}
+   :{status:'CASCADE_RUN_STATUS_IDLE',trajectory:{cascadeId:id,steps:[
+     {type:'CORTEX_STEP_TYPE_USER_INPUT',userInput:{userResponse:'hello'}},
+     {type:'CORTEX_STEP_TYPE_PLANNER_RESPONSE'},
+     {type:'CORTEX_STEP_TYPE_COMPACTION',status:'CORTEX_STEP_STATUS_DONE'},
+    ],generatorMetadata:[
+     {stepIndices:[1],chatModel:{modelDisplayName:'Gemini 4 Hydrogen (High)',usage:{messageId:'m1',inputTokens:'480000',outputTokens:'500',apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{contextWindowMetadata:{estimatedTokensUsed:485000,maxContextTokens:512000}}}},
+    ]}},
+  streamContextWindowUsage:async()=>({contextWindowUsage:{estimatedTokensUsed:32000,maxContextTokens:512000,tokenGroups:[{name:'Chat Messages',type:'TOKEN_TYPE_CHAT_MESSAGES',numTokens:32000}]}}),
+ },{history:new SessionHistory(dir),transcripts:null,background:null});
+ t.after(()=>store.dispose());
+
+ const snap1=await store.snapshot({conversationId:id,contextDetail:false});
+ assert.equal(snap1.speed.compactionState,'compacting');
+ assert.equal(snap1.speed.context.usedTokens,480500);
+
+ stage='compacted';
+ const snap2=await store.snapshot({conversationId:id,force:true,contextDetail:false});
+ assert.equal(snap2.speed.compactionState,'compacted');
+ assert.equal(snap2.speed.context.usedTokens,32000,'host stream updates context immediately after compaction without waiting for contextDetail or next turn');
+});

@@ -164,6 +164,7 @@ export function safeMetrics(value, conversationId) {
   const formattedModel = typeof value.model === 'string' ? formatModelName(value.model) : null;
   result.model = formattedModel ? formattedModel.slice(0,256) : null;
   result.status = typeof value.status === 'string' && /^[A-Z0-9_]+$/.test(value.status) ? value.status : null;
+  result.compactionState = ['compacting', 'compacted', 'idle'].includes(value.compactionState) ? value.compactionState : 'idle';
   result.context = safeContext(value.context) || null;
   if (Object.hasOwn(value, 'modelBreakdown')) result.modelBreakdown = safeSessionModelBreakdown(value.modelBreakdown);
   if (Object.hasOwn(value, 'cacheMissSurges')) result.cacheMissSurges = tokenNumber(value.cacheMissSurges) ? value.cacheMissSurges : 0;
