@@ -2616,13 +2616,34 @@ module.exports = function installAgPulseInlineWidget() {
   function upsertTurnFooter(toolbar,textValue){
     if(!toolbar||!textValue)return;
     let el=toolbar.querySelector(':scope > [data-ag-pulse-turn-footer]');
+    let textEl,btn;
     if(!el){
       el=document.createElement('div');
       el.className='ag-pulse-turn-footer';
       el.setAttribute('data-ag-pulse-turn-footer','true');
+      textEl=document.createElement('span');
+      textEl.className='ag-pulse-turn-footer-text';
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.className='ag-pulse-turn-footer-settings';
+      btn.setAttribute('data-ag-pulse-turn-footer-settings','true');
+      btn.append(svgEl('svg',{viewBox:'0 0 16 16',width:11,height:11,fill:'none',stroke:'currentColor','stroke-width':1.5,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'},[
+        svgEl('circle',{cx:8,cy:8,r:2.3}),
+        svgEl('path',{d:'M13.3 8a5.3 5.3 0 0 0-.1-.9l1.4-1.1-1.3-2.2-1.7.6a5.4 5.4 0 0 0-1.5-.9L9.7 2H6.3l-.4 1.5a5.4 5.4 0 0 0-1.5.9l-1.7-.6L1.4 6l1.4 1.1a5.3 5.3 0 0 0 0 1.8L1.4 10l1.3 2.2 1.7-.6c.5.4 1 .7 1.5.9l.4 1.5h3.4l.4-1.5c.5-.2 1-.5 1.5-.9l1.7.6 1.3-2.2-1.4-1.1c.1-.3.1-.6.1-.9Z'}),
+      ]));
+      btn.addEventListener('click',e=>{e.stopPropagation();openSettingsModal(btn);});
+      el.append(textEl,btn);
       toolbar.prepend(el);
+    }else{
+      textEl=el.querySelector(':scope > .ag-pulse-turn-footer-text');
+      btn=el.querySelector(':scope > [data-ag-pulse-turn-footer-settings]');
     }
-    if(el.textContent!==textValue)el.textContent=textValue;
+    if(textEl&&textEl.textContent!==textValue)textEl.textContent=textValue;
+    if(btn){
+      const label=t('pulseSettingsTitle');
+      if(btn.getAttribute('aria-label')!==label)btn.setAttribute('aria-label',label);
+      if(btn.getAttribute('title')!==label)btn.setAttribute('title',label);
+    }
   }
   function syncTurnFooters(){
     const turns=data?.speed?.turns;
@@ -2633,7 +2654,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!document.getElementById(TURN_FOOTER_STYLE_ID)){
       const st=document.createElement('style');
       st.id=TURN_FOOTER_STYLE_ID;
-      st.textContent='.ag-pulse-turn-footer{font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:4px 0 0;opacity:.85;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+      st.textContent='.ag-pulse-turn-footer{display:flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:4px 0 0;opacity:.85;user-select:none;min-width:0}.ag-pulse-turn-footer-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ag-pulse-turn-footer-settings{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 120ms ease,background-color 120ms ease}.ag-pulse-turn-footer:hover .ag-pulse-turn-footer-settings,.ag-pulse-turn-footer:focus-within .ag-pulse-turn-footer-settings{opacity:.72;pointer-events:auto}.ag-pulse-turn-footer-settings:hover,.ag-pulse-turn-footer-settings:focus-visible{opacity:1;background:rgba(128,128,128,.14)}';
       (document.head||document.documentElement).append(st);
     }
     const toolbars=Array.from(document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]'));
@@ -2992,7 +3013,7 @@ module.exports = function installAgPulseInlineWidget() {
   let turnFooterTimer=0;
   const scheduleTurnFooters=()=>{if(turnFooterTimer)return;turnFooterTimer=setTimeout(()=>{turnFooterTimer=0;if(!disposed)for(const inst of instances)if(inst.isPrimary)inst.syncTurnFooters?.();},200);};
   const observer=new MutationObserver(records=>{if(records.some(record=>!isOwnNode(record.target))){scheduleLayout();if(turnFooter.enabled)scheduleTurnFooters();}});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','hidden','inert','data-cascade-id','data-testid','data-tooltip-id','aria-label','role','contenteditable']});
-  const onKey=e=>{if(e.key==='Escape')for(const inst of instances){inst.hide();if(inst.isSettingsOpen)inst.closeSettings?.();}}, onPointer=e=>{for(const inst of instances)if(inst.node&&!e.composedPath().includes(inst.node)){inst.hide();inst.closeSettings?.({restoreFocus:false});}};
+  const onKey=e=>{if(e.key==='Escape')for(const inst of instances){inst.hide();if(inst.isSettingsOpen)inst.closeSettings?.();}}, onPointer=e=>{const path=e.composedPath();if(path.some(n=>n instanceof Element&&n.closest?.('[data-ag-pulse-turn-footer-settings]')))return;for(const inst of instances)if(inst.node&&!path.includes(inst.node)){inst.hide();inst.closeSettings?.({restoreFocus:false});}};
   const onFocus=e=>{if(!instances.length||!e.composedPath().some(isOwnNode))scheduleLayout();};
   const onMotionChange=()=>{for(const inst of instances)inst.stopDensityMotion();};
   document.addEventListener('keydown',onKey);document.addEventListener('pointerdown',onPointer);document.addEventListener('focusin',onFocus);

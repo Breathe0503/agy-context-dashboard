@@ -220,6 +220,20 @@ try {
   await waitUntil(() => document.querySelectorAll('[data-ag-pulse-turn-footer]').length === 2, 'toggle on restores turn footers');
   assert.equal(prefs.turnFooter, true);
 
+  // 5. Hover-only settings button is hidden at rest (opacity 0) and opens Settings dialog on click
+  const settingsBtnState = await evalJs(() => {
+    const btn = document.querySelector('[data-ag-pulse-turn-footer] [data-ag-pulse-turn-footer-settings]');
+    return btn ? { opacity: getComputedStyle(btn).opacity, title: btn.getAttribute('title') } : null;
+  });
+  assert.ok(settingsBtnState, 'hover settings button exists inside turn footer');
+  assert.equal(settingsBtnState.opacity, '0', 'settings button stays hidden at rest');
+  await evalJs(() => {
+    document.querySelector('[data-ag-pulse-turn-footer] [data-ag-pulse-turn-footer-settings]').click();
+  });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('pulse-settings-dialog')?.hidden === false, 'turn footer settings button opens Settings dialog');
+  await evalJs(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('pulse-settings-close').click());
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('pulse-settings-dialog')?.hidden === true, 'closes Settings dialog');
+
   console.log('PASS: check-turn-footer-ui (Issue #79 per-turn footer + fail-closed)');
 } finally {
   if (browser) {
