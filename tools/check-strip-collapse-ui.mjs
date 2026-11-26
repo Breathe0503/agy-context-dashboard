@@ -601,15 +601,18 @@ try {
   });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'empty conversation expands back to full');
 
-  // 6. Anchor stability & zero ghost-flash across Empty -> Type (+Send) -> Clear -> Send (+Stop) -> Done
-  // at 778px (and tighter 720px forcing compact-text -> mini-rounds) with flex:1 .left branch or justify-content:space-between.
+  // 6. Flush-right alignment across model lengths & zero ghost-flash across Empty -> Type -> Clear -> Send (+Stop) -> Done
   emptyConversation = false;
   await evalJs(() => {
     const comp = document.querySelector('.composer');
     comp.style.width = '778px';
-    document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon Extra High';
+    const actions = document.querySelector('.actions');
+    const left = document.querySelector('.left');
+    actions.style.justifyContent = 'flex-start';
+    left.style.flex = '1';
+    left.style.minWidth = '0';
     const right = document.querySelector('.right');
-    right.innerHTML = '<button aria-label="Mode">Turbo</button><button aria-label="Mic" style="width:24px">M</button><button id="voice" data-testid="voice-start-button" style="width:32px">V</button>';
+    right.innerHTML = '<button aria-label="Mode">Turbo</button><button aria-label="Mic" style="width:24px">M</button><button id="action-btn" data-testid="voice-start-button" style="width:32px">V</button>';
   });
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
@@ -627,31 +630,47 @@ try {
     const speedCard = sr?.querySelector('[data-card="speed"]');
     const rounds = sr?.getElementById('context-rounds');
     return n?.dataset.layout === 'ready' && speedCard?.hidden === true && rounds && getComputedStyle(rounds).display !== 'none';
-  }, '3-chip Chinese setup for jump regression');
+  }, '3-chip Chinese setup for multi-model regression');
 
-  for (const [actionsMode, compWidth] of [['space-between', 778], ['flex-left', 778], ['flex-left', 720]]) {
+  const settleFrames = () => evalJs(`async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); }`);
+  const sampleStrip = () => evalJs(() => {
+    const w = document.getElementById('ag-pulse-status-bar');
+    const sr = w.shadowRoot;
+    const wRect = w.getBoundingClientRect();
+    const triggerRect = document.querySelector('[data-testid="model-selector-trigger"]').getBoundingClientRect();
+    const rightRect = document.querySelector('.right').getBoundingClientRect();
+    const span = document.querySelector('[data-testid="model-selector-trigger"] span');
+    return {
+      left: wRect.left,
+      right: wRect.right,
+      leftGap: wRect.left - triggerRect.right,
+      rightGap: rightRect.left - wRect.right,
+      density: w.dataset.density,
+      roundsDisp: getComputedStyle(sr.getElementById('context-rounds')).display,
+      modelTruncated: span.scrollWidth > span.clientWidth + 1,
+      rightPadProp: w.style.getPropertyValue('--pulse-right-pad'),
+      stages: window.__jumpStages || 0,
+    };
+  });
+
+  const modelCases = [
+    { name: 'Gemini Flash', width: 778, short: true, lifecycle: false },
+    { name: 'Gemini Flash', width: 920, short: true, lifecycle: false },
+    { name: 'Gemini 4 Hydrogen Medium', width: 778, short: true, lifecycle: true },
+    { name: 'Gemini 4 Hydrogen Medium', width: 920, short: true, lifecycle: false },
+    { name: 'Claude Opus 4.6 (Thinking)', width: 778, short: false, lifecycle: false },
+    { name: 'Orchestrator Gemini 4 Neon Extra High', width: 778, short: false, lifecycle: true },
+  ];
+
+  for (const mc of modelCases) {
     await evalJs(`() => {
-      const mode = ${JSON.stringify(actionsMode)};
-      document.querySelector('.composer').style.width = '${compWidth}px';
-      const actions = document.querySelector('.actions');
-      const left = document.querySelector('.left');
-      if (mode === 'flex-left') {
-        actions.style.justifyContent = 'flex-start';
-        left.style.flex = '1';
-        left.style.minWidth = '0';
-      } else {
-        actions.style.justifyContent = 'space-between';
-        left.style.flex = '0 1 auto';
-        left.style.minWidth = '0';
-      }
-      document.getElementById('send')?.remove();
+      document.querySelector('.composer').style.width = '${mc.width}px';
+      document.querySelector('[data-testid="model-selector-trigger"] span').textContent = ${JSON.stringify(mc.name)};
+      document.querySelector('.editor').replaceChildren();
       document.getElementById('stop')?.remove();
-    }`);
-    await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.layout === 'ready', `${actionsMode} idle ready`);
-    // Wait two frames for --pulse-right-pad settle after mode switch
-    await evalJs(`async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); }`);
-
-    await evalJs(() => {
+      const btn = document.getElementById('action-btn');
+      btn.dataset.testid = 'voice-start-button';
+      btn.textContent = 'V';
       const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
       window.__jumpStages = 0;
       window.__jumpObs?.disconnect();
@@ -659,70 +678,75 @@ try {
         for (const r of rs) for (const n of r.addedNodes) if (n.classList?.contains('density-stage')) window.__jumpStages++;
       });
       window.__jumpObs.observe(sr, { childList: true });
-    });
-
-    const sampleJump = () => evalJs(() => {
-      const w = document.getElementById('ag-pulse-status-bar');
-      const sr = w.shadowRoot;
-      const span = document.querySelector('[data-testid="model-selector-trigger"] span');
-      return {
-        left: w.getBoundingClientRect().left,
-        density: w.dataset.density,
-        roundsDisp: getComputedStyle(sr.getElementById('context-rounds')).display,
-        modelTruncated: span.scrollWidth > span.clientWidth + 1,
-        stages: window.__jumpStages,
-      };
-    });
-
-    const settleFrames = () => evalJs(`async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); }`);
-    const idleSnap = await sampleJump();
-
-    // Type -> add Send (+36px on right) + DOM child inside editor
-    await evalJs(() => {
-      const ed = document.querySelector('.editor');
-      const p = document.createElement('p'); p.textContent = 'hello typing test';
-      ed.replaceChildren(p);
-      const r = document.querySelector('.right');
-      const send = document.createElement('button'); send.id = 'send'; send.dataset.testid = 'send-button'; send.style.width = '28px'; send.textContent = '^';
-      r.append(send);
-    });
+    }`);
+    await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.layout === 'ready', `${mc.name} @ ${mc.width}px ready`);
     await settleFrames();
-    const typeSnap = await sampleJump();
+    await evalJs(() => { window.__jumpStages = 0; });
 
-    // Clear -> remove Send
-    await evalJs(() => {
-      document.querySelector('.editor').replaceChildren();
-      document.getElementById('send')?.remove();
-    });
-    await settleFrames();
-    const clearSnap = await sampleJump();
+    const idleSnap = await sampleStrip();
+    assert.equal(idleSnap.rightPadProp, '', `${mc.name} @ ${mc.width}px has no --pulse-right-pad`);
+    assert.ok(idleSnap.rightGap >= 0 && idleSnap.rightGap <= 14, `${mc.name} @ ${mc.width}px flush right rightGap=${idleSnap.rightGap}`);
+    assert.notEqual(idleSnap.roundsDisp, 'none', `${mc.name} @ ${mc.width}px keeps rounds visible (density=${idleSnap.density})`);
+    assert.equal(idleSnap.modelTruncated, false, `${mc.name} @ ${mc.width}px preserves model label`);
+    if (mc.short) {
+      assert.ok(idleSnap.leftGap > 40, `${mc.name} @ ${mc.width}px leaves spare gap on left (leftGap=${idleSnap.leftGap})`);
+      assert.equal(idleSnap.density, 'full', `${mc.name} @ ${mc.width}px stays full density`);
+    }
 
-    // Send -> add Stop (+40px on right)
-    await evalJs(() => {
-      const r = document.querySelector('.right');
-      const stop = document.createElement('button'); stop.id = 'stop'; stop.dataset.testid = 'stop-button'; stop.style.width = '32px'; stop.textContent = 'X';
-      r.append(stop);
-    });
-    await settleFrames();
-    const sendSnap = await sampleJump();
+    if (mc.lifecycle) {
+      // Type -> swap Voice 32px -> Send 32px in-place + DOM child inside editor
+      await evalJs(() => {
+        const ed = document.querySelector('.editor');
+        const p = document.createElement('p'); p.textContent = 'hello typing test';
+        ed.replaceChildren(p);
+        const btn = document.getElementById('action-btn');
+        btn.dataset.testid = 'send-button';
+        btn.textContent = '^';
+      });
+      await settleFrames();
+      const typeSnap = await sampleStrip();
 
-    // Done -> remove Stop
-    await evalJs(() => {
-      document.getElementById('stop')?.remove();
-    });
-    await settleFrames();
-    const doneSnap = await sampleJump();
+      // Clear -> swap Send 32px -> Voice 32px in-place + clear editor
+      await evalJs(() => {
+        document.querySelector('.editor').replaceChildren();
+        const btn = document.getElementById('action-btn');
+        btn.dataset.testid = 'voice-start-button';
+        btn.textContent = 'V';
+      });
+      await settleFrames();
+      const clearSnap = await sampleStrip();
 
-    for (const [name, s] of [['idle', idleSnap], ['type', typeSnap], ['clear', clearSnap], ['send', sendSnap], ['done', doneSnap]]) {
-      assert.ok(Math.abs(s.left - idleSnap.left) <= 2, `${actionsMode} ${name} left=${s.left} drifted from idle=${idleSnap.left}`);
-      assert.notEqual(s.roundsDisp, 'none', `${actionsMode} ${name} kept rounds visible (density=${s.density})`);
-      assert.equal(s.modelTruncated, false, `${actionsMode} ${name} preserved model label`);
-      assert.equal(s.stages, 0, `${actionsMode} ${name} spawned zero density-stage ghost flashes`);
+      // Send -> add Stop (+32px on right)
+      await evalJs(() => {
+        const r = document.querySelector('.right');
+        const stop = document.createElement('button'); stop.id = 'stop'; stop.dataset.testid = 'stop-button'; stop.style.width = '32px'; stop.textContent = 'X';
+        r.append(stop);
+      });
+      await settleFrames();
+      const sendSnap = await sampleStrip();
+
+      // Done -> remove Stop
+      await evalJs(() => {
+        document.getElementById('stop')?.remove();
+      });
+      await settleFrames();
+      const doneSnap = await sampleStrip();
+
+      for (const [stateName, s] of [['type', typeSnap], ['clear', clearSnap], ['done', doneSnap]]) {
+        assert.ok(Math.abs(s.left - idleSnap.left) <= 1, `${mc.name} ${stateName} left=${s.left} drifted from idle=${idleSnap.left}`);
+        assert.ok(Math.abs(s.right - idleSnap.right) <= 1, `${mc.name} ${stateName} right=${s.right} drifted from idle=${idleSnap.right}`);
+      }
+      for (const [stateName, s] of [['idle', idleSnap], ['type', typeSnap], ['clear', clearSnap], ['send', sendSnap], ['done', doneSnap]]) {
+        assert.ok(s.rightGap >= 0 && s.rightGap <= 14, `${mc.name} ${stateName} rightGap=${s.rightGap} stays flush right`);
+        assert.notEqual(s.roundsDisp, 'none', `${mc.name} ${stateName} keeps rounds visible (density=${s.density})`);
+        assert.equal(s.modelTruncated, false, `${mc.name} ${stateName} preserves model label`);
+        assert.equal(s.stages, 0, `${mc.name} ${stateName} spawned zero density-stage ghost flashes`);
+      }
     }
     await evalJs(() => window.__jumpObs?.disconnect());
   }
 
-  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 + Issue #90 + anchor stability)');
+  console.log('PASS: check-strip-collapse-ui (PR #84 + Issue #72 + Issue #90 + multi-model flush-right stability)');
 } finally {
   if (browser) {
     try { browser.cdp.close(); } catch {}

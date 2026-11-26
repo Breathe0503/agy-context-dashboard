@@ -542,7 +542,7 @@ module.exports = function installAgPulseInlineWidget() {
     }
     return stickyRemoteHost;
   };
-  let densityFrame=null,densityMotion=null,densityProbe=null,lastMainReserve=0;
+  let densityFrame=null,densityMotion=null,densityProbe=null;
   let isPrimary=false,parked=false,parkedKind=null,instDisposed=false;
   let emptyCompact=true,hasContextPercent=false,hydrated=false,seenEmptySession=false,suppressNextMotion=false,springNextExpand=false,swarmRosterFilter='active';
   const $=id=>root?.getElementById(id);
@@ -553,7 +553,7 @@ module.exports = function installAgPulseInlineWidget() {
     node.dataset.placement=footer?'footer':'inline';
     node.style.cssText=footer
       ?'display:flex;align-items:center;justify-content:center;width:100%;min-width:0;max-width:100%;height:26px;margin:4px 0 0;position:relative;box-sizing:border-box;'
-      :'display:flex;align-items:center;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 var(--pulse-right-pad,3px) 0 3px;position:relative;';
+      :'display:flex;align-items:center;min-width:0;max-width:min(100%,var(--pulse-native-room,100%));height:28px;margin:0 3px;position:relative;';
   }
   const conversationId=()=>{
     if(surface&&!surface.useSharedComposer)return surface.conversationId(composer);
@@ -864,9 +864,7 @@ module.exports = function installAgPulseInlineWidget() {
       node.className=[...kept,...wanted].join(' ');
     };
     const rowWidth=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect().width;
-    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-(?:native-room|right-pad):[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+cacheChipMode.value+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>Math.round(c.getBoundingClientRect().width)).join(',');};
-    const clearPadIfSet=()=>{const p=node.style.getPropertyValue('--pulse-right-pad').trim();if(p&&p!=='3px')node.style.setProperty('--pulse-right-pad','3px');};
-    const fitsClean=()=>fits()||(node.style.getPropertyValue('--pulse-right-pad').trim()&&node.style.getPropertyValue('--pulse-right-pad').trim()!=='3px'?(clearPadIfSet(),fits()):false);
+    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+cacheChipMode.value+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>Math.round(c.getBoundingClientRect().width)).join(',');};
     if(stripMode.mode==='minimal'){
       const tiers=[
         {name:'minimal',classes:['minimal','icons-only']},
@@ -876,11 +874,10 @@ module.exports = function installAgPulseInlineWidget() {
       const key=curIdx>0?probeKey():null;
       const canRecover=curIdx>0&&(!densityProbe||key!==densityProbe.key||rowWidth>=densityProbe.width+12);
       const startIdx=curIdx<=0||canRecover?0:curIdx;
-      if(startIdx===0&&curIdx>0)clearPadIfSet();
       nextDensity=tiers[tiers.length-1].name;
       for(let i=startIdx;i<tiers.length;i++){
         applyDensityClasses(tiers[i].classes);
-        safe=fitsClean();
+        safe=fits();
         if(safe){
           nextDensity=tiers[i].name;
           if(i===0)densityProbe=null;
@@ -892,7 +889,7 @@ module.exports = function installAgPulseInlineWidget() {
     }else{
       if(emptyCompact){
         applyDensityClasses(['icons-only']);
-        densityProbe=null;safe=fitsClean();
+        densityProbe=null;safe=fits();
         nextDensity='icons';
       }else{
         const tiers=[
@@ -909,11 +906,10 @@ module.exports = function installAgPulseInlineWidget() {
         const key=curIdx>0?probeKey():null;
         const canRecover=curIdx>0&&(!densityProbe||key!==densityProbe.key||rowWidth>=densityProbe.width+12);
         const startIdx=curIdx<=0||canRecover?0:curIdx;
-        if(startIdx===0&&curIdx>0)clearPadIfSet();
         nextDensity=tiers[tiers.length-1].name;
         for(let i=startIdx;i<tiers.length;i++){
           applyDensityClasses(tiers[i].classes);
-          safe=fitsClean();
+          safe=fits();
           if(safe){
             nextDensity=tiers[i].name;
             if(i===0)densityProbe=null;
@@ -927,7 +923,6 @@ module.exports = function installAgPulseInlineWidget() {
     node.dataset.density=nextDensity;
     const state=safe?'ready':'blocked';
     if(node.dataset.layout!==state){node.dataset.layout=state;node.inert=!safe;if(!safe)hide();}
-    syncRightPad(safe);
     const skipMotion=suppressNextMotion;suppressNextMotion=false;
     const useSpring=stripMode.mode==='full'&&springNextExpand&&node.dataset.density==='full';
     if(node.dataset.density==='full'||stripMode.mode==='minimal'||!safe)springNextExpand=false;
@@ -1049,7 +1044,7 @@ module.exports = function installAgPulseInlineWidget() {
     return true;
   }
   function reserveNativeSpace(){
-    if(isFooter()||!['main','subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.style.getPropertyValue('--pulse-right-pad'))node.style.removeProperty('--pulse-right-pad');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
+    if(isFooter()||!['main','subagent','ide'].includes(composer.kind)){if(node.style.getPropertyValue('--pulse-native-room'))node.style.removeProperty('--pulse-native-room');if(node.classList.contains('native-no-room'))node.classList.remove('native-no-room');return;}
     const row=composer.row,style=getComputedStyle(row),siblings=Array.from(row.children).filter(e=>{if(e===node||e===composer.branch||!e.getClientRects().length)return false;const s=getComputedStyle(e);return s.display!=='none'&&!['absolute','fixed'].includes(s.position);});
     const trigger=composer.kind==='main'?currentModelTrigger():null;
     const reserve=composer.kind==='main'?naturalFlexItemWidth(composer.branch,true,trigger):(composer.native?.reserve||0);
@@ -1062,16 +1057,9 @@ module.exports = function installAgPulseInlineWidget() {
     const visibleChips=root?Array.from(root.querySelectorAll('.bar .chip')).filter(c=>!c.hidden).length:3;
     const minStripWidth=stripMode.mode==='minimal'?24:(visibleChips>0?visibleChips*24+Math.max(0,visibleChips-1)*2:0);
     if(composer.kind==='main'){
-      lastMainReserve=reserve;
       const room=sharedRoom-reserve;
       const minBranch=minMainBranchWidth(composer.branch,trigger,reserve);
       const noRoom=minStripWidth>0&&sharedRoom<minStripWidth+minBranch;
-      if(noRoom){
-        if(node.style.getPropertyValue('--pulse-right-pad'))node.style.removeProperty('--pulse-right-pad');
-      }else{
-        const curPad=node.style.getPropertyValue('--pulse-right-pad').trim();
-        if(curPad.endsWith('px')&&parseFloat(curPad)>3&&composer.branch.getBoundingClientRect().width<reserve+1)node.style.setProperty('--pulse-right-pad','3px');
-      }
       const budget=noRoom?Math.max(0,Math.floor(sharedRoom-minBranch)):Math.max(minStripWidth,Math.floor(room));
       const width=`${budget}px`;
       if(node.style.getPropertyValue('--pulse-native-room')!==width)node.style.setProperty('--pulse-native-room',width);
@@ -1084,24 +1072,6 @@ module.exports = function installAgPulseInlineWidget() {
     // The budget is independent of our own rectangle, so it recovers directly
     // when the sidebar is closed, without probing the native badge each frame.
     node.classList.toggle('native-no-room',minStripWidth>0&&room<minStripWidth);
-  }
-  function syncRightPad(safe){
-    if(!safe||isFooter()||composer.kind!=='main'||node.classList.contains('native-no-room')){
-      if(node.style.getPropertyValue('--pulse-right-pad'))node.style.removeProperty('--pulse-right-pad');
-      return;
-    }
-    const branchGrow=parseFloat(getComputedStyle(composer.branch).flexGrow)||0;
-    if(branchGrow>0){
-      const rawPad=node.style.getPropertyValue('--pulse-right-pad').trim();
-      const curPad=rawPad.endsWith('px')?parseFloat(rawPad):3;
-      const totalBranch=composer.branch.getBoundingClientRect().width+Math.max(0,curPad-3);
-      const targetPad=totalBranch>lastMainReserve+2?Math.floor(totalBranch-lastMainReserve-2)+3:3;
-      if(rawPad==='auto'||Math.abs(targetPad-curPad)>=2||(targetPad===3&&rawPad&&rawPad!=='3px'))node.style.setProperty('--pulse-right-pad',`${targetPad}px`);
-    }else if(getComputedStyle(composer.row).justifyContent==='space-between'){
-      if(node.style.getPropertyValue('--pulse-right-pad').trim()!=='auto')node.style.setProperty('--pulse-right-pad','auto');
-    }else if(node.style.getPropertyValue('--pulse-right-pad')){
-      node.style.removeProperty('--pulse-right-pad');
-    }
   }
   function currentModelTrigger(){
     const trigger=composer?.model?.isConnected?composer.model:(composer?.branch||composer?.row)?.querySelector('[data-testid="model-selector-trigger"]');
