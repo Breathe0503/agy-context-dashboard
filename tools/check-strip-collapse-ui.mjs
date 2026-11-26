@@ -385,6 +385,63 @@ try {
   });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot.querySelector('.quota-secondary') !== null, 'restored both quota before PR #84 check');
 
+  // 0e. Issue #113: quotaDisplay='weekly' pins the weekly window without 5h,
+  // and cacheChipMode='hit' shows only hit rate without total tokens or leading dot even at trim-hit width.
+  await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });
+  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'full', 'full width before Issue #113 check');
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="weekly"]').click();
+    sr.querySelector('[data-cache-chip-mode="hit"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    const qText = n?.shadowRoot?.getElementById('quota-text')?.textContent || '';
+    return n?.getAttribute('data-cache-chip-mode') === 'hit' && qText.includes('90%') && !qText.includes('5h');
+  }, 'weekly quota and hit-only cache mode applied');
+  const issue113Full = await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    const hitEl = sr.getElementById('cache-hit');
+    return {
+      quotaText: sr.getElementById('quota-text').textContent,
+      cacheTotalDisplay: getComputedStyle(sr.getElementById('cache-total')).display,
+      cacheHitDisplay: getComputedStyle(hitEl).display,
+      cacheHitText: hitEl.textContent,
+      cacheHitBefore: getComputedStyle(hitEl, '::before').content,
+    };
+  });
+  assert.match(issue113Full.quotaText, /90%/, 'weekly mode pins 90% weekly quota');
+  assert.equal(issue113Full.quotaText.includes('80%'), false, 'weekly mode omits 5h percentage');
+  assert.equal(issue113Full.cacheTotalDisplay, 'none', 'hit-only mode hides total token count');
+  assert.notEqual(issue113Full.cacheHitDisplay, 'none', 'hit-only mode keeps #cache-hit visible');
+  assert.match(issue113Full.cacheHitText, /44\.4%/, 'hit-only mode shows cache hit rate');
+  assert.equal(issue113Full.cacheHitBefore, 'none', 'hit-only mode omits leading separator dot');
+
+  let narrowHitCheck = null;
+  for (let w = 640; w >= 360; w -= 8) {
+    const snap = await setWidthAndSettle(w);
+    if (snap.density === 'tight-text' || snap.density === 'trim-hit') { narrowHitCheck = snap; break; }
+  }
+  assert.ok(narrowHitCheck, 'hit-only mode hits tight text tier before icons');
+  assert.notEqual(narrowHitCheck.cacheHit, 'none', 'hit-only mode preserves #cache-hit under tight/trim-hit tiers');
+
+  await evalJs(() => { document.querySelector('.composer').style.width = '880px'; });
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-quota-display-choice="both"]').click();
+    sr.querySelector('[data-cache-chip-mode="both"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => {
+    const n = document.getElementById('ag-pulse-status-bar');
+    return n?.getAttribute('data-cache-chip-mode') === 'both' && n?.shadowRoot?.querySelector('.quota-secondary') !== null;
+  }, 'restored both quota and cache modes');
+
   // 1. PR #84: shrinking main composer preserves model selector width by dropping to icons-only
   await evalJs(() => { document.querySelector('.composer').style.width = '480px'; });
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.density === 'icons', 'narrow main composer drops to icons');

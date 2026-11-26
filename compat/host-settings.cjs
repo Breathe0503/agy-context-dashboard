@@ -10,6 +10,7 @@ module.exports = function createHostSettings({
   cacheHitTone,
   cacheHitTiers,
   inlineCacheHit,
+  cacheChipMode,
   quotaDisplay,
   speedStyle,
   hostUiLocalization,
@@ -193,6 +194,7 @@ module.exports = function createHostSettings({
     if (barColorsPref?.error) return t('barColorsSaveFailed');
     if (cacheHitTone?.error) return t('cacheHitToneSaveFailed');
     if (cacheHitTiers?.error) return t('cacheHitTiersSaveFailed');
+    if (cacheChipMode?.error) return t('cacheChipModeSaveFailed');
     if (inlineCacheHit?.error) return t('inlineCacheHitSaveFailed');
     if (barPrefs?.error) return t('barSaveFailed');
     if (stripMode?.error) return t('stripModeSaveFailed');
@@ -241,7 +243,8 @@ module.exports = function createHostSettings({
     void barColorsPref?.reset?.();
     void cacheHitTone?.choose?.('accent');
     void cacheHitTiers?.choose?.(false);
-    void inlineCacheHit?.choose?.(true);
+    if (cacheChipMode?.choose) void cacheChipMode.choose('both');
+    else void inlineCacheHit?.choose?.(true);
     void quotaDisplay?.choose?.('both');
     void speedStyle?.choose?.('minimal');
     void barPlacement?.choose?.('inline');
@@ -344,6 +347,7 @@ module.exports = function createHostSettings({
       colors,
       cacheHitTiers?.enabled,
       inlineCacheHit?.enabled,
+      cacheChipMode?.value,
       quotaDisplay?.value,
       speedStyle?.style,
       hostUiLocalization?.enabled,
@@ -395,23 +399,32 @@ module.exports = function createHostSettings({
       ]),
       t('hostUiLocalizationHint')
     );
+    const curCacheChipMode = cacheChipMode?.value || (inlineCacheHit?.enabled === false ? 'tokens' : 'both');
+    const chooseCacheMode = mode => (cacheChipMode?.choose ? cacheChipMode.choose(mode) : inlineCacheHit?.choose?.(mode !== 'tokens'));
     addRow(
       secCore,
-      t('inlineCacheHit'),
-      segGroup(t('inlineCacheHit'), [
+      t('cacheChipMode'),
+      segGroup(t('cacheChipMode'), [
         {
-          label: t('inlineCacheHitOff'),
-          attrs: { 'data-inline-cache-hit-choice': 'false' },
-          active: !inlineCacheHit?.enabled,
-          failed: Boolean(inlineCacheHit?.error && !inlineCacheHit?.enabled),
-          onClick: () => void inlineCacheHit?.choose?.(false),
+          label: t('cacheChipModeTokens'),
+          attrs: { 'data-cache-chip-mode': 'tokens', 'data-inline-cache-hit-choice': 'false' },
+          active: curCacheChipMode === 'tokens',
+          failed: Boolean((cacheChipMode?.error || inlineCacheHit?.error) && curCacheChipMode === 'tokens'),
+          onClick: () => void chooseCacheMode('tokens'),
         },
         {
-          label: t('inlineCacheHitOn'),
-          attrs: { 'data-inline-cache-hit-choice': 'true' },
-          active: Boolean(inlineCacheHit?.enabled),
-          failed: Boolean(inlineCacheHit?.error && inlineCacheHit?.enabled),
-          onClick: () => void inlineCacheHit?.choose?.(true),
+          label: t('cacheChipModeBoth'),
+          attrs: { 'data-cache-chip-mode': 'both', 'data-inline-cache-hit-choice': 'true' },
+          active: curCacheChipMode === 'both',
+          failed: Boolean((cacheChipMode?.error || inlineCacheHit?.error) && curCacheChipMode === 'both'),
+          onClick: () => void chooseCacheMode('both'),
+        },
+        {
+          label: t('cacheChipModeHit'),
+          attrs: { 'data-cache-chip-mode': 'hit' },
+          active: curCacheChipMode === 'hit',
+          failed: Boolean(cacheChipMode?.error && curCacheChipMode === 'hit'),
+          onClick: () => void chooseCacheMode('hit'),
         },
       ])
     );
@@ -737,6 +750,13 @@ module.exports = function createHostSettings({
           active: quotaDisplay?.value === 'compact',
           failed: Boolean(quotaDisplay?.error && quotaDisplay?.value === 'compact'),
           onClick: () => void quotaDisplay?.choose?.('compact'),
+        },
+        {
+          label: t('quotaDisplayWeekly'),
+          attrs: { 'data-quota-display-choice': 'weekly' },
+          active: quotaDisplay?.value === 'weekly',
+          failed: Boolean(quotaDisplay?.error && quotaDisplay?.value === 'weekly'),
+          onClick: () => void quotaDisplay?.choose?.('weekly'),
         },
       ])
     );

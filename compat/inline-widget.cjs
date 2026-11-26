@@ -63,6 +63,13 @@ module.exports = function installAgPulseInlineWidget() {
     write:input=>window.agPulseHost.setPreferences(input),
     changed:()=>{for(const inst of instances)inst.onInlineCacheHitChanged();hostSettings?.sync();},
   });
+  const storedCacheChipMode=localGet('ag-pulse-cache-chip-mode');
+  const cacheChipMode=language.connectCacheChipMode({
+    initial:storedCacheChipMode||(storedInlineCacheHit==='false'?'tokens':null),
+    cache:value=>{localSet('ag-pulse-cache-chip-mode',value);localSet('ag-pulse-inline-cache-hit',value==='tokens'?'false':'true');},
+    write:input=>window.agPulseHost.setPreferences(input),
+    changed:()=>{for(const inst of instances)inst.onCacheChipModeChanged();hostSettings?.sync();},
+  });
   const readBarColorsCache=()=>{try{const raw=localGet('ag-pulse-bar-colors');return raw?JSON.parse(raw):null;}catch{return null;}};
   const barColorsPref=language.connectBarColors({
     initial:readBarColorsCache(),
@@ -123,7 +130,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!disposed&&epoch===hostI18nEpoch&&hostUiLocalization.enabled)hostI18n.setEnabled(true);
   }
   if(hostUiLocalization.enabled)void syncHostUiLocalizationState();
-  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);barPlacement.sync(value);turnFooter.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}hostSettings?.sync();}
+  function syncGuide(value){speedStyle.sync(value);usageScope.sync(value);quotaDisplay.sync(value);hostUiLocalization.sync(value);inlineCacheHit.sync(value);cacheChipMode.sync(value);barColorsPref.sync(value);themeModePref.sync(value);cacheHitTone.sync(value);cacheHitTiers.sync(value);barPrefs.sync(value);stripMode.sync(value);barPlacement.sync(value);turnFooter.sync(value);if(value?.languageGuideDismissed===true)guideDismissed=true;if(value?.usageGuideDismissed===true){usageGuideDismissed=true;for(const inst of instances)inst.syncUsageGuide();}hostSettings?.sync();}
   window.__agPulseOnPreferences=value=>{if(!disposed&&value&&!value.error){syncGuide(value);preferences.sync(value);hostSettings?.sync();}};
   const preferences=language.connectPreferences({
     read:async()=>{const value=await window.agPulseHost.getPreferences();syncGuide(value);return value;},
@@ -131,7 +138,7 @@ module.exports = function installAgPulseInlineWidget() {
     cache:value=>localSet('ag-pulse-language',value),changed:()=>{for(const inst of instances)inst.onLocaleChanged();hostSettings?.sync();},
   });
   hostSettings=typeof window.__agPulseHostSettingsFactory==='function'?window.__agPulseHostSettingsFactory({
-    language,theme,preferences,barPrefs,barColorsPref,themeModePref,cacheHitTone,cacheHitTiers,inlineCacheHit,quotaDisplay,speedStyle,hostUiLocalization,stripMode,barPlacement,turnFooter,
+    language,theme,preferences,barPrefs,barColorsPref,themeModePref,cacheHitTone,cacheHitTiers,inlineCacheHit,cacheChipMode,quotaDisplay,speedStyle,hostUiLocalization,stripMode,barPlacement,turnFooter,
     version:typeof window.__agPulseVersion==='string'?window.__agPulseVersion:'',
     allowNested:window.__agPulseAllowNested===true,
   }):null;
@@ -634,8 +641,8 @@ module.exports = function installAgPulseInlineWidget() {
     for(const e of root.querySelectorAll('[data-i18n-aria]:not([data-card=cache]):not([data-card=quota])'))attribute(e,'aria-label',t(e.dataset.i18nAria));
     for(const e of root.querySelectorAll('[data-i18n-aria][title]:not([data-card])'))attribute(e,'title',t(e.dataset.i18nAria));
     for(const button of root.querySelectorAll('[data-language-choice]')){attribute(button,'aria-pressed',button.dataset.languageChoice===language.language);attribute(button,'data-save-failed',preferences.error);attribute(button,'title',preferences.error?t('languageSaveFailed'):(button.getAttribute('aria-label')||button.textContent));}
-    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):turnFooter.error?t('turnFooterSaveFailed'):'');
-    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):turnFooter.error?t('turnFooterSaveFailed'):'');
+    text('language-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):cacheChipMode.error?t('cacheChipModeSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):turnFooter.error?t('turnFooterSaveFailed'):'');
+    text('settings-save-note',preferences.error?t('languageSaveFailed'):hostUiLocalization.error?t('hostUiLocalizationSaveFailed'):themeModePref.error?t('themeModeSaveFailed'):barColorsPref.error?t('barColorsSaveFailed'):cacheHitTone.error?t('cacheHitToneSaveFailed'):cacheHitTiers.error?t('cacheHitTiersSaveFailed'):cacheChipMode.error?t('cacheChipModeSaveFailed'):barPrefs.error?t('barSaveFailed'):stripMode.error?t('stripModeSaveFailed'):barPlacement.error?t('barPlacementSaveFailed'):turnFooter.error?t('turnFooterSaveFailed'):'');
     const toggleBtn=$('strip-toggle');
     if(toggleBtn){
       const minimal=stripMode.mode==='minimal',labelText=t(minimal?'stripExpand':'stripCollapse'),failed=stripMode.error;
@@ -656,13 +663,13 @@ module.exports = function installAgPulseInlineWidget() {
     }
     attribute(node,'data-strip-mode',stripMode.mode);
     for(const button of root.querySelectorAll('[data-speed-style-choice]')){const value=button.dataset.speedStyleChoice,name=t(value==='cat'?'styleCat':'styleMinimal'),failed=speedStyle.error&&speedStyle.style===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('styleSaveFailed')}`:name);attribute(button,'aria-pressed',speedStyle.style===value);attribute(button,'data-save-failed',failed);}
-    for(const button of root.querySelectorAll('[data-quota-display-choice]')){const value=button.dataset.quotaDisplayChoice,name=t(value==='both'?'quotaDisplayBoth':value==='auto'?'quotaDisplayAuto':'quotaDisplayCompact'),failed=quotaDisplay.error&&quotaDisplay.value===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('quotaDisplaySaveFailed')}`:name);attribute(button,'aria-pressed',quotaDisplay.value===value);attribute(button,'data-save-failed',failed);}
+    for(const button of root.querySelectorAll('[data-quota-display-choice]')){const value=button.dataset.quotaDisplayChoice,name=t(value==='both'?'quotaDisplayBoth':value==='auto'?'quotaDisplayAuto':value==='weekly'?'quotaDisplayWeekly':'quotaDisplayCompact'),failed=quotaDisplay.error&&quotaDisplay.value===value;attribute(button,'aria-label',name);attribute(button,'title',failed?`${name} · ${t('quotaDisplaySaveFailed')}`:name);attribute(button,'aria-pressed',quotaDisplay.value===value);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-composition-view]')){attribute(button,'aria-pressed',button.dataset.compositionView===compositionView);}
     const hostI18nHint=t('hostUiLocalizationHint');
     const hostLabelEl=$('host-i18n-label');
     if(hostLabelEl)attribute(hostLabelEl,'title',hostI18nHint);
     for(const button of root.querySelectorAll('[data-host-i18n-choice]')){const value=button.dataset.hostI18nChoice==='true',active=hostUiLocalization.enabled===value,failed=hostUiLocalization.error&&active,labelText=t(value?'hostUiLocalizationOn':'hostUiLocalizationOff');attribute(button,'aria-label',`${t('hostUiLocalization')}: ${labelText}`);attribute(button,'title',failed?`${hostI18nHint} · ${t('hostUiLocalizationSaveFailed')}`:hostI18nHint);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
-    for(const button of root.querySelectorAll('[data-inline-cache-hit-choice]')){const value=button.dataset.inlineCacheHitChoice==='true',active=inlineCacheHit.enabled===value,failed=inlineCacheHit.error&&active,labelText=t(value?'inlineCacheHitOn':'inlineCacheHitOff');attribute(button,'aria-label',`${t('inlineCacheHit')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('inlineCacheHitSaveFailed')}`:labelText);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
+    for(const button of root.querySelectorAll('[data-cache-chip-mode]')){const value=button.dataset.cacheChipMode,active=cacheChipMode.value===value,failed=cacheChipMode.error&&active,labelText=t(value==='tokens'?'cacheChipModeTokens':value==='hit'?'cacheChipModeHit':'cacheChipModeBoth');attribute(button,'aria-label',`${t('cacheChipMode')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('cacheChipModeSaveFailed')}`:labelText);attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-cache-hit-tiers-choice]')){const value=button.dataset.cacheHitTiersChoice==='true',active=cacheHitTiers.enabled===value,failed=cacheHitTiers.error&&active,labelText=t(value?'cacheHitTiersAuto':'cacheHitTiersFixed');attribute(button,'aria-label',`${t('cacheHitTiersLabel')}: ${labelText}`);attribute(button,'title',failed?`${labelText} · ${t('cacheHitTiersSaveFailed')}`:(value?t('cacheHitTiersHint'):labelText));attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);}
     for(const button of root.querySelectorAll('[data-theme-mode-choice]')){const value=button.dataset.themeModeChoice,active=themeModePref.value===value,failed=themeModePref.error&&active;attribute(button,'aria-pressed',active);attribute(button,'data-save-failed',failed);attribute(button,'title',failed?t('themeModeSaveFailed'):null);}
     const curColors=barColorsPref.colors;
@@ -857,7 +864,7 @@ module.exports = function installAgPulseInlineWidget() {
       node.className=[...kept,...wanted].join(' ');
     };
     const rowWidth=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect().width;
-    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+(inlineCacheHit.enabled?'1':'0')+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
+    const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+cacheChipMode.value+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>c.getBoundingClientRect().width).join(',');};
     if(stripMode.mode==='minimal'){
       const tiers=[
         {name:'minimal',classes:['minimal','icons-only']},
@@ -1336,13 +1343,13 @@ module.exports = function installAgPulseInlineWidget() {
       .reset{color:var(--pulse-emphasis)}.rounds,.group,.dot.live{display:none}.chip[hidden]{display:none}
       [data-card=context][data-ctx-mode=rounds][data-has-rounds=true] .context-label,[data-card=context][data-ctx-mode=compact] .context-label{display:none}.context-rounds{font-variant-numeric:tabular-nums;white-space:nowrap}.context-rounds[hidden]{display:none}
       :host(.compact) .countdown{display:none}:host(.narrow) .cache-total,:host(.narrow) .chip svg,:host(.narrow) .context-label{display:none}:host(.narrow) .chip{padding:2px 3px;font-size:11px}:host(.narrow) .bar{gap:1px}:host(.narrow) [data-card=quota] .quota-text{display:none}:host(.narrow) [data-card=quota] svg,:host(.narrow) [data-card=cache] svg:first-child{display:block}
-      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600;--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-accent));color:var(--pulse-hit-high)}.cache-hit[hidden]{display:none}:host([data-cache-hit-tone=semantic]) .cache-hit{--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=high]{color:var(--pulse-bar-cacheHitHigh,var(--pulse-hit-high))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=mid]{color:var(--pulse-bar-cacheHitMid,color-mix(in srgb,var(--pulse-hit-high) 62%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=low]{color:var(--pulse-bar-cacheHitLow,color-mix(in srgb,var(--pulse-hit-high) 28%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=cold]{color:var(--pulse-bar-cacheHitCold,var(--pulse-muted))}:host(:not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
+      .cache-hit{font-variant-numeric:tabular-nums;font-weight:600;--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-accent));color:var(--pulse-hit-high)}.cache-hit[hidden]{display:none}:host([data-cache-hit-tone=semantic]) .cache-hit{--pulse-hit-high:var(--pulse-bar-cacheHit,var(--pulse-success,var(--pulse-accent)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=high]{color:var(--pulse-bar-cacheHitHigh,var(--pulse-hit-high))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=mid]{color:var(--pulse-bar-cacheHitMid,color-mix(in srgb,var(--pulse-hit-high) 62%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=low]{color:var(--pulse-bar-cacheHitLow,color-mix(in srgb,var(--pulse-hit-high) 28%,var(--pulse-muted)))}:host([data-cache-hit-tiers=true]) .cache-hit[data-tone=cold]{color:var(--pulse-bar-cacheHitCold,var(--pulse-muted))}:host(:not([data-cache-chip-mode=hit]):not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{content:'·';margin-right:4px;color:var(--pulse-muted);font-weight:400}:host([data-cache-chip-mode=hit]) .cache-total{display:none!important}:host([data-cache-chip-mode=tokens]) .cache-hit,:host([data-inline-cache-hit=false]) .cache-hit{display:none!important}
       :host(.icons-only) .bar{gap:2px}:host([data-scope=main].icons-only){flex-shrink:0}:host(.icons-only:not(.minimal)) .strip-toggle{display:none}:host(.icons-only) .chip{flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0;gap:0;justify-content:center}:host(.icons-only) .chip:focus-visible{outline-offset:-2px}:host(.icons-only) .chip>:not(svg):not(.context-ring){display:none}:host(.icons-only) .bar>.dot{display:none}
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
       :host(.compact-text) .bar{gap:3px}:host(.compact-text) .chip{padding:2px 3px;gap:3px}:host(.compact-text) [data-card=speed]>span:not(.rounds),:host(.compact-text) .cache-unit{display:none!important}
       :host(.tight-text) .bar{gap:2px}:host(.tight-text) .chip{padding:2px;gap:2px}:host(.tight-text) .context-rounds,:host(.tight-text) .context-label{display:none!important}
-      :host(.trim-hit) .cache-hit{display:none!important}
+      :host(.trim-hit:not([data-cache-chip-mode=hit])) .cache-hit{display:none!important}
       :host(.dense-text) .quota-tag,:host(.dense-text) .quota-secondary{display:none!important}
       :host(.minimal) .bar{gap:2px}:host(.minimal) .bar>.dot{display:none}
       :host(.minimal.icons-only) .strip-toggle{display:inline-grid}:host(.minimal.icons-only) [data-card=cache]>.cache-hit{display:none!important}:host(.minimal.icons-only) [data-card=cache]{flex:0 0 24px!important;width:24px!important;padding:0!important;gap:0!important}
@@ -1554,7 +1561,7 @@ module.exports = function installAgPulseInlineWidget() {
       void barColorsPref.reset();
       void cacheHitTone.choose('accent');
       void cacheHitTiers.choose(false);
-      void inlineCacheHit.choose(true);
+      void cacheChipMode.choose('both');
       void quotaDisplay.choose('both');
       void speedStyle.choose('minimal');
       void barPlacement.choose('inline');
@@ -1605,9 +1612,9 @@ module.exports = function installAgPulseInlineWidget() {
     $('context-compact-btn')?.addEventListener('click',()=>triggerCompact());
     for(const d of root.querySelectorAll('.breakdown-details'))d.addEventListener('toggle',()=>{if(!disposed)position();});
     const cacheHitRow=document.createElement('div');cacheHitRow.className='quota-display-row';cacheHitRow.id='cache-inline-hit-row';
-    setMarkup(cacheHitRow,'<span data-i18n="inlineCacheHit"></span><div class="language-options" role="group" data-i18n-aria="inlineCacheHit"><button type="button" class="language-button" id="cache-card-hit-off" data-inline-cache-hit-choice="false" data-i18n="inlineCacheHitOff"></button><button type="button" class="language-button" id="cache-card-hit-on" data-inline-cache-hit-choice="true" data-i18n="inlineCacheHitOn"></button></div>');
+    setMarkup(cacheHitRow,'<span data-i18n="cacheChipMode"></span><div class="language-options" role="group" data-i18n-aria="cacheChipMode"><button type="button" class="language-button" id="cache-card-hit-off" data-cache-chip-mode="tokens" data-inline-cache-hit-choice="false" data-i18n="cacheChipModeTokens"></button><button type="button" class="language-button" id="cache-card-hit-on" data-cache-chip-mode="both" data-inline-cache-hit-choice="true" data-i18n="cacheChipModeBoth"></button><button type="button" class="language-button" id="cache-card-hit-only" data-cache-chip-mode="hit" data-i18n="cacheChipModeHit"></button></div>');
     $('cache-card').append(cacheHitRow);
-    cacheHitRow.querySelectorAll('[data-inline-cache-hit-choice]').forEach(btn=>btn.addEventListener('click',()=>void inlineCacheHit.choose(btn.dataset.inlineCacheHitChoice==='true')));
+    cacheHitRow.querySelectorAll('[data-cache-chip-mode]').forEach(btn=>btn.addEventListener('click',()=>void cacheChipMode.choose(btn.dataset.cacheChipMode)));
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
       setMarkup(section,'<div class="usage-summary"><div><div class="usage-label" id="usage-today-label"></div><div class="usage-val"><strong id="usage-today"></strong><span class="usage-unit" id="usage-today-unit">toks</span></div></div><div><div class="usage-label" id="usage-month-label"></div><div class="usage-val"><strong id="usage-month"></strong><span class="usage-unit" id="usage-month-unit">toks</span></div></div></div><button type="button" id="open-usage"><span id="usage-open-label"></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button>');$('cache-card').append(section);
@@ -1733,7 +1740,7 @@ module.exports = function installAgPulseInlineWidget() {
     const order=barPrefs.order,hiddenSet=new Set(barPrefs.hidden),ctxMode=barPrefs.contextChipMode;
     const activeScheme=node?.dataset.pulseTheme==='light'?'light':'dark';
     const colors=barColorsPref.colors;
-    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,cacheHitTiers.enabled,cacheHitTiers.error,inlineCacheHit.enabled,inlineCacheHit.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,barPlacement.placement,barPlacement.error,turnFooter.enabled,turnFooter.error,preferences.error]);
+    const sig=JSON.stringify([language.language,order,barPrefs.hidden,ctxMode,barPrefs.error,themeModePref.value,themeModePref.error,activeScheme,colors,barColorsPref.error,cacheHitTone.value,cacheHitTone.error,cacheHitTiers.enabled,cacheHitTiers.error,inlineCacheHit.enabled,inlineCacheHit.error,cacheChipMode.value,cacheChipMode.error,quotaDisplay.value,quotaDisplay.error,speedStyle.style,speedStyle.error,hostUiLocalization.enabled,hostUiLocalization.error,barPlacement.placement,barPlacement.error,turnFooter.enabled,turnFooter.error,preferences.error]);
     if(lastSettingsSig===sig)return;
     lastSettingsSig=sig;
     const mk=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
@@ -1860,9 +1867,10 @@ module.exports = function installAgPulseInlineWidget() {
       {label:t('turnFooterOff'),attrs:{'data-turn-footer-choice':'false'},active:!turnFooter.enabled,onClick:()=>void turnFooter.choose(false)},
       {label:t('turnFooterOn'),attrs:{'data-turn-footer-choice':'true'},active:turnFooter.enabled,onClick:()=>void turnFooter.choose(true)},
     ]),null,'turnFooter');
-    addKv(t('inlineCacheHit'),segGroup('inlineCacheHit',[
-      {label:t('inlineCacheHitOff'),attrs:{'data-inline-cache-hit-choice':'false'},active:!inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(false)},
-      {label:t('inlineCacheHitOn'),attrs:{'data-inline-cache-hit-choice':'true'},active:inlineCacheHit.enabled,onClick:()=>void inlineCacheHit.choose(true)},
+    addKv(t('cacheChipMode'),segGroup('cacheChipMode',[
+      {label:t('cacheChipModeTokens'),attrs:{'data-cache-chip-mode':'tokens','data-inline-cache-hit-choice':'false'},active:cacheChipMode.value==='tokens',onClick:()=>void cacheChipMode.choose('tokens')},
+      {label:t('cacheChipModeBoth'),attrs:{'data-cache-chip-mode':'both','data-inline-cache-hit-choice':'true'},active:cacheChipMode.value==='both',onClick:()=>void cacheChipMode.choose('both')},
+      {label:t('cacheChipModeHit'),attrs:{'data-cache-chip-mode':'hit'},active:cacheChipMode.value==='hit',onClick:()=>void cacheChipMode.choose('hit')},
     ]));
     addKv(t('barContextChipMode'),segGroup('barContextChipMode',[
       {label:t('barContextModeRounds'),attrs:{'data-ctx-chip-mode':'rounds'},active:ctxMode==='rounds',onClick:()=>void barPrefs.update({contextChipMode:'rounds'})},
@@ -1873,6 +1881,7 @@ module.exports = function installAgPulseInlineWidget() {
       {label:t('quotaDisplayBoth'),attrs:{'data-quota-display-choice':'both'},active:quotaDisplay.value==='both',onClick:()=>void quotaDisplay.choose('both')},
       {label:t('quotaDisplayAuto'),attrs:{'data-quota-display-choice':'auto'},active:quotaDisplay.value==='auto',onClick:()=>void quotaDisplay.choose('auto')},
       {label:t('quotaDisplayCompact'),attrs:{'data-quota-display-choice':'compact'},active:quotaDisplay.value==='compact',onClick:()=>void quotaDisplay.choose('compact')},
+      {label:t('quotaDisplayWeekly'),attrs:{'data-quota-display-choice':'weekly'},active:quotaDisplay.value==='weekly',onClick:()=>void quotaDisplay.choose('weekly')},
     ]));
     addKv(t('speedStyle'),segGroup('speedStyle',[
       {label:t('styleMinimal'),attrs:{'data-speed-style-choice':'minimal'},active:speedStyle.style==='minimal',onClick:()=>void speedStyle.choose('minimal')},
@@ -2228,14 +2237,15 @@ module.exports = function installAgPulseInlineWidget() {
       }
       hydrated=true;
     }
-    attribute(node,'data-inline-cache-hit',inlineCacheHit.enabled?'true':'false');
+    attribute(node,'data-cache-chip-mode',cacheChipMode.value);
+    attribute(node,'data-inline-cache-hit',cacheChipMode.value==='tokens'?'false':'true');
     const hitText=pct(cache?.hitRate);
     const hitRateNum=typeof cache?.hitRate==='number'&&Number.isFinite(cache.hitRate)?cache.hitRate:null;
     const hitTone=hitRateNum===null?null:hitRateNum>=0.9?'high':hitRateNum>=0.8?'mid':hitRateNum>=0.7?'low':'cold';
     text('cache-total-num',hasTotal?compact(tokens.totalTokens):'—');
-    text('cache-hit',hitText!=='—'?hitText:'');
+    text('cache-hit',cacheChipMode.value==='hit'?hitText:(hitText!=='—'?hitText:''));
     attribute($('cache-hit'),'data-tone',cacheHitTiers.enabled?hitTone:null);
-    hidden($('cache-hit'),!inlineCacheHit.enabled||hitText==='—');
+    hidden($('cache-hit'),cacheChipMode.value==='tokens'||(cacheChipMode.value!=='hit'&&hitText==='—'));
     text('cache-coverage',hasTotal?(tokens.totalTokens>=1e9?compactDetail(tokens.totalTokens):count(tokens.totalTokens)):'—');
     text('cache-coverage-unit',hasTotal?tokUnit(tokens.totalTokens):'toks');
     attribute($('cache-hero-total'),'title',hasTotal&&tokens.totalTokens>=1e9?`${count(tokens.totalTokens)} ${tokUnit(tokens.totalTokens)}`:null);
@@ -2670,7 +2680,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(!document.getElementById(TURN_FOOTER_STYLE_ID)){
       const st=document.createElement('style');
       st.id=TURN_FOOTER_STYLE_ID;
-      st.textContent='.ag-pulse-turn-footer{display:flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:4px 0 0;opacity:.85;user-select:none;min-width:0}.ag-pulse-turn-footer-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ag-pulse-turn-footer-settings{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 120ms ease,background-color 120ms ease}.ag-pulse-turn-footer:hover .ag-pulse-turn-footer-settings,.ag-pulse-turn-footer:focus-within .ag-pulse-turn-footer-settings{opacity:.72;pointer-events:auto}.ag-pulse-turn-footer-settings:hover,.ag-pulse-turn-footer-settings:focus-visible{opacity:1;background:rgba(128,128,128,.14)}';
+      st.textContent='.ag-pulse-turn-footer{display:flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--pulse-muted,#6b7280);font-variant-numeric:tabular-nums;padding:6px 0 8px;opacity:.85;user-select:none;min-width:0}.ag-pulse-turn-footer-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ag-pulse-turn-footer-settings{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 120ms ease,background-color 120ms ease}.ag-pulse-turn-footer:hover .ag-pulse-turn-footer-settings,.ag-pulse-turn-footer:focus-within .ag-pulse-turn-footer-settings{opacity:.72;pointer-events:auto}.ag-pulse-turn-footer-settings:hover,.ag-pulse-turn-footer-settings:focus-visible{opacity:1;background:rgba(128,128,128,.14)}';
       (document.head||document.documentElement).append(st);
     }
     const toolbars=Array.from(document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]'));
@@ -2954,6 +2964,7 @@ module.exports = function installAgPulseInlineWidget() {
     onQuotaDisplayChanged(){if(root){densityProbe=null;localize();if(settingsOpen)renderSettingsModal();render();position();}},
     onHostUiLocalizationChanged(){if(root){localize();if(settingsOpen)renderSettingsModal();position();}},
     onInlineCacheHitChanged(){if(root){densityProbe=null;attribute(node,'data-inline-cache-hit',inlineCacheHit.enabled?'true':'false');localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
+    onCacheChipModeChanged(){if(root){densityProbe=null;attribute(node,'data-cache-chip-mode',cacheChipMode.value);attribute(node,'data-inline-cache-hit',cacheChipMode.value==='tokens'?'false':'true');localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
     onBarColorsChanged(){if(root){themeController?.setBarColors?.(barColorsPref.colors);localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
     onThemeModeChanged(){if(root){themeController?.setThemeMode?.(themeModePref.value);localize();if(settingsOpen)renderSettingsModal();render();scheduleLayout();}},
     onCacheHitToneChanged(){if(root){attribute(node,'data-cache-hit-tone',cacheHitTone.value);localize();if(settingsOpen)renderSettingsModal();render();}},
@@ -3045,7 +3056,7 @@ module.exports = function installAgPulseInlineWidget() {
   const timerId=setInterval(()=>{mount();if(!instances.length)pollHostPrefs();for(const inst of instances)inst.poll();},1000);
   window.__agPulseDispose=()=>{
     disposed=true;hostI18nEpoch++;
-    clearInterval(timerId);clearTimeout(turnFooterTimer);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();barPlacement.dispose();turnFooter.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
+    clearInterval(timerId);clearTimeout(turnFooterTimer);if(layoutFrame!==null)cancelAnimationFrame(layoutFrame);observer.disconnect();preferences.dispose();hostUiLocalization.dispose();inlineCacheHit.dispose();cacheChipMode.dispose();barColorsPref.dispose();themeModePref.dispose();cacheHitTone.dispose();barPrefs.dispose();stripMode.dispose();barPlacement.dispose();turnFooter.dispose();hostI18n?.dispose();hostSettings?.dispose();delete window.__agPulseOnPreferences;
     for(const el of document.querySelectorAll('[data-ag-pulse-turn-footer]'))el.remove();
     document.getElementById('ag-pulse-turn-footer-style')?.remove();
     for(const inst of instances.splice(0))inst.dispose();

@@ -182,6 +182,8 @@ try {
   const initialTexts = await evalJs(() => Array.from(document.querySelectorAll('[data-ag-pulse-turn-footer]')).map(el => el.textContent));
   assert.match(initialTexts[0], /Gemini 4 Hydrogen \(Medium\).*输入 .*输出 .*缓存 90(\.0)?%.*均速 200 tok\/s/);
   assert.match(initialTexts[1], /Gemini 4 Neon \(XHigh\).*输入 .*输出 .*缓存 99(\.0)?%.*均速 250 tok\/s/);
+  const footerPadBottom = await evalJs(() => parseFloat(getComputedStyle(document.querySelector('[data-ag-pulse-turn-footer]')).paddingBottom));
+  assert.ok(footerPadBottom >= 8, 'turn footer preserves >= 8px bottom breathing room');
 
   // 2. Mismatch Fail-Closed: inject an extra unbacked toolbar -> older turn footer removed, only latest kept
   await evalJs(() => {
