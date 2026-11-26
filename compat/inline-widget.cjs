@@ -2029,7 +2029,7 @@ module.exports = function installAgPulseInlineWidget() {
       if(compactions!==null&&compactions>0){
         hidden(compactionPill,false);
         text('context-compaction-pill',t('contextCompactionCount',{n:compactions}));
-        attribute(compactionPill,'title',t('contextCompactionsTitle',{n:compactions}));
+        attribute(compactionPill,'title',`${t('contextCompactionsTitle',{n:compactions})}\n${t('compactionMetricsBasis')}`);
       }else{
         hidden(compactionPill,true);
       }

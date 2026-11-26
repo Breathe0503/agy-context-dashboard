@@ -94,3 +94,18 @@ test('Traditional Chinese (zh-TW) provides accurate localized terminology and to
   assert.equal(language.t('tokenBaseCustomBudget'),'Total config budget');
   assert.equal(language.toggle(),'zh-TW');
 });
+
+test('compaction metric clarification and peak annotation keys exist in all locales (issue #80)',()=>{
+  const dictionaries=Function('return ('+create.toString().replace('let language=', 'return dictionary; let language=')+')')()();
+  for(const key of ['compactionMetricsBasis','trendPeakShare','trendPeakTrigger']){
+    for(const locale of ['en','zh-CN','zh-TW']){
+      assert.equal(typeof dictionaries[locale][key],'string',locale+':'+key);
+      assert.ok(dictionaries[locale][key].length>0);
+    }
+  }
+  const language=create('en');
+  assert.equal(language.t('trendPeakShare',{pct:95}),'▲ 95% of window');
+  assert.ok(language.t('compactionMetricsBasis').includes('cumulative'));
+  const zh=create('zh-CN');
+  assert.equal(zh.t('trendPeakTrigger'),'阈值触发峰值');
+});
