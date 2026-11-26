@@ -854,7 +854,7 @@ module.exports = function installAgPulseInlineWidget() {
     };
     let safe=false,snapshotTaken=false,nextDensity='full';
     const captureBeforeMutate=()=>{if(oldReady&&!snapshotTaken){previous=densitySnapshot(previous);snapshotTaken=true;}};
-    const DENSITY_CLASSES=['icons-only','compact-text','tight-text','snug-text','trim-hit','dense-text','minimal','minimal-tight','minimal-icon','minimal-empty'];
+    const DENSITY_CLASSES=['icons-only','compact-text','snug-rounds','tight-text','snug-text','trim-hit','dense-text','minimal','minimal-tight','minimal-icon','minimal-empty'];
     const DENSITY_SET=new Set(DENSITY_CLASSES);
     const hasExactClasses=wanted=>DENSITY_CLASSES.every(cls=>node.classList.contains(cls)===wanted.includes(cls));
     const applyDensityClasses=wanted=>{
@@ -895,10 +895,11 @@ module.exports = function installAgPulseInlineWidget() {
         const tiers=[
           {name:'full',classes:[]},
           {name:'compact-text',classes:['compact-text']},
-          {name:'tight-text',classes:['compact-text','tight-text']},
-          {name:'snug-text',classes:['compact-text','tight-text','snug-text']},
-          {name:'trim-hit',classes:['compact-text','tight-text','snug-text','trim-hit']},
-          {name:'dense-text',classes:['compact-text','tight-text','snug-text','trim-hit','dense-text']},
+          {name:'snug-rounds',classes:['compact-text','snug-rounds']},
+          {name:'tight-text',classes:['compact-text','snug-rounds','tight-text']},
+          {name:'snug-text',classes:['compact-text','snug-rounds','tight-text','snug-text']},
+          {name:'trim-hit',classes:['compact-text','snug-rounds','tight-text','snug-text','trim-hit']},
+          {name:'dense-text',classes:['compact-text','snug-rounds','tight-text','snug-text','trim-hit','dense-text']},
           {name:'icons',classes:['icons-only']},
         ];
         const curIdx=tiers.findIndex(item=>item.name===oldDensity);
@@ -1050,11 +1051,11 @@ module.exports = function installAgPulseInlineWidget() {
       const s=getComputedStyle(e);
       return sum+e.getBoundingClientRect().width+(parseFloat(s.marginLeft)||0)+(parseFloat(s.marginRight)||0);
     },0);
-    const sharedRoom=row.clientWidth-(parseFloat(style.paddingLeft)||0)-(parseFloat(style.paddingRight)||0)-siblingWidth-(parseFloat(style.columnGap)||0)*(siblings.length+1)-8;
+    const sharedRoom=row.clientWidth-(parseFloat(style.paddingLeft)||0)-(parseFloat(style.paddingRight)||0)-siblingWidth-(parseFloat(style.columnGap)||0)*(siblings.length+1)-2;
     const visibleChips=root?Array.from(root.querySelectorAll('.bar .chip')).filter(c=>!c.hidden).length:3;
     const minStripWidth=stripMode.mode==='minimal'?24:(visibleChips>0?visibleChips*24+Math.max(0,visibleChips-1)*2:0);
     if(composer.kind==='main'){
-      const room=sharedRoom-reserve-2;
+      const room=sharedRoom-reserve;
       const minBranch=minMainBranchWidth(composer.branch,trigger,reserve);
       const noRoom=minStripWidth>0&&sharedRoom<minStripWidth+minBranch;
       const budget=noRoom?Math.max(0,Math.floor(sharedRoom-minBranch)):Math.max(minStripWidth,Math.floor(room));
@@ -1349,8 +1350,9 @@ module.exports = function installAgPulseInlineWidget() {
       .strip-toggle{display:inline-grid;place-items:center;flex:none;width:16px;height:22px;padding:0;margin:0 -2px 0 0;border:0;border-radius:5px;background:transparent;color:var(--pulse-muted);opacity:.46;transition:opacity 140ms ease,color 140ms ease,background-color 140ms ease,transform 120ms ease}.bar:hover .strip-toggle,.strip-toggle:hover,.strip-toggle:focus-visible{opacity:1}.strip-toggle:hover{background:var(--pulse-hover);color:var(--pulse-hover-text)}.strip-toggle:active{transform:scale(.94)}.strip-toggle[data-save-failed=true]{opacity:1;color:var(--pulse-warning)}.strip-toggle svg{width:11px;height:11px;stroke-width:1.45;transition:transform 180ms cubic-bezier(0.32,0.72,0,1)}:host(.minimal) .strip-toggle svg{transform:rotate(180deg)}
       @media(prefers-reduced-motion:reduce){.strip-toggle,.strip-toggle svg{transition:none}.strip-toggle:active{transform:none}}
       :host(.compact-text) .bar{gap:3px}:host(.compact-text) .chip{padding:2px 3px;gap:3px}:host(.compact-text) [data-card=speed]>span:not(.rounds),:host(.compact-text) .cache-unit{display:none!important}
+      :host(.snug-rounds) .bar{gap:1.5px}:host(.snug-rounds) .strip-toggle{width:12px;margin-right:-2px}:host(.snug-rounds) .chip{padding:2px 1.5px;gap:2px}:host(.snug-rounds) .quota-text{gap:2px}:host(.snug-rounds:not([data-cache-chip-mode=hit]):not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{margin-right:2px}
       :host(.tight-text) .context-rounds,:host(.tight-text) .context-label{display:none!important}
-      :host(.snug-text) .bar{gap:2.5px}:host(.snug-text) .strip-toggle{width:12px;margin-right:-1px}:host(.snug-text) .chip{padding:2px 1.5px;gap:2px;font-size:10.5px}:host(.snug-text) .chip svg{width:11.5px;height:11.5px}:host(.snug-text) .chip svg.cat-badge{width:13px;height:8.5px}:host(.snug-text) .chip .context-ring{width:11px;height:11px}:host(.snug-text:not([data-cache-chip-mode=hit]):not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{margin-right:2px}
+      :host(.snug-text) .bar{gap:1.5px}:host(.snug-text) .strip-toggle{width:12px;margin-right:-2px}:host(.snug-text) .chip{padding:2px 1.5px;gap:2px;font-size:10.5px}:host(.snug-text) .chip svg{width:11.5px;height:11.5px}:host(.snug-text) .chip svg.cat-badge{width:13px;height:8.5px}:host(.snug-text) .chip .context-ring{width:11px;height:11px}:host(.snug-text:not([data-cache-chip-mode=hit]):not(.icons-only):not(.narrow)) .cache-hit:not(:empty)::before{margin-right:2px}
       :host(.trim-hit:not([data-cache-chip-mode=hit])) .cache-hit{display:none!important}
       :host(.dense-text) .quota-tag,:host(.dense-text) .quota-secondary{display:none!important}
       :host(.minimal) .bar{gap:2px}:host(.minimal) .bar>.dot{display:none}

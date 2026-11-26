@@ -168,7 +168,7 @@ try {
   // 0. Medium-width main composer (758px, matching real Antigravity with XHigh model)
   // keeps numbers + cache-hit visible via compact-text/tight-text instead of premature icons-only.
   await evalJs(() => { document.querySelector('.composer').style.width = '758px'; });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'snug-rounds', 'tight-text'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), '758px stays in text density');
   const medState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -187,7 +187,7 @@ try {
   await evalJs(() => {
     document.querySelector('[data-testid="model-selector-trigger"] span').textContent = 'Orchestrator Gemini 4 Neon (Medium)';
   });
-  await waitUntil(() => ['full', 'compact-text', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
+  await waitUntil(() => ['full', 'compact-text', 'snug-rounds', 'tight-text', 'trim-hit'].includes(document.getElementById('ag-pulse-status-bar')?.dataset.density), 'long model name in 758px stays in text density');
   const longModelState = await evalJs(() => {
     const n = document.getElementById('ag-pulse-status-bar');
     const sr = n.shadowRoot;
@@ -224,7 +224,7 @@ try {
     const sr = n?.shadowRoot;
     const hit = sr?.getElementById('cache-hit');
     const sec = sr?.querySelector('.quota-secondary');
-    return ['full', 'compact-text', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
+    return ['full', 'compact-text', 'snug-rounds', 'tight-text', 'snug-text'].includes(n?.dataset.density) && hit && getComputedStyle(hit).display !== 'none' && sec && getComputedStyle(sec).display !== 'none';
   }, '758px Orchestrator Extra High + 165px right keeps cache-hit and dual quota');
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
@@ -234,8 +234,10 @@ try {
   });
   await waitUntil(() => {
     const n = document.getElementById('ag-pulse-status-bar');
-    return ['full', 'compact-text', 'tight-text'].includes(n?.dataset.density) && !n.classList.contains('snug-text');
-  }, '3-chip Orchestrator mode avoids snug-text compression');
+    const sr = n?.shadowRoot;
+    const rounds = sr?.getElementById('context-rounds');
+    return ['full', 'compact-text', 'snug-rounds'].includes(n?.dataset.density) && rounds && getComputedStyle(rounds).display !== 'none';
+  }, '3-chip Orchestrator mode preserves context rounds at 11px without tight-text hiding');
   const airy3Chip = await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     return {
@@ -244,7 +246,7 @@ try {
     };
   });
   assert.equal(airy3Chip.fontSize, '11px', '3-chip Orchestrator keeps crisp 11px font');
-  assert.equal(airy3Chip.barGap, '3px', '3-chip Orchestrator keeps 3px gap');
+  assert.ok(['3px', '1.5px'].includes(airy3Chip.barGap), '3-chip Orchestrator keeps expected bar gap: ' + airy3Chip.barGap);
   await evalJs(() => {
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
     sr.querySelector('[data-bar-row="speed"] [role="switch"]').click();
@@ -285,7 +287,7 @@ try {
       rounds: getComputedStyle(sr.getElementById('context-rounds')).display,
     };
   });
-  assert.equal(labelState.density, 'compact-text', 'label check runs in compact-text tier: ' + labelState.density);
+  assert.ok(['full', 'compact-text', 'snug-rounds'].includes(labelState.density), 'label check runs before tight-text hides label: ' + labelState.density);
   assert.notEqual(labelState.label, 'none', 'context label visible under long Orchestrator model');
   assert.equal(labelState.rounds, 'none', 'rounds hidden when label mode selected');
 
