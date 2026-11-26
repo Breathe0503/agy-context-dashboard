@@ -323,12 +323,22 @@ export class RuntimeUi {
       }
       else if (input.type === 'compact-chat') {
         await connection.command('Input.insertText', { text: '/compact' });
-        await new Promise(r => setTimeout(r, 100));
-        await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        await new Promise(r => setTimeout(r, 120));
+        await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
         await connection.command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-        await new Promise(r => setTimeout(r, 100));
-        await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-        await connection.command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        await new Promise(r => setTimeout(r, 80));
+        const sent = await connection.command('Runtime.evaluate', {
+          expression: `(() => {
+            const btn = Array.from(document.querySelectorAll('[data-testid="send-button"],[data-tooltip-id*="send-button"]')).find(b => !b.disabled && b.getAttribute('data-tooltip-id') !== 'input-send-button-record-tooltip');
+            if (btn) { btn.click(); return true; }
+            return false;
+          })()`,
+          returnByValue: true,
+        });
+        if (!sent?.result?.value) {
+          await connection.command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', unmodifiedText: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+          await connection.command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+        }
         result = { ok: true };
       }
       else if (input.type === 'diagnostic' && ['boot', 'mounted', 'mount-error'].includes(input.input?.stage)) {

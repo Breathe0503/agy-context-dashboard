@@ -41,7 +41,7 @@ module.exports = function installAgPulseInlineWidget() {
     write:input=>window.agPulseHost.setPreferences(input),changed:()=>{for(const inst of instances)inst.onQuotaDisplayChanged();},
   });
   let compositionView=localGet('ag-pulse-composition-view')==='bar'?'bar':'list';
-  let stepsDrawerOpen=false,pendingCompact=null,compactPollTimer=0;
+  let stepsDrawerOpen=false,pendingCompact=null,compactPollTimer=0,compactDispatching=false;
   const setCompositionView=next=>{
     const normalized=next==='bar'?'bar':'list';
     if(compositionView===normalized)return;
@@ -2680,55 +2680,56 @@ module.exports = function installAgPulseInlineWidget() {
   }
   async function triggerCompact(){
     const editor=composer?.editor;
-    if(!editor?.isConnected||!node?.isConnected)return;
+    if(!editor?.isConnected||!node?.isConnected||compactDispatching)return;
     const isRunningTurn=Boolean(data?.speed&&/RUNNING/i.test(String(data.speed.status||'')));
     if(isRunningTurn||pendingCompact||data?.speed?.compactionState==='compacting')return;
     const readText=()=>(editor.textContent||'').replace(/\u200B/g,'').trim();
     if(readText().length>0){attribute($('context-compact-btn'),'title',t('contextCompactDraftTitle'));return;}
+    compactDispatching=true;
     const baseCompactions=data?.speed?.transcriptStats&&['ready','partial'].includes(data.speed.transcriptStats.status)&&typeof data.speed.transcriptStats.compactionMarkers==='number'?data.speed.transcriptStats.compactionMarkers:0;
     const baseUsedTokens=data?.speed?.context?.usedTokens??null;
     const conv=conversationId();
-    hide();
-    editor.focus();
     try{
-      const sel=window.getSelection?.();
-      if(sel){const range=document.createRange();range.selectNodeContents(editor);range.collapse(false);sel.removeAllRanges();sel.addRange(range);}
-    }catch{}
-    if(typeof window.agPulseHost?.compactChat==='function'){
+      hide();
+      editor.focus();
       try{
+        const sel=window.getSelection?.();
+        if(sel){const range=document.createRange();range.selectNodeContents(editor);range.collapse(false);sel.removeAllRanges();sel.addRange(range);}
+      }catch{}
+      if(typeof window.agPulseHost?.compactChat==='function'){
         const res=await window.agPulseHost.compactChat();
         if(!disposed&&!instDisposed&&res?.ok&&readText()===''){
           pendingCompact={conversationId:conv,startedAt:Date.now(),baseCompactions,baseUsedTokens};
           render();
         }
-      }catch{}
-      return;
-    }
-    let inserted=false;
-    try{inserted=Boolean(document.execCommand?.('insertText',false,'/compact'));}catch{}
-    if(!inserted||readText()!=='/compact'){
-      try{editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'/compact'}));}catch{}
-    }
-    if(readText()!=='/compact'){
-      editor.textContent='/compact';
-      try{editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:'/compact'}));}catch{editor.dispatchEvent(new Event('input',{bubbles:true}));}
-    }
-    if(readText()!=='/compact')return;
-    pendingCompact={conversationId:conv,startedAt:Date.now(),baseCompactions,baseUsedTokens};
-    render();
-    setTimeout(()=>{
-      if(disposed||instDisposed||!editor?.isConnected)return;
-      const scope=composer.box||composer.row;
-      const sendBtn=scope?Array.from(scope.querySelectorAll('button')).find(b=>{
-        if(node.contains(b)||b.disabled||!visible(b))return false;
-        const tid=b.getAttribute('data-tooltip-id')||'';
-        const testid=b.dataset?.testid||'';
-        if(tid==='input-send-button-record-tooltip'||testid==='voice-start-button')return false;
-        return testid==='send-button'||tid.includes('send-button')||/^(?:send|submit|发送|提交|傳送)$/i.test((b.getAttribute('aria-label')||b.title||'').trim());
-      }):null;
-      if(sendBtn){sendBtn.click();}
-      else{editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));}
-    },90);
+        return;
+      }
+      let inserted=false;
+      try{inserted=Boolean(document.execCommand?.('insertText',false,'/compact'));}catch{}
+      if(!inserted||readText()!=='/compact'){
+        try{editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'/compact'}));}catch{}
+      }
+      if(readText()!=='/compact'){
+        editor.textContent='/compact';
+        try{editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:'/compact'}));}catch{editor.dispatchEvent(new Event('input',{bubbles:true}));}
+      }
+      if(readText()!=='/compact')return;
+      pendingCompact={conversationId:conv,startedAt:Date.now(),baseCompactions,baseUsedTokens};
+      render();
+      setTimeout(()=>{
+        if(disposed||instDisposed||!editor?.isConnected)return;
+        const scope=composer.box||composer.row;
+        const sendBtn=scope?Array.from(scope.querySelectorAll('button')).find(b=>{
+          if(node.contains(b)||b.disabled||!visible(b))return false;
+          const tid=b.getAttribute('data-tooltip-id')||'';
+          const testid=b.dataset?.testid||'';
+          if(tid==='input-send-button-record-tooltip'||testid==='voice-start-button')return false;
+          return testid==='send-button'||tid.includes('send-button')||/^(?:send|submit|发送|提交|傳送)$/i.test((b.getAttribute('aria-label')||b.title||'').trim());
+        }):null;
+        if(sendBtn){sendBtn.click();}
+        else{editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));}
+      },90);
+    }finally{compactDispatching=false;}
   }
   function refreshManually(syncUsage=false){
     if(manualRequest)return manualRequest.promise;
