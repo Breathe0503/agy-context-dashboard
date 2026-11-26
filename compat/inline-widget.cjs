@@ -1893,14 +1893,20 @@ module.exports = function installAgPulseInlineWidget() {
     hidden(root.querySelector('[data-card="speed"]'),hiddenSet.has('speed'));
     hidden(root.querySelector('[data-card="cache"]'),hiddenSet.has('cache'));
     const context=speed?.context,hasCapacity=typeof context?.usedFraction==='number';
+    const rawContextPct=hasCapacity?Math.round(context.usedFraction*100):null;
+    const contextPct=hasCapacity?Math.min(100,rawContextPct):null;
+    const contextOverWindow=hasCapacity&&context.usedFraction>1;
+    const overWindowRaw=contextOverWindow?(rawContextPct>100?String(rawContextPct):(context.usedFraction*100).toFixed(1)):'';
+    const overWindowTip=contextOverWindow?t('contextOverWindow',{raw:overWindowRaw}):'';
     hasContextPercent=hasCapacity;
     const ringColor=!hasCapacity?'var(--pulse-bar-context,var(--pulse-ring))':context.usedFraction>=0.9?'var(--pulse-danger)':context.usedFraction>=0.75?'var(--pulse-warning)':'var(--pulse-bar-context,var(--pulse-ring))';
     hidden(root.querySelector('[data-card="context"]'),hiddenSet.has('context'));
     const empty=(surface&&!surface.useSharedComposer?surface.conversationState?.(composer).status==='new':composer?.kind==='main'&&(!lastConversation||(!speed?.requests&&!speed?.steps&&!hasCapacity)))&&data.connection==='live'&&!data.sessionError&&!collectionActive;
-    text('context-percent',hasCapacity?`${Math.round(context.usedFraction*100)}%`:'—');
+    text('context-percent',hasCapacity?`${contextPct}%`:'—');
     style($('context-ring'),'--used-angle',`${hasCapacity?Math.min(1,context.usedFraction)*360:0}deg`);
     style($('context-ring'),'--ring-color',ringColor);
-    text('context-summary',hasCapacity?t('contextUsed',{used:Math.round(context.usedFraction*100),remaining:Math.round(context.remainingFraction*100)}):collectionActive?'—':t(empty?'waitingRequest':'contextUnknown'));
+    text('context-summary',hasCapacity?t('contextUsed',{used:contextPct,remaining:Math.round(context.remainingFraction*100)}):collectionActive?'—':t(empty?'waitingRequest':'contextUnknown'));
+    attribute($('context-summary'),'title',overWindowTip||null);
     text('context-tokens',context?t('contextTokens',{used:compact(context.usedTokens),max:context.maxTokens===null?'—':compact(context.maxTokens)}):'—');
     text('context-model',context?.model||'—');
     const transcript=speed?.transcriptStats;
@@ -2052,7 +2058,8 @@ module.exports = function installAgPulseInlineWidget() {
       const roundSuffix=roundCount!==null?` · ${t('contextTurnsCount',{n:smallCount(roundCount)})}`:'';
       const compSuffix=compactions!==null&&compactions>0?` · ${t('contextCompactionSummary',{n:compactions})}`:'';
       const updateSuffix=hasUpdate&&updateVer?` · v${updateVer}`:'';
-      const baseTip=hasCapacity?`Ctx ${Math.round(context.usedFraction*100)}% (${compact(context.usedTokens)} / ${compact(context.maxTokens)})${roundSuffix}${compSuffix}`:(roundSuffix||compSuffix?`Ctx${roundSuffix}${compSuffix}`:'');
+      const overSuffix=overWindowTip?` · ${overWindowTip}`:'';
+      const baseTip=hasCapacity?`Ctx ${contextPct}% (${compact(context.usedTokens)} / ${compact(context.maxTokens)})${overSuffix}${roundSuffix}${compSuffix}`:(roundSuffix||compSuffix?`Ctx${roundSuffix}${compSuffix}`:'');
       attribute(ctxChip,'data-update-available',hasUpdate?'true':null);
       attribute(ctxChip,'title',baseTip?(baseTip+updateSuffix):(hasUpdate&&updateVer?`v${updateVer}`:null));
     }

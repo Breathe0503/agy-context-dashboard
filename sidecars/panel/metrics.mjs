@@ -91,6 +91,15 @@ export function requestCacheMetrics(usage) {
   return { inputTokens:total, cachedTokens:read, cacheWriteTokens:write, uncachedTokens:total-read-write };
 }
 
+function settledUsageTokens(usage) {
+  if (!usage || typeof usage !== 'object') return null;
+  const cached = requestCacheMetrics(usage);
+  if (!cached || cached.inputTokens <= 0) return null;
+  const out = usage.outputTokens === undefined ? 0 : tokenCount(usage.outputTokens);
+  if (out === null) return null;
+  return tokenCount(cached.inputTokens + out);
+}
+
 function unionSeconds(intervals) {
   const sorted = intervals.filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b >= a).sort((a, b) => a[0] - b[0]);
   let total = 0, start = null, end = null;
@@ -165,8 +174,20 @@ export function trajectoryMetrics(response, storage = null, options = null) {
   const tokens = { inputTokens:0, cachedTokens:0, cacheWriteTokens:0, uncachedTokens:0, outputTokens:0,
     measuredRequests:0, inputRequests:0, outputRequests:0, missingInputRequests:0, missingOutputRequests:0,
     uncachedRequests:0, cachedRequests:0, cacheWriteRequests:0 };
+  let lastSettledContext = null;
   for (const [index, generator] of generators.entries()) {
     const chat = generator.chatModel;
+    const chatCwm = chat?.chatStartMetadata?.contextWindowMetadata;
+    const chatMax = tokenCount(chatCwm?.maxContextTokens);
+    const chatSettled = settledUsageTokens(chat?.usage);
+    if (chatMax > 0 && chatSettled !== null) {
+      lastSettledContext = {
+        usedTokens: chatSettled,
+        maxTokens: chatMax,
+        cwmEst: tokenCount(chatCwm?.estimatedTokensUsed),
+        model: formatModelName(chat.modelDisplayName || chat.responseModel || String(chat.model || chat.usage?.model || '')) || '',
+      };
+    }
     if (!chat?.usage) continue;
     const usage = chat.usage;
     // IDE executionId identifies a planner run/turn, not an individual model
@@ -442,10 +463,27 @@ export function trajectoryMetrics(response, storage = null, options = null) {
     streamingSeconds, modelSeconds, toolSeconds,
     ttftSeconds: ttftMedianSeconds, ttftMedianSeconds, latestTtftSeconds,
     latestShortSample: latest?.status === 'ok' && latest.duration < 1, model: latest?.model || null,
-    context: contextMetrics(lastChat?.chatStartMetadata?.contextWindowMetadata, {
-      model:lastChat?.modelDisplayName || lastChat?.responseModel || String(lastChat?.model || ''),
-      sampledAt:lastChat?.chatStartMetadata?.createdAt,
-    }),
+    context: (() => {
+      const lastCwm = lastChat?.chatStartMetadata?.contextWindowMetadata;
+      if (!lastCwm || typeof lastCwm !== 'object' || Array.isArray(lastCwm)) return null;
+      const lastMax = tokenCount(lastCwm.maxContextTokens);
+      const lastEst = tokenCount(lastCwm.estimatedTokensUsed);
+      const lastModelRaw = lastChat?.modelDisplayName || lastChat?.responseModel || String(lastChat?.model || '');
+      const lastSettled = settledUsageTokens(lastChat?.usage);
+      const sampledAt = lastChat?.chatStartMetadata?.createdAt;
+      if (lastMax > 0 && lastSettled !== null) {
+        return contextMetrics({ estimatedTokensUsed: lastSettled, maxContextTokens: lastMax }, { model: lastModelRaw, sampledAt, estimated: false });
+      }
+      const lastModelNorm = formatModelName(lastModelRaw) || '';
+      if (lastMax > 0 && lastSettled === null && lastEst !== null && lastSettledContext &&
+          lastSettledContext.maxTokens === lastMax && lastSettledContext.cwmEst !== null &&
+          lastEst >= lastSettledContext.cwmEst * 0.5 &&
+          (!lastSettledContext.model || !lastModelNorm || lastModelNorm === lastSettledContext.model)) {
+        const carried = tokenCount(lastSettledContext.usedTokens + Math.max(0, lastEst - lastSettledContext.cwmEst));
+        return contextMetrics({ estimatedTokensUsed: carried ?? lastEst, maxContextTokens: lastMax }, { model: lastModelRaw, sampledAt, estimated: true });
+      }
+      return contextMetrics(lastCwm, { model: lastModelRaw, sampledAt, estimated: true });
+    })(),
     complete: Number(response.numTotalGeneratorMetadata ?? generators.length) === generators.length,
   };
 }

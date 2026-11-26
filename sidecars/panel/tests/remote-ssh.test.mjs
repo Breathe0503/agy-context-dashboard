@@ -295,7 +295,7 @@ test('buildRendererTrajectoryProbe and normalizeRendererTrajectory feed trajecto
   assert.equal(speed.rounds, 1);
   assert.equal(speed.tokens.totalTokens, 14590);
   assert.ok(speed.tps > 90 && speed.tps < 110);
-  assert.equal(speed.context.usedTokens, 21109);
+  assert.equal(speed.context.usedTokens, 14590);
   assert.equal(speed.context.maxTokens, 512000);
   const comp = compositionMetrics({
     context: speed.context,

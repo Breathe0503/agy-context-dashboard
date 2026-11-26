@@ -135,7 +135,7 @@ test('foreground MetricsStore snapshot remains responsive during another convers
  const {root,ledger}=await fixture(t),file=join(root,'foreground-job.sqlite');job(file,[row('background')]);
  let release,started;const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
  const diskJob=ledger.diskJob.bind(ledger);ledger.diskJob=async(input,options)=>{if(input.action==='merge'&&input.jobDb===file){started();await gate;}return diskJob(input,options);};
- const raw={trajectory:{cascadeId:other,steps:[],generatorMetadata:[{chatModel:{modelDisplayName:'Fixture',streamingDuration:'2s',usage:{messageId:'foreground',inputTokens:100,cacheReadTokens:400,outputTokens:100,responseOutputTokens:100,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{createdAt:'2026-10-30T01:00:00Z',contextWindowMetadata:{estimatedTokensUsed:12,maxContextTokens:100}}}}]}};
+ const raw={trajectory:{cascadeId:other,steps:[],generatorMetadata:[{chatModel:{modelDisplayName:'Fixture',streamingDuration:'2s',usage:{messageId:'foreground',inputTokens:100,cacheReadTokens:400,outputTokens:100,responseOutputTokens:100,apiProvider:'API_PROVIDER_GOOGLE_GEMINI'},chatStartMetadata:{createdAt:'2026-10-30T01:00:00Z',contextWindowMetadata:{estimatedTokensUsed:12,maxContextTokens:5000}}}}]}};
  const client={discover:async()=>({pid:1}),trajectory:async()=>raw};
  const store=new MetricsStore(client,{history:{load:async()=>null,save:async()=>({savedAt:'2026-10-30T01:00:00Z'})},transcripts:null,onTrajectory:(account,conversation,value)=>ledger.ingest(account,conversation,value)});
  store.identity=scope;store.serverPid=1;store.refreshQuota=async()=>{store.quota=[];};t.after(()=>store.dispose());

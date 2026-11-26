@@ -398,10 +398,12 @@ test('MetricsStore lazily calls streamContextWindowUsage on contextDetail and ca
   t.after(()=>store.dispose());
   const plain=await store.snapshot({conversationId:GUID});
   assert.equal(streamCalls,0);
+  assert.equal(plain.speed.context.usedTokens,4500);
   assert.equal(plain.accountCredits.availablePromptCredits,500);
   assert.equal(plain.accountCredits.availableFlowCredits,100);
   const detailed=await store.snapshot({conversationId:GUID,contextDetail:true});
   assert.equal(streamCalls,1);
+  assert.equal(detailed.speed.context.usedTokens,100000);
   assert.equal(detailed.speed.contextComposition.source,'host-token-groups');
   assert.equal(detailed.speed.contextComposition.customization.available,true);
   assert.ok(detailed.speed.estimatedCost.hasPriced);
