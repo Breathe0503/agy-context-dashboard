@@ -220,7 +220,7 @@ try {
   await waitUntil(() => document.querySelectorAll('[data-ag-pulse-turn-footer]').length === 2, 'toggle on restores turn footers');
   assert.equal(prefs.turnFooter, true);
 
-  // 5. Hover-only settings button is hidden at rest (opacity 0) and opens Settings dialog on click
+  // 5. Hover-only gear opens dedicated mini-popover (ONLY turnFooter toggle, NOT full Settings dialog)
   const settingsBtnState = await evalJs(() => {
     const btn = document.querySelector('[data-ag-pulse-turn-footer] [data-ag-pulse-turn-footer-settings]');
     return btn ? { opacity: getComputedStyle(btn).opacity, title: btn.getAttribute('title') } : null;
@@ -230,9 +230,32 @@ try {
   await evalJs(() => {
     document.querySelector('[data-ag-pulse-turn-footer] [data-ag-pulse-turn-footer-settings]').click();
   });
-  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('pulse-settings-dialog')?.hidden === false, 'turn footer settings button opens Settings dialog');
-  await evalJs(() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('pulse-settings-close').click());
-  await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('pulse-settings-dialog')?.hidden === true, 'closes Settings dialog');
+  await waitUntil(() => Boolean(document.querySelector('[data-ag-pulse-turn-footer-menu]')), 'turn footer gear opens mini-popover');
+  const menuState = await evalJs(() => {
+    const menu = document.querySelector('[data-ag-pulse-turn-footer-menu]');
+    const fullDlg = document.getElementById('ag-pulse-status-bar')?.shadowRoot?.getElementById('pulse-settings-dialog');
+    return {
+      fullDlgOpen: fullDlg ? fullDlg.hidden === false : false,
+      quickButtons: menu ? Array.from(menu.querySelectorAll('[data-turn-footer-quick]')).map(b => b.dataset.turnFooterQuick) : [],
+    };
+  });
+  assert.equal(menuState.fullDlgOpen, false, 'mini-popover must NOT open the full settings dialog');
+  assert.deepEqual(menuState.quickButtons, ['false', 'true']);
+
+  // Clicking Off inside mini-popover closes menu, updates pref, and hides turn footers
+  await evalJs(() => document.querySelector('[data-ag-pulse-turn-footer-menu] [data-turn-footer-quick="false"]').click());
+  await waitUntil(() => document.querySelectorAll('[data-ag-pulse-turn-footer]').length === 0 && !document.querySelector('[data-ag-pulse-turn-footer-menu]'), 'mini-popover Off removes turn footers');
+  assert.equal(prefs.turnFooter, false);
+
+  // Restore via Settings
+  await evalJs(() => {
+    const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
+    sr.querySelector('[data-card="context"]').click();
+    sr.getElementById('pulse-settings-toggle').click();
+    sr.querySelector('[data-turn-footer-choice="true"]').click();
+    sr.getElementById('pulse-settings-close').click();
+  });
+  await waitUntil(() => document.querySelectorAll('[data-ag-pulse-turn-footer]').length === 2, 'restores turn footers after mini-popover test');
 
   console.log('PASS: check-turn-footer-ui (Issue #79 per-turn footer + fail-closed)');
 } finally {
