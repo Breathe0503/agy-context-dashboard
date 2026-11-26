@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5 — 2026-11-26
+
+- **Weekly-only quota & hit-rate-only cache modes ([#113](https://github.com/wycocoyu/agy-context-dashboard/issues/113))**: Added `weekly` (`仅周` / `僅週` / `Weekly`) to `quotaDisplay` and upgraded inline cache display to a 3-way `cacheChipMode` (`tokens` / `both` / `hit` — `仅总量` / `总量+命中` / `仅命中`) across the inline Settings popover, `Token · Cache` card, and Antigravity System Settings, with full backward compatibility for existing `inlineCacheHit` preferences.
+- **Smoother inline narrow-width density fallback & Orchestrator spacing**: Reordered narrow-width fallback to hide context rounds (`tight-text`) before trimming cache hit (`trim-hit`) and dual quota (`dense-text`), separated airy `tight-text` from compact `snug-text` so 3-chip bars keep `11px` / `3px` spacing while 4-chip `Orchestrator` bars retain both cache hit rate and dual quota at `758px`.
+- **Settings popover & per-turn footer polish**: Widened the Settings popover (`492px` -> `540px`), rebalanced column widths with single-line labels (`white-space: nowrap`), and increased `.ag-pulse-turn-footer` bottom breathing room (`padding: 6px 0 8px`).
+
 ## 1.0.4 — 2026-11-26
 
 - **Optional dedicated footer row layout ([#112](https://github.com/wycocoyu/agy-context-dashboard/issues/112))**: Added `barPlacement` (`inline` / `footer`) in both the inline Settings popover and Antigravity System Settings, allowing the status bar to occupy a dedicated full-width row below the composer toolbar with a `1px` top divider and automatic fallback on non-vertical layouts.
