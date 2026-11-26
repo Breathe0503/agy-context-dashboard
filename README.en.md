@@ -1,6 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/hero.png?v=1.0.1" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input.">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark-en.webp?v=1.0.3" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light-en.webp?v=1.0.3" />
+  <img src="docs/assets/hero-light-en.webp?v=1.0.3" width="100%" alt="Antigrative Dashboard: speed, cache, quota and context controls beside the input." />
+</picture>
+
+<sub>Rendered frame-by-frame from current widget & sidecar source with illustrative data.</sub>
 
 # Agy Context Dashboard (Antigrative Dashboard)
 
