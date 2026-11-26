@@ -145,8 +145,8 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     .scope-seg{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border:1px solid var(--pulse-border);background:var(--pulse-hover);border-radius:9px;gap:0;margin-bottom:6px;flex:none;isolation:isolate}#scope-controls[hidden]{display:none}.scope-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:6px;background:var(--pulse-card);border:1px solid color-mix(in srgb,var(--pulse-accent) 35%,var(--pulse-border));box-shadow:0 1px 3px var(--pulse-shadow);transition:transform 190ms cubic-bezier(.23,1,.32,1);pointer-events:none;z-index:0}.scope-seg[data-active-scope=account] .scope-thumb{transform:translateX(100%)}.scope-seg button{position:relative;z-index:1;background:transparent!important;box-shadow:none!important;padding:4px 12px;font-weight:500;transition:color 150ms ease}.scope-seg button[aria-pressed=true]{color:var(--pulse-foreground);font-weight:600}.page[data-scope-loading=true] .totals,.page[data-scope-loading=true] #overview,.page[data-scope-loading=true] #details{opacity:.62;transition:opacity 120ms ease}
     .heat-wrap{overflow-x:auto;padding:3px 3px 7px}.calendar{min-width:680px}.months{display:grid;margin-left:35px;font-size:11px;color:var(--pulse-muted);margin-bottom:7px}.months span{white-space:nowrap}.heat-row{display:flex;gap:9px}.weekdays{display:grid;grid-template-rows:repeat(7,1fr);width:26px;flex:none;font-size:11px;color:var(--pulse-muted)}.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;width:100%}.heat button{border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);border-radius:3px;padding:0;min-width:0;aspect-ratio:1;background:var(--pulse-control);outline-offset:1px}.heat button[data-level="1"],.swatch[data-level="1"]{background:color-mix(in srgb,var(--pulse-accent) 28%,var(--pulse-control));border-color:transparent}.heat button[data-level="2"],.swatch[data-level="2"]{background:color-mix(in srgb,var(--pulse-accent) 52%,var(--pulse-control));border-color:transparent}.heat button[data-level="3"],.swatch[data-level="3"]{background:color-mix(in srgb,var(--pulse-accent) 76%,var(--pulse-control));border-color:transparent}.heat button[data-level="4"],.swatch[data-level="4"]{background:var(--pulse-accent);border-color:transparent}.heat button.future{opacity:.3;cursor:default}.heat.week{grid-template-columns:repeat(26,minmax(0,1fr))!important;grid-template-rows:repeat(2,1fr);grid-auto-flow:row}.week button{max-height:28px;aspect-ratio:1}.heat-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 16px;font-size:11px;color:var(--pulse-muted)}.scale{display:flex;align-items:center;gap:4px}.swatch{width:11px;height:11px;border-radius:3px;border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);background:var(--pulse-control)}.selected{padding:12px 0 0;border-top:1px solid var(--pulse-separator);display:flex;justify-content:space-between;gap:16px;align-items:center}.selected button{border:0;color:var(--pulse-accent);font-size:12px;font-weight:550;padding:5px 8px}.selected button:hover{background:var(--pulse-hover)}.selected .title{font-weight:550;margin-bottom:2px}.selected strong{font-weight:550}
     .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;background:var(--model-color)}
-    .chart-controls{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.range{display:flex;align-items:center;gap:10px}.range button{height:26px;width:26px;border:0}.range strong{font-size:12px;font-weight:500;min-width:106px;text-align:center}.legend-wrap{display:flex;align-items:flex-start;gap:6px;margin:0 0 6px}.legend{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px 6px;margin:0;padding:0}.legend.is-folded{max-height:44px;overflow:hidden}.legend button{box-sizing:border-box;height:20px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;border:1px solid color-mix(in srgb,var(--pulse-separator) 90%,transparent);border-radius:999px;background:color-mix(in srgb,var(--pulse-control) 55%,transparent);font-size:11px;line-height:18px;color:var(--pulse-label);transition:background-color 120ms ease,border-color 120ms ease,opacity 120ms ease}.legend button:hover,.legend button[aria-pressed=true]{color:var(--pulse-foreground);border-color:var(--pulse-border)}.legend button[aria-pressed=false]{opacity:.42;background:transparent;text-decoration:line-through}.legend-toggle{box-sizing:border-box;height:20px;flex:none;display:inline-flex;align-items:center;padding:0 8px;border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);border-radius:999px;background:transparent;color:var(--pulse-accent);font-size:10px;line-height:18px}.legend-toggle[hidden]{display:none}
-    .chart-wrap{overflow-x:auto;border-bottom:1px solid var(--pulse-separator);padding:6px 0 7px;margin-bottom:7px}.chart{height:168px;display:flex;gap:16px;min-width:650px}.axis{width:42px;flex:none;position:relative;font-size:11px;color:var(--pulse-muted)}.axis span{position:absolute;right:0;transform:translateY(50%)}.plot{position:relative;flex:1;display:flex;align-items:stretch;gap:5px;padding:0 1px}.grid-line{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb,var(--pulse-separator) 80%,transparent);opacity:.7;pointer-events:none}.grid-line:first-child{border-top-style:solid;opacity:.92}.bar-column{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;border:0;border-radius:4px;background:transparent;padding:0;margin-bottom:18px;transition:background-color 120ms ease}.bar-column:hover,.bar-column:focus-visible{background:color-mix(in srgb,var(--pulse-hover) 68%,transparent)}.bar-column:active{transform:none}.stack{display:flex;flex-direction:column-reverse;width:62%;max-width:30px;margin-inline:auto;gap:0;pointer-events:none;border-radius:4px 4px 0 0;overflow:hidden}.bar-segment{display:block;flex:none;width:100%;min-height:0;border-radius:0;pointer-events:auto;background:var(--model-color);transition:opacity 140ms ease}.plot[data-highlight] .bar-segment:not([data-highlight=true]){opacity:.24}.x-label{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-size:11px;color:var(--pulse-muted);white-space:nowrap}.empty-bar{height:1px;width:100%;background:var(--pulse-track);border-radius:2px;opacity:.35}.chart-empty{position:absolute;left:0;right:0;top:40%;text-align:center;color:var(--pulse-muted);font-size:12px;pointer-events:none}.range-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.range-picker select,.range-picker input[type=date]{height:26px;padding:0 8px;border:1px solid var(--pulse-border);border-radius:7px;background:var(--pulse-control);color:var(--pulse-foreground);font:inherit;font-size:11px;font-variant-numeric:tabular-nums}.range-picker select{max-width:136px}.range-picker input[type=date]{min-width:118px}.range-picker input[type=date][hidden]{display:none}.tier-merge-btn{height:26px;padding:0 9px;border:1px solid var(--pulse-border);border-radius:7px;background:var(--pulse-control);color:var(--pulse-muted);font:inherit;font-size:11px;white-space:nowrap}.tier-merge-btn:hover{color:var(--pulse-foreground);background:var(--pulse-hover)}.tier-merge-btn[aria-pressed=true]{border-color:color-mix(in srgb,var(--pulse-accent) 45%,var(--pulse-border));background:color-mix(in srgb,var(--pulse-accent) 14%,var(--pulse-control));color:var(--pulse-foreground);font-weight:550}.chart-summary{font-size:11px;color:var(--pulse-muted);margin:0}.chart-summary strong{color:var(--pulse-foreground);font-weight:500}
+    .chart-controls{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.range{display:flex;align-items:center;gap:10px}.range button{height:26px;width:26px;border:0}.range strong{font-size:12px;font-weight:500;min-width:106px;text-align:center}.legend-wrap{display:flex;align-items:flex-start;gap:6px;margin:0 0 6px}.legend{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px 6px;margin:0;padding:0}.legend.is-folded{max-height:44px;overflow:hidden}.legend button{box-sizing:border-box;height:20px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;border:1px solid color-mix(in srgb,var(--pulse-separator) 90%,transparent);border-radius:999px;background:color-mix(in srgb,var(--pulse-card,var(--pulse-background)) 82%,var(--pulse-control));font-size:11px;line-height:18px;color:var(--pulse-label);transition:background-color 120ms ease,border-color 120ms ease,opacity 120ms ease}.legend button:hover,.legend button[aria-pressed=true]{color:var(--pulse-foreground);border-color:var(--pulse-border)}.legend button:hover{background:var(--pulse-hover)}.legend button[aria-pressed=false]{opacity:.42;background:transparent;text-decoration:line-through}.legend-toggle{box-sizing:border-box;height:20px;flex:none;display:inline-flex;align-items:center;padding:0 8px;border:1px solid color-mix(in srgb,var(--pulse-separator) 85%,transparent);border-radius:999px;background:transparent;color:var(--pulse-accent);font-size:10px;line-height:18px}.legend-toggle[hidden]{display:none}
+    .chart-wrap{overflow-x:auto;border-bottom:1px solid var(--pulse-separator);padding:6px 0 7px;margin-bottom:7px}.chart{height:168px;display:flex;gap:16px;min-width:650px}.axis{width:42px;flex:none;position:relative;font-size:11px;color:var(--pulse-muted)}.axis span{position:absolute;right:0;transform:translateY(50%)}.plot{position:relative;flex:1;display:flex;align-items:stretch;gap:5px;padding:0 1px}.grid-line{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb,var(--pulse-separator) 80%,transparent);opacity:.55;pointer-events:none}.grid-line:first-child{border-top-style:solid;opacity:.85}.bar-column{position:relative;flex:1;min-width:0;display:flex;align-items:flex-end;border:0;border-radius:4px;background:transparent;padding:0;margin-bottom:18px;transition:background-color 120ms ease}.bar-column:hover,.bar-column:focus-visible{background:color-mix(in srgb,var(--pulse-hover) 52%,transparent)}.bar-column:active{transform:none}.stack{display:flex;flex-direction:column-reverse;width:62%;max-width:30px;margin-inline:auto;gap:0;pointer-events:none;border-radius:4px 4px 0 0;overflow:hidden;transition:filter 140ms ease}.bar-column:hover .stack{filter:brightness(1.06)}.bar-segment{display:block;flex:none;width:100%;min-height:0;border-radius:0;pointer-events:auto;background:var(--model-color);transition:opacity 140ms ease}.plot[data-highlight] .bar-segment:not([data-highlight=true]){opacity:.24}.x-label{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-size:11px;color:var(--pulse-muted);white-space:nowrap}.empty-bar{height:1px;width:100%;background:var(--pulse-track);border-radius:2px;opacity:.35}.chart-empty{position:absolute;left:0;right:0;top:40%;text-align:center;color:var(--pulse-muted);font-size:12px;pointer-events:none}.range-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.range-dropdown{position:relative;flex:none}.range-trigger{min-width:88px;height:26px;padding:0 8px 0 10px;gap:8px;border-radius:7px;border:1px solid var(--pulse-border);background:var(--pulse-card,var(--pulse-control));color:var(--pulse-foreground);font-size:11px;font-weight:500;box-shadow:0 1px 2px color-mix(in srgb,var(--pulse-shadow) 45%,transparent)}.range-trigger:hover,.range-trigger[aria-expanded=true]{background:var(--pulse-hover);border-color:color-mix(in srgb,var(--pulse-accent) 42%,var(--pulse-border))}.range-trigger:focus-visible,.tier-merge-btn:focus-visible,.range-picker input[type=date]:focus-visible{outline:2px solid color-mix(in srgb,var(--pulse-accent) 65%,transparent);outline-offset:1px}.range-menu{width:142px;padding:4px;border-radius:10px;transform-origin:top left}.range-menu .year-option{padding:6px 9px;font-size:11.5px;gap:12px}.range-picker input[type=date]{height:26px;min-width:116px;padding:0 8px;border:1px solid var(--pulse-border);border-radius:7px;background:var(--pulse-card,var(--pulse-control));color:var(--pulse-foreground);color-scheme:var(--pulse-scheme);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px color-mix(in srgb,var(--pulse-shadow) 45%,transparent)}.range-picker input[type=date][hidden]{display:none}.tier-merge-btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--pulse-border);border-radius:7px;background:var(--pulse-card,var(--pulse-control));color:var(--pulse-muted);font:inherit;font-size:11px;font-weight:500;white-space:nowrap;box-shadow:0 1px 2px color-mix(in srgb,var(--pulse-shadow) 45%,transparent)}.tier-merge-btn::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--pulse-dot);flex:none;transition:background-color 140ms ease}.tier-merge-btn:hover{color:var(--pulse-foreground);background:var(--pulse-hover)}.tier-merge-btn[aria-pressed=true]{border-color:color-mix(in srgb,var(--pulse-accent) 38%,var(--pulse-border));background:color-mix(in srgb,var(--pulse-accent) 9%,var(--pulse-card,var(--pulse-background)));color:var(--pulse-accent);font-weight:550}.tier-merge-btn[aria-pressed=true]::before{background:var(--pulse-accent)}.chart-summary{font-size:11px;color:var(--pulse-muted);margin:0}.chart-summary strong{color:var(--pulse-foreground);font-weight:500}
     .table-wrap{overflow:visible}.table{width:100%;border-collapse:collapse;text-align:right;font-size:11px;white-space:nowrap}.table th{font-weight:500;color:var(--pulse-muted);padding:6px 10px;border-bottom:0;position:sticky;top:0;z-index:2;background:var(--pulse-background);box-shadow:inset 0 -1px 0 var(--pulse-separator)}.table td{padding:7px 10px;border-bottom:1px solid var(--pulse-separator)}.table td:nth-child(2){font-weight:550}.table tbody tr:hover td{background:color-mix(in srgb,var(--pulse-hover) 55%,transparent)}.table th:first-child,.table td:first-child{text-align:left;padding-left:0}.table td:first-child span{margin-right:7px}.table td:first-child .tier-pill{margin-left:6px;margin-right:0;padding:1px 6px;border-radius:999px;background:var(--pulse-control);border:1px solid color-mix(in srgb,var(--pulse-separator) 90%,transparent);font-size:10px;font-weight:500;color:var(--pulse-muted);vertical-align:middle}.table tr:last-child td{border-bottom:0}
     .pool-strip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pool-strip[hidden]{display:none}.pool-pill{flex:1 1 150px;display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--pulse-separator);border-radius:8px;background:color-mix(in srgb,var(--pulse-hover) 40%,transparent);font-size:11px}.pool-pill-name{font-weight:550;color:var(--pulse-label)}.pool-pill-val{font-variant-numeric:tabular-nums;color:var(--pulse-foreground);font-weight:600}.pool-pill-meta{margin-left:5px;color:var(--pulse-muted);font-weight:400}
     .footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:auto;padding-top:14px;font-size:11px;color:var(--pulse-muted)}.alert{color:var(--pulse-warning);margin-top:12px;font-size:11px}.tip{position:fixed;z-index:20;max-width:280px;padding:12px 14px;border:1px solid var(--pulse-border);border-radius:9px;background:var(--pulse-menu);box-shadow:0 8px 30px var(--pulse-shadow);color:var(--pulse-foreground);font-size:11px;pointer-events:none}.tip[hidden]{display:none}.tip .tip-title{font-size:11px;color:var(--pulse-muted);margin-bottom:5px}.tip strong{font-size:16px;font-weight:550}.tip-model{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:5px;padding:3px 0}.tip-model.dimmed{opacity:.5}.tip-model.active{font-weight:600}.tip-model .dot{margin-right:6px}.tip-tiers{padding-left:13px;margin-top:-1px;margin-bottom:2px;font-size:10px;color:var(--pulse-muted)}.model-share{font-size:11px;color:var(--pulse-muted);margin-left:9px}.usage-waiting{display:grid;place-items:center;min-height:260px;color:var(--pulse-muted);font-size:12px}.usage-waiting[hidden]{display:none}
@@ -201,7 +201,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   }
   if(!cssAdopted){const css=document.createElement('style');css.textContent=cssText;view.append(css);}
   const page=document.createElement('div');page.className=embedded?'page embedded':'page';
-  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"${showHeaderTabs?'':' data-hide-tabs="true"'}><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div><div class="range-picker"><select id="range-preset" aria-label="Date range"></select><input type="date" id="range-from" aria-label="Start date" hidden /><input type="date" id="range-to" aria-label="End date" hidden /><button type="button" id="tier-merge-toggle" class="tier-merge-btn" aria-pressed="true"></button></div></div></div><div class="legend-wrap" id="legend-wrap"><div class="legend" id="legend"></div><button type="button" class="legend-toggle" id="legend-toggle" hidden></button></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
+  setMarkup(page,`<div class="page-head"><header class="top"><div><h1 id="title"></h1><div class="sub"><span class="live-dot"></span><span id="subtitle"></span></div></div><div class="actions"><button id="locale" type="button" aria-label="Language"><span id="locale-label" class="locale-label">中</span></button><button id="refresh" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1.3 4.4M13 3v4H9"/></svg></button><button id="close" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div></header><div class="tabs-bar"${showHeaderTabs?'':' data-hide-tabs="true"'}><nav class="tabs" role="tablist"><button id="overview-tab" role="tab" aria-controls="overview"></button><button id="details-tab" role="tab" aria-controls="details"></button></nav><div class="seg scope-seg" id="scope-controls" role="group" hidden><i class="scope-thumb" aria-hidden="true"></i><button type="button" data-usage-scope="local"></button><button type="button" data-usage-scope="account"></button></div></div></div><div class="page-body" id="page-body"><div class="totals" id="totals"></div><section id="usage-waiting" class="usage-waiting" role="status" hidden></section><section id="overview" role="tabpanel"><div class="section-head"><div><h2 id="activity-title"></h2><div class="muted" id="heat-sub"></div></div><div class="chart-controls"><div class="seg" id="heat-controls"><button data-heat="day"></button><button data-heat="week"></button></div><div class="year-picker"><button id="year" type="button" class="year-trigger" aria-label="Year" aria-haspopup="listbox" aria-controls="year-menu" aria-expanded="false"><span id="year-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="year-menu" class="year-menu" role="listbox" aria-label="Year" popover="manual"></div></div></div></div><div class="heat-wrap"><div class="calendar"><div class="months" id="months"></div><div class="heat-row"><div class="weekdays" id="weekdays"></div><div class="heat" id="heat"></div></div></div></div><div class="heat-footer"><span id="heat-summary"></span><div class="scale"><span id="less"></span><i class="swatch"></i><i class="swatch" data-level="1"></i><i class="swatch" data-level="2"></i><i class="swatch" data-level="3"></i><i class="swatch" data-level="4"></i><span id="more"></span></div></div><div class="selected"><div><div class="title" id="selection-title"></div><span class="muted" id="selection-value"></span></div><button id="selection-details"></button></div></section><section id="details" role="tabpanel" hidden><div class="section-head"><h2 id="detail-title"></h2><div class="chart-controls"><div class="range"><button id="previous" aria-label="Previous">‹</button><strong id="range-label"></strong><button id="next" aria-label="Next">›</button></div><div class="seg" id="period-controls"><button data-period="day"></button><button data-period="week"></button><button data-period="month"></button></div><div class="range-picker"><div class="range-dropdown"><button id="range-preset" type="button" class="year-trigger range-trigger" aria-label="Date range" aria-haspopup="listbox" aria-controls="range-menu" aria-expanded="false"><span id="range-preset-label"></span><svg class="year-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div id="range-menu" class="year-menu range-menu" role="listbox" aria-label="Date range" popover="manual"></div></div><input type="date" id="range-from" aria-label="Start date" hidden /><input type="date" id="range-to" aria-label="End date" hidden /><button type="button" id="tier-merge-toggle" class="tier-merge-btn" aria-pressed="true"></button></div></div></div><div class="legend-wrap" id="legend-wrap"><div class="legend" id="legend"></div><button type="button" class="legend-toggle" id="legend-toggle" hidden></button></div><div class="chart-wrap"><div class="chart"><div class="axis" id="axis"></div><div class="plot" id="plot"></div></div></div><div class="pool-strip" id="pool-strip" hidden></div><div class="table-wrap"><table class="table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table></div></section><div class="alert" id="alert" hidden></div><footer class="footer"><span id="coverage"></span><span id="timezone"></span></footer></div><div class="tip" id="tip" role="status" hidden></div>`);view.append(page);
   const intro=document.createElement('section');intro.id='usage-intro';intro.className='usage-intro';intro.hidden=true;intro.setAttribute('aria-labelledby','usage-intro-title');
   setMarkup(intro,'<div class="intro-heading"><span class="intro-mark" aria-hidden="true"><svg viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 2 10 2 10 0V4M3 8c0 2 10 2 10 0"/></svg></span><h2 id="usage-intro-title"></h2></div><div class="intro-copy"><p id="usage-intro-history"></p><p id="usage-intro-scope"></p><p id="usage-intro-storage"></p></div><div class="intro-bottom"><span id="usage-intro-error" role="status"></span><button id="usage-intro-done" type="button"></button></div>');
   page.querySelector('#totals').before(intro);
@@ -366,18 +366,37 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   const contrast=(a,b)=>(Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
   const hsl=a=>{const [r,g,b]=a.map(v=>v/255),hi=Math.max(r,g,b),lo=Math.min(r,g,b),d=hi-lo,l=(hi+lo)/2;return [d?((hi===r?(g-b)/d+(g<b?6:0):hi===g?(b-r)/d+2:(r-g)/d+4)*60):0,d?d/(1-Math.abs(2*l-1)):0,l];};
   const fromHsl=(h,s,l)=>{const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))));};return [f(0),f(8),f(4)];};
+  const lightPalette=[[59,109,224],[16,155,147],[124,92,230],[224,93,68],[22,163,116],[217,70,143],[2,132,199],[217,115,22],[168,85,247],[100,116,139],[79,70,229],[217,61,92]];
+  const darkPalette=[[108,155,255],[56,201,190],[165,139,255],[242,132,108],[74,208,155],[239,123,179],[82,182,240],[240,165,74],[196,139,249],[148,163,184],[129,140,248],[240,112,137]];
+  const hueDist=(a,b)=>Math.abs(((a-b+540)%360)-180);
   function syncPalette(){
     const totalsByModel=new Map();
     for(const day of value?.days||[])for(const [m,r]of Object.entries(day?.models||{}))totalsByModel.set(m,(totalsByModel.get(m)||0)+(Number(r?.total)||0));
     const models=[...(value?.models||[])].sort((a,b)=>(totalsByModel.get(b)||0)-(totalsByModel.get(a)||0)||a.localeCompare(b));
     const key=themeSignature()+'|'+models.join('|');if(key===paletteKey)return;paletteKey=key;modelColors.clear();
     const style=getComputedStyle(themeTarget()),base=rgb(style.getPropertyValue('--pulse-accent').trim()||'#85a8ff'),background=rgb(style.getPropertyValue('--pulse-background').trim()||'#1c1d1f'),[h,s]=hsl(base);
-    const dark=luminance(background)<.35,offsets=[0,192,-32,34,158,-68,224,-104,62,128],sats=dark?[.62,.48,.50,.44,.46]:[.58,.48,.52,.42,.46],tones=dark?[.68,.63,.72,.60,.66]:[.46,.41,.50,.38,.44];
-    const end=contrast([255,255,255],background)>contrast([0,0,0],background)?1:0;
-    models.forEach((model,i)=>{const hue=(h+offsets[i%offsets.length]+360)%360,saturation=s<.08?.07:Math.max(.26,Math.min(.62,sats[i%sats.length]*(.75+.35*s)));let lightness=tones[i%tones.length],c=fromHsl(hue,saturation,lightness);
+    const dark=luminance(background)<.35,end=contrast([255,255,255],background)>contrast([0,0,0],background)?1:0;
+    const curated=dark?darkPalette:lightPalette;
+    let entries=curated;
+    if(s>=.08&&hueDist(h,222)>15){
+      const primaryColor=fromHsl(h,Math.max(.45,Math.min(.72,s)),dark?.68:.46);
+      entries=[primaryColor,...curated.filter(c=>hueDist(hsl(c)[0],h)>22)];
+    }
+    models.forEach((model,i)=>{
+      let c;
+      if(s<.08){
+        c=fromHsl(h,.06,dark?(.58+(i%5)*.06):(.28+(i%5)*.06));
+      }else{
+        c=[...entries[i%entries.length]];
+        const cycle=Math.floor(i/entries.length);
+        if(cycle>0){const [ch,cs,cl]=hsl(c),delta=(cycle%2===1?1:-1)*Math.min(.14,Math.ceil(cycle/2)*.07);c=fromHsl(ch,cs,Math.max(.18,Math.min(.86,cl+delta)));}
+      }
       // Chart marks (including small legend dots) need contrast on the actual
       // custom background, rather than relying solely on dark/light labels.
-      for(let step=0;contrast(c,background)<3&&step<100;step++){lightness+=end? .005:-.005;lightness=Math.max(0,Math.min(1,lightness));c=fromHsl(hue,saturation,lightness);}
+      if(contrast(c,background)<3){
+        let [ch,cs,cl]=hsl(c);
+        for(let step=0;contrast(c,background)<3&&step<100;step++){cl=Math.max(0,Math.min(1,cl+(end?.008:-.008)));c=fromHsl(ch,cs,cl);}
+      }
       modelColors.set(model,'rgb('+c.join(' ')+')');
     });
   }
@@ -510,15 +529,41 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   }
   let rangePreset='default',customFrom='',customTo='',customAnchor=null,lastRenderedRange=null,mergeTiers=true;
   const h=usageChartHelpers;
+  const selectRangePreset=next=>{
+    if(!next)return;
+    if(next==='custom'&&(!customFrom||!customTo)){
+      const today=safeToday(value),firstDate=value?.firstDate&&value.firstDate<=today?value.firstDate:null;
+      const seed=lastRenderedRange||h.clampRange(h.presetRange('30d',today),firstDate,today)||{from:today,to:today};
+      customFrom=seed.from;customTo=seed.to;
+    }
+    rangePreset=next;customAnchor=null;closeRange();renderChart();
+  };
   const syncRangePicker=()=>{
     const options=[['default',w('默认窗口','Default window','預設視窗')],['7d',w('近 7 天','Last 7 days','近 7 天')],['30d',w('近 30 天','Last 30 days','近 30 天')],['90d',w('近 90 天','Last 90 days','近 90 天')],['thisMonth',w('本月','This month','本月')],['lastMonth',w('上月','Last month','上月')],['custom',w('自定义','Custom','自訂')]];
-    const select=$('range-preset');
-    if(select.options.length!==options.length)select.replaceChildren(...options.map(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;return o;}));
-    else options.forEach(([v,l],idx)=>{const o=select.options[idx];if(o.value!==v)o.value=v;if(o.textContent!==l)o.textContent=l;});
-    select.setAttribute('aria-label',w('时间范围','Date range','時間範圍'));
+    const trigger=$('range-preset'),menu=$('range-menu');
+    if(menu.children.length!==options.length){
+      menu.replaceChildren(...options.map(([v,l])=>{
+        const option=node('button','year-option');option.type='button';option.dataset.preset=v;option.setAttribute('role','option');option.tabIndex=-1;
+        setMarkup(option,'<span></span><svg class="year-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7"/></svg>');
+        option.firstElementChild.textContent=l;
+        option.addEventListener('click',()=>selectRangePreset(option.dataset.preset));
+        return option;
+      }));
+    }
+    let activeLabel=options[0][1];
+    options.forEach(([v,l],idx)=>{
+      const option=menu.children[idx];if(!option)return;
+      if(option.dataset.preset!==v)option.dataset.preset=v;
+      if(option.firstElementChild.textContent!==l)option.firstElementChild.textContent=l;
+      const selectedPreset=v===rangePreset;if(selectedPreset)activeLabel=l;
+      option.setAttribute('aria-selected',String(selectedPreset));
+    });
+    text('range-preset-label',activeLabel);
+    if(trigger.dataset.value!==rangePreset)trigger.dataset.value=rangePreset;
+    trigger.setAttribute('aria-label',w('时间范围','Date range','時間範圍')+' · '+activeLabel);
+    menu.setAttribute('aria-label',w('时间范围','Date range','時間範圍'));
     $('range-from').setAttribute('aria-label',w('开始日期','Start date','開始日期'));
     $('range-to').setAttribute('aria-label',w('结束日期','End date','結束日期'));
-    if(select.value!==rangePreset)select.value=rangePreset;
     $('range-from').hidden=rangePreset!=='custom';$('range-to').hidden=rangePreset!=='custom';
     if($('range-from').value!==customFrom)$('range-from').value=customFrom;
     if($('range-to').value!==customTo)$('range-to').value=customTo;
@@ -590,7 +635,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
       const segments=periodModels.filter(model=>bucket.models[model]?.total>0);
       // Continuous stack: rounding clips only its outer top corners. Internal
       // separators are inset, so small values and total heights remain exact.
-      for(const [j,model]of segments.entries()){const r=bucket.models[model],bar=node('i','bar-segment'),height=r.total/ceiling*150;bar.dataset.model=model;bar.setAttribute('aria-hidden','true');bar.style.setProperty('--model-color',color(model));bar.style.height=height+'px';if(j&&height>=2.5)bar.style.boxShadow='inset 0 -.5px 0 color-mix(in srgb,var(--pulse-background) 42%,transparent)';stack.append(bar);}
+      for(const [j,model]of segments.entries()){const r=bucket.models[model],bar=node('i','bar-segment'),height=r.total/ceiling*150;bar.dataset.model=model;bar.setAttribute('aria-hidden','true');bar.style.setProperty('--model-color',color(model));bar.style.height=height+'px';if(j&&height>=3)bar.style.boxShadow='inset 0 -1px 0 color-mix(in srgb,var(--pulse-card,var(--pulse-background)) 82%,transparent)';stack.append(bar);}
       if(!bucket.total)stack.append(node('i','empty-bar'));button.append(stack);
       const showX=(period==='day'?keepLabel(i,dayStep):period==='week'?keepLabel(i,weekStep):keepLabel(i,monthStep))&&(!adaptiveThin||adaptiveThin[i]);
       if(showX)button.append(node('span','x-label',xLabelText(bucket,i)));
@@ -637,7 +682,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   function render(){
     renderGuide();
     if(!value){
-      closeYear(false);$('tip').hidden=true;$('overview').hidden=true;$('details').hidden=true;$('usage-waiting').hidden=false;
+      closeYear(false);closeRange(false);$('tip').hidden=true;$('overview').hidden=true;$('details').hidden=true;$('usage-waiting').hidden=false;
       const sc=$('scope-controls');if(sc)sc.hidden=typeof onScope!=='function';
     text('usage-waiting',w('正在重新连接统计…','Reconnecting usage…','正在重新連線統計資料…'));text('subtitle',w('正在重新连接本机统计','Reconnecting local usage','正在重新連線本機統計'));text('coverage','');text('timezone','');$('alert').hidden=true;
       for(const metric of $('totals').children){metric.title='';metric.querySelector('.value')?.replaceChildren(node('span','','—'));}
@@ -661,7 +706,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     }
     if(value.scope==='account'&&value.accountAvailable===false&&!scopeLoading){
       text('overview-tab',w('概览','Overview','概覽'));text('details-tab',w('详情','Details','詳細資料'));
-      closeYear(false);$('tip').hidden=true;$('overview').hidden=true;$('details').hidden=true;$('usage-waiting').hidden=false;
+      closeYear(false);closeRange(false);$('tip').hidden=true;$('overview').hidden=true;$('details').hidden=true;$('usage-waiting').hidden=false;
       text('usage-waiting',w('当前未检测到登录账号，可切换到「本机全部」查看统计，或在 Antigravity 登录后重试。','No signed-in account detected. Switch to All local or sign in to view account usage.','目前未偵測到登入帳號，可切換至「本機全部」檢視統計，或於 Antigravity 登入後重試。'));
       languagePicker?.update();for(const [id,label]of [['locale',language.t('language')],['refresh',w('刷新用量','Refresh usage','重新整理用量')],['close',w('关闭','Close','關閉')]]){$(id).setAttribute('aria-label',label);$(id).title=label;}
       for(const metric of $('totals').children){metric.title='';metric.querySelector('.value')?.replaceChildren(node('span','','—'));}
@@ -692,7 +737,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     $('alert').hidden=!alerts.length;text('alert',alerts.join(' · '));
     if(tab==='overview')renderHeat();else renderChart();
   }
-  function changeTab(next,notify=false){if(!['overview','details'].includes(next))return;closeYear(false);tab=next;pendingScrollHeat=embedded&&next==='overview';pendingScrollChart=embedded&&next==='details';$('tip').hidden=true;$('page-body').scrollTop=0;if(isActive()||!embedded)render();if(notify&&typeof onTabChange==='function')onTabChange(next);}
+  function changeTab(next,notify=false){if(!['overview','details'].includes(next))return;closeYear(false);closeRange(false);tab=next;pendingScrollHeat=embedded&&next==='overview';pendingScrollChart=embedded&&next==='details';$('tip').hidden=true;$('page-body').scrollTop=0;if(isActive()||!embedded)render();if(notify&&typeof onTabChange==='function')onTabChange(next);}
   $('overview-tab').addEventListener('click',()=>changeTab('overview',true));$('details-tab').addEventListener('click',()=>changeTab('details',true));
   for(const button of view.querySelectorAll('[data-usage-scope]'))button.addEventListener('click',()=>{
     if(disposed||!onScope)return;
@@ -724,8 +769,19 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     menu.style.left=Math.max(bounds.left+12,Math.min(r.right-width,bounds.right-width-12))+'px';const below=r.bottom+7;
     menu.style.top=(below+height<=bounds.bottom-12?below:Math.max(bounds.top+12,r.top-height-7))+'px';
   }
+  function closeRange(restore=true){if(!$('range-menu').matches(':popover-open'))return;$('range-menu').hidePopover();$('range-preset').setAttribute('aria-expanded','false');if(restore)$('range-preset').focus({preventScroll:true});}
+  function positionRange(){
+    if(!$('range-menu').matches(':popover-open'))return;const menu=$('range-menu'),r=$('range-preset').getBoundingClientRect(),bounds=surface.getBoundingClientRect(),width=menu.offsetWidth,height=menu.offsetHeight;
+    menu.style.left=Math.max(bounds.left+10,Math.min(r.left,bounds.right-width-10))+'px';
+    const maxBottom=Math.min(bounds.bottom,window.innerHeight)-10,below=r.bottom+6;
+    menu.style.top=(below+height<=maxBottom?below:Math.max(bounds.top+10,r.top-height-6))+'px';
+  }
+  function openRange(){
+    closeYear(false);$('tip').hidden=true;$('range-menu').showPopover();$('range-preset').setAttribute('aria-expanded','true');positionRange();
+    ($('range-menu').querySelector('[aria-selected=true]')||$('range-menu').firstElementChild)?.focus({preventScroll:true});
+  }
   function openYear(){
-    $('tip').hidden=true;$('year-menu').showPopover();$('year').setAttribute('aria-expanded','true');positionYear();
+    closeRange(false);$('tip').hidden=true;$('year-menu').showPopover();$('year').setAttribute('aria-expanded','true');positionYear();
     ($('year-menu').querySelector('[aria-selected=true]')||$('year-menu').firstElementChild)?.focus({preventScroll:true});
   }
   $('year').addEventListener('click',()=>{$('year-menu').matches(':popover-open')?closeYear():openYear();});
@@ -735,9 +791,19 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     if(event.key==='ArrowDown')next=Math.min(options.length-1,current+1);else if(event.key==='ArrowUp')next=Math.max(0,current-1);else if(event.key==='Home')next=0;else if(event.key==='End')next=options.length-1;
     if(next!==null){event.preventDefault();options[next]?.focus({preventScroll:true});}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeYear();}else if(event.key==='Tab')closeYear();
   });
-  view.addEventListener('pointerdown',event=>{const path=event.composedPath();if(!path.includes($('year'))&&!path.includes($('year-menu')))closeYear(false);});
-  $('page-body').addEventListener('scroll',()=>{closeYear(false);if(!$('tip').hidden){$('tip').hidden=true;highlightModel(null);}},{passive:true});
+  $('range-preset').addEventListener('click',()=>{$('range-menu').matches(':popover-open')?closeRange():openRange();});
+  $('range-preset').addEventListener('keydown',event=>{if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();openRange();if(event.key==='Home')$('range-menu').firstElementChild?.focus();if(event.key==='End')$('range-menu').lastElementChild?.focus();}});
+  $('range-menu').addEventListener('keydown',event=>{
+    const options=[...$('range-menu').children],current=options.indexOf(view.activeElement);let next=null;
+    if(event.key==='ArrowDown')next=Math.min(options.length-1,current+1);else if(event.key==='ArrowUp')next=Math.max(0,current-1);else if(event.key==='Home')next=0;else if(event.key==='End')next=options.length-1;
+    if(next!==null){event.preventDefault();options[next]?.focus({preventScroll:true});}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeRange();}else if(event.key==='Tab')closeRange();
+  });
+  const handleOutsideMenuPointer=event=>{const path=event.composedPath();if(!path.includes($('year'))&&!path.includes($('year-menu')))closeYear(false);if(!path.includes($('range-preset'))&&!path.includes($('range-menu')))closeRange(false);};
+  view.addEventListener('pointerdown',handleOutsideMenuPointer);
+  document.addEventListener('pointerdown',handleOutsideMenuPointer);
+  $('page-body').addEventListener('scroll',()=>{closeYear(false);closeRange(false);if(!$('tip').hidden){$('tip').hidden=true;highlightModel(null);}},{passive:true});
   window.addEventListener('resize',positionYear);
+  window.addEventListener('resize',positionRange);
   const heatWrap=view.querySelector('.heat-wrap');
   const heatObserver=embedded&&typeof ResizeObserver==='function'&&heatWrap?new ResizeObserver(()=>{
     if(disposed||$('overview').hidden||heatMode!=='day'||!value)return;
@@ -772,15 +838,6 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
       customAnchor=shifted>today?today:shifted;
     }else anchor=period==='day'?month(anchor,step):period==='week'?add(anchor,step*(embedded?8:12)*7):month(anchor,step*(embedded?6:12));
     renderChart();
-  });
-  $('range-preset').addEventListener('change',()=>{
-    const next=$('range-preset').value;
-    if(next==='custom'&&(!customFrom||!customTo)){
-      const today=safeToday(value),firstDate=value?.firstDate&&value.firstDate<=today?value.firstDate:null;
-      const seed=lastRenderedRange||h.clampRange(h.presetRange('30d',today),firstDate,today)||{from:today,to:today};
-      customFrom=seed.from;customTo=seed.to;
-    }
-    rangePreset=next;customAnchor=null;renderChart();
   });
   $('range-from').addEventListener('change',()=>{customFrom=$('range-from').value||'';renderChart();});
   $('range-to').addEventListener('change',()=>{customTo=$('range-to').value||'';renderChart();});
@@ -818,7 +875,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     if(!embedded&&dialog.matches(':popover-open'))dialog.hidePopover();
     dialog?.removeAttribute('open');
   }
-  function close(){languagePicker?.close(false);closeYear(false);if(!embedded)conceal();$('tip').hidden=true;opener?.focus({preventScroll:true});}
+  function close(){languagePicker?.close(false);closeYear(false);closeRange(false);if(!embedded)conceal();$('tip').hidden=true;opener?.focus({preventScroll:true});}
   const contentKey=data=>JSON.stringify([{...(data||{}),updatedAt:undefined},language.language,themeSignature(),typeof onScope==='function',pendingScope,scopeLoading,mergeTiers]);
   const within=event=>event.composedPath().includes(surface);
   function containFocus(event){if(!disposed&&dialog.open&&!within(event)){$('locale').focus({preventScroll:true});}}
@@ -826,11 +883,12 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     if(disposed||!dialog.open)return;
     if(event.key==='Escape'){
       event.preventDefault();event.stopImmediatePropagation();
-      if($('year-menu').matches(':popover-open'))closeYear();else close();return;
+      if($('year-menu').matches(':popover-open'))closeYear();else if($('range-menu').matches(':popover-open'))closeRange();else close();return;
     }
     if(event.key!=='Tab')return;
     // The year menu retains its own Tab dismissal; focus stays in the dialog.
     if($('year-menu').matches(':popover-open'))closeYear(false);
+    if($('range-menu').matches(':popover-open'))closeRange(false);
     const controls=[...view.querySelectorAll('button,input,select,a[href],[tabindex]')].filter(n=>n.tabIndex>=0&&!n.disabled&&n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden');
     if(!controls.length){event.preventDefault();return;}
     const index=controls.indexOf(view.activeElement);
@@ -883,6 +941,6 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     },
     setTab(next){changeTab(next,false);},
     renderIfVisible(){if(!disposed&&isActive()){lastKey=rawValue?contentKey(rawValue):'';render();}},
-    restoreModal(){if(!embedded&&!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);present();}},
-    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker?.dispose();themeObserver.disconnect();heatObserver?.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);window.removeEventListener('resize',positionYear);if(!embedded){document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();}surface.remove();backdrop?.remove();},get isOpen(){return embedded?isActive():Boolean(dialog?.open);}};
+    restoreModal(){if(!embedded&&!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);closeRange(false);present();}},
+    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker?.dispose();themeObserver.disconnect();heatObserver?.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);closeRange(false);view.removeEventListener('pointerdown',handleOutsideMenuPointer);document.removeEventListener('pointerdown',handleOutsideMenuPointer);window.removeEventListener('resize',positionYear);window.removeEventListener('resize',positionRange);if(!embedded){document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();}surface.remove();backdrop?.remove();},get isOpen(){return embedded?isActive():Boolean(dialog?.open);}};
 };

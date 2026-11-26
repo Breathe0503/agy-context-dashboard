@@ -508,8 +508,14 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot.getElementById('details-tab').click()`);
   await waitUntil(`() => {
     const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
-    return vs.getElementById('details').hidden === false && vs.querySelectorAll('#legend button').length === ${stressModelList.length} && vs.querySelectorAll('#table-body tr').length === ${stressModelList.length};
-  }`, 'details tab with 22 model rows visible');
+    const rows = vs.querySelectorAll('#table-body tr').length;
+    return vs.getElementById('details').hidden === false && vs.getElementById('tier-merge-toggle')?.getAttribute('aria-pressed') === 'true' && rows > 0 && rows < ${stressModelList.length} && vs.querySelectorAll('#table-body .tier-pill').length > 0;
+  }`, 'details tab with default merged tier rows visible');
+  await evalJs(`() => document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot.getElementById('tier-merge-toggle').click()`);
+  await waitUntil(`() => {
+    const vs = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard').firstElementChild.shadowRoot;
+    return vs.getElementById('tier-merge-toggle')?.getAttribute('aria-pressed') === 'false' && vs.querySelectorAll('#legend button').length === ${stressModelList.length} && vs.querySelectorAll('#table-body tr').length === ${stressModelList.length};
+  }`, 'details tab with 22 unmerged model rows visible');
 
   const detailsMetrics = await evalJs(`() => {
     const ud = document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('usage-dashboard');
