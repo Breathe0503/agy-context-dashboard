@@ -76,3 +76,15 @@ test('POSIX hub API selection requires the current same-user process listener',a
   assert.deepEqual(await client(row).discover(),{pid:20,port:8000,csrf:'test-only'});
  }
 });
+test('multi-window IDE 2.6 selects a live agy hub deterministically when multiple windows share one root',async()=>{
+ const helper2={ProcessId:16,ParentProcessId:10,Name:'Antigravity IDE.exe',CommandLine:'IDE --type=utility'};
+ const hub1=hub('--hub-port=8000');
+ const hub2={...hub('--hub-port=8001'),ProcessId:25,ParentProcessId:16};
+ const processes=[root,helper,helper2,hub1,hub2];
+ const run=async(file,args)=>file==='netstat.exe'
+  ?{stdout:'TCP 127.0.0.1:9000 0.0.0.0:0 LISTENING 10\nTCP 127.0.0.1:8000 0.0.0.0:0 LISTENING 20\nTCP 127.0.0.1:8001 0.0.0.0:0 LISTENING 25'}
+  :{stdout:JSON.stringify(processes)};
+ const selected=await discovery.discoverIdeProcesses(9000,{platform:'win32',run});
+ assert.equal(selected.ProcessId,20);
+ assert.ok(selected.Ports.includes(8000));
+});

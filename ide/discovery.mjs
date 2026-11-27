@@ -94,8 +94,22 @@ export function selectIdeServer(rows,portOwners,debugPort) {
   if(roots.length!==1)throw Error('Multiple Antigravity IDE instances own the renderer port');
   const root=roots[0];
   const candidates=rows.filter(r=>(ideServer(r)||agyServer(r))&&isDescendant(r.ProcessId,root.ProcessId,byPid));
-  if(candidates.length!==1)throw Error('Waiting for the IDE main language server');
-  return {...candidates[0],rootPid:root.ProcessId};
+  if(candidates.length===1)return {...candidates[0],rootPid:root.ProcessId};
+  // IDE 2.6 spawns one agy --hub per open window under the single Electron root.
+  // Pick a live hub deterministically (lowest PID) so opening another window
+  // does not break discovery or churn store epochs.
+  if(candidates.length>1&&candidates.every(agyServer)){
+    const ownsHubPort=c=>{
+      const hp=ideHubPort(c);if(!hp)return false;
+      const v=portOwners.get(hp),list=v instanceof Set||Array.isArray(v)?[...v]:v===undefined?[]:[v];
+      return list.map(processId).includes(c.ProcessId);
+    };
+    const live=candidates.filter(ownsHubPort);
+    const pool=live.length?live:candidates;
+    pool.sort((a,b)=>a.ProcessId-b.ProcessId);
+    return {...pool[0],rootPid:root.ProcessId};
+  }
+  throw Error('Waiting for the IDE main language server');
 }
 
 export async function discoverIdeProcesses(debugPort,{platform=process.platform,run=exec,uid=process.getuid?.(),linuxPort=linuxPorts,expectedApiPorts=[]}={}) {
