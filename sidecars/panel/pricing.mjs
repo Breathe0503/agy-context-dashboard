@@ -104,12 +104,19 @@ export function extractCreditUsageSummary(summary) {
 
 // Public reference rates in USD per 1M tokens. Always marked estimated.
 const PUBLIC_PRICE_RULES = [
-  { key: 'gemini-flash', test: s => /gemini[-.\s]*(?:2\.5|3\.8|4)[-.\s]*(?:flash|hydrogen)|gemini-flash-worker|model_placeholder_m(?:50|198|317|318|319|320|322|432|433|434|525|526|527|528|529|530|531|669)\b/.test(s), input: 0.15, cacheRead: 0.0375, cacheWrite: 0.15, output: 0.60 },
-  { key: 'gemini-pro', test: s => /gemini[-.\s]*(?:2\.5|4)[-.\s]*(?:pro|neon|carbon|argon)|orchestrator|model_placeholder_m(?:18|148|417|418|419|420|421|427|437|438|465|466|467|468|532|533|534|535|536|537|667|668|670|681)\b/.test(s), input: 1.25, cacheRead: 0.125, cacheWrite: 1.25, output: 10.00 },
-  { key: 'claude-opus', test: s => /claude[-.\s]*(?:opus[-.\s]*4\.[5678]|4\.[5678][-.\s]*opus)|model_placeholder_m26\b/.test(s), input: 5.00, cacheRead: 0.50, cacheWrite: 6.25, output: 25.00 },
-  { key: 'claude-opus-legacy', test: s => /claude[-.\s]*(?:opus[-.\s]*4(?:\.0|\.1)?|4(?:\.0|\.1)?[-.\s]*opus)/.test(s), input: 15.00, cacheRead: 1.50, cacheWrite: 18.75, output: 75.00 },
-  { key: 'claude-sonnet', test: s => /claude[-.\s]*(?:sonnet[-.\s]*(?:4(?:\.[567])?|5\.5|3\.[57])|(?:4(?:\.[567])?|5\.5|3\.[57])[-.\s]*sonnet)|model_placeholder_m(?:35|400|401|402|403|404|405)\b/.test(s), input: 3.00, cacheRead: 0.30, cacheWrite: 3.75, output: 15.00 },
-  { key: 'claude-haiku', test: s => /claude[-.\s]*(?:haiku[-.\s]*(?:4\.5|5\.5)|(?:4\.5|5\.5)[-.\s]*haiku)/.test(s), input: 1.00, cacheRead: 0.10, cacheWrite: 1.25, output: 5.00 },
+  { key: 'gemini-4-hydrogen', test: s => /gemini[-._\s]*4[-._\s]*hydrogen|gemini-flash-worker|model_placeholder_m(?:432|433|434|525|526|527|528|529|530|531|669)\b/.test(s), input: 1.50, cacheRead: 0.075, cacheWrite: 1.50, output: 7.50 },
+  { key: 'gemini-4-neon', test: s => /gemini[-._\s]*4[-._\s]*neon|orchestrator[-._\s()]*neon|model_placeholder_m(?:465|466|467|468|532|533|534|535|536|537)\b/.test(s), input: 3.00, cacheRead: 0.15, cacheWrite: 3.00, output: 15.00 },
+  { key: 'gemini-4-argon', test: s => /gemini[-._\s]*4[-._\s]*argon|orchestrator[-._\s()]*argon|gemini-pro-orchestrator-g1-pro|model_placeholder_m(?:417|418|419|681)\b/.test(s), input: 2.00, cacheRead: 0.10, cacheWrite: 2.00, output: 10.00 },
+  { key: 'gemini-4-carbon', test: s => /gemini[-._\s]*4[-._\s]*carbon|orchestrator|model_placeholder_m(?:420|421|427|437|438|667|668|670)\b/.test(s), input: 2.00, cacheRead: 0.10, cacheWrite: 2.00, output: 10.00 },
+  { key: 'gemini-flash', test: s => /gemini[-._\s]*(?:2\.5|3\.8)[-._\s]*flash|model_placeholder_m(?:50|198|317|318|319|320|322)\b/.test(s), input: 0.15, cacheRead: 0.0375, cacheWrite: 0.15, output: 0.60 },
+  { key: 'gemini-pro', test: s => /gemini[-._\s]*2\.5[-._\s]*pro|model_placeholder_m(?:18|148)\b/.test(s), input: 1.25, cacheRead: 0.125, cacheWrite: 1.25, output: 10.00 },
+  { key: 'claude-opus-5.5', test: s => /claude[-._\s]*(?:opus[-._\s]*5[._-]5|5[._-]5[-._\s]*opus)(?!\.[0-9]|[_-][0-9](?![0-9]))|model_placeholder_m(?:368|400|401|402|406)\b/.test(s), input: 4.00, cacheRead: 0.20, cacheWrite: 5.00, output: 20.00 },
+  { key: 'claude-opus', test: s => /claude[-._\s]*(?:opus[-._\s]*(?:4[._-][5678]|5(?:[._-]0)?)|(?:4[._-][5678]|5(?:[._-]0)?)[-._\s]*opus)(?!\.[0-9]|[_-][0-9](?![0-9]))|model_placeholder_m(?:11|12|26|254)\b/.test(s), input: 5.00, cacheRead: 0.50, cacheWrite: 6.25, output: 25.00 },
+  { key: 'claude-opus-legacy', test: s => /claude[-._\s]*(?:opus[-._\s]*4(?:[._-][01])?|4(?:[._-][01])?[-._\s]*opus)(?!\.[0-9]|[_-][0-9](?![0-9]))/.test(s), input: 15.00, cacheRead: 1.50, cacheWrite: 18.75, output: 75.00 },
+  { key: 'claude-sonnet-5.5', test: s => /claude[-._\s]*(?:sonnet[-._\s]*5[._-]5|5[._-]5[-._\s]*sonnet)(?!\.[0-9]|[_-][0-9](?![0-9]))|model_placeholder_m(?:377|403|404|405|407)\b/.test(s), input: 2.00, cacheRead: 0.10, cacheWrite: 2.50, output: 10.00 },
+  { key: 'claude-sonnet', test: s => /claude[-._\s]*(?:sonnet[-._\s]*(?:4(?:[._-][567])?|3[._-][57])|(?:4(?:[._-][567])?|3[._-][57])[-._\s]*sonnet)(?!\.[0-9]|[_-][0-9](?![0-9]))|model_placeholder_m35\b/.test(s), input: 3.00, cacheRead: 0.30, cacheWrite: 3.75, output: 15.00 },
+  { key: 'claude-haiku-5.5', test: s => /claude[-._\s]*(?:haiku[-._\s]*5[._-]5|5[._-]5[-._\s]*haiku)(?!\.[0-9]|[_-][0-9](?![0-9]))/.test(s), input: 0.10, cacheRead: 0.01, cacheWrite: 0.125, output: 0.50 },
+  { key: 'claude-haiku', test: s => /claude[-._\s]*(?:haiku[-._\s]*4[._-]5|4[._-]5[-._\s]*haiku)(?!\.[0-9]|[_-][0-9](?![0-9]))/.test(s), input: 1.00, cacheRead: 0.10, cacheWrite: 1.25, output: 5.00 },
   { key: 'gpt-4.1', test: s => /^gpt-4\.1(?:-|$)/.test(s), input: 2.00, cacheRead: 0.50, cacheWrite: 2.00, output: 8.00 },
   { key: 'gpt-4o', test: s => /^gpt-4o(?:-|$)/.test(s), input: 2.50, cacheRead: 1.25, cacheWrite: 2.50, output: 10.00 },
 ];
