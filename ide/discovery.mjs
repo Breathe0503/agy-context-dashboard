@@ -172,6 +172,39 @@ export async function discoverIdeProcesses(debugPort,{platform=process.platform,
   return {...selected,Ports:ports.get(selected.ProcessId)||[]};
 }
 
+export async function discoverIdeDebugPorts({platform=process.platform,run=exec,uid=process.getuid?.(),linuxPort=linuxPorts}={}) {
+  let roots=[],ports=new Map();
+  if(platform==='win32'){
+    const script="Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'Antigravity IDE*' -or $_.Name -like 'antigravity-ide*' } | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress";
+    const r=await run('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{windowsHide:true,timeout:8000,maxBuffer:4194304});
+    const parsed=r.stdout.trim()?JSON.parse(r.stdout.replace(/^\uFEFF/,'')):[];
+    const rows=(Array.isArray(parsed)?parsed:[parsed]).filter(row=>processId(row?.ProcessId)!==null).map(row=>({...row,ProcessId:processId(row.ProcessId),ParentProcessId:processId(row.ParentProcessId)}));
+    roots=rows.filter(ideRoot);
+    if(!roots.length)return [];
+    ports=await discoverWindowsPorts(roots.map(row=>row.ProcessId),{run});
+  }else{
+    const {stdout}=await run('/bin/ps',['-ww','-axo','pid=,ppid=,uid=,args='],{timeout:8000,maxBuffer:4194304});
+    const rows=stdout.split(/\r?\n/).flatMap(line=>{
+      const m=line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/);if(!m||Number(m[3])!==uid)return [];
+      const command=m[4],first=commandTokens(command)[0]||'',base=executableBase(first);let name;
+      if(/(?:^|\/)Antigravity IDE(?:\s|$)/i.test(command))name='Antigravity IDE';
+      else if(/^(?:antigravity-ide)$/i.test(base))name='antigravity-ide';
+      else return [];
+      return [{ProcessId:Number(m[1]),ParentProcessId:Number(m[2]),Name:name,CommandLine:command}];
+    });
+    roots=rows.filter(ideRoot);
+    if(!roots.length)return [];
+    if(platform==='darwin'){
+      const {stdout:lsofOut}=await run('/usr/sbin/lsof',['-nP','-a','-p',roots.map(r=>r.ProcessId).join(','),'-iTCP','-sTCP:LISTEN','-Fpn'],{timeout:8000,maxBuffer:2097152}).catch(e=>{if(e.code===1)return{stdout:''};throw e;});
+      ports=parseLsof(lsofOut);
+    }else if(platform==='linux')ports=new Map(await Promise.all(roots.map(async r=>[r.ProcessId,await linuxPort(r.ProcessId).catch(()=>[])])));
+    else return [];
+  }
+  const found=new Set();
+  for(const root of roots)for(const p of ports.get(root.ProcessId)||[])if(Number.isInteger(p)&&p>=1&&p<=65535)found.add(p);
+  return [...found];
+}
+
 export async function discoverIdeLogPorts(profile,{read=readLogTail,list=readdir}={}) {
   const names=(await list(join(profile,'logs'))).filter(n=>/^\d{8}T\d{6}$/.test(n)).sort().reverse();
   const ports=new Set();
