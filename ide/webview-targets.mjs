@@ -70,7 +70,7 @@ function agentOverlayProbe(){
   for(const frame of frames){
     if(!visible(frame))continue;
     const r=frame.getBoundingClientRect();
-    if(['left','top','width','height'].some(k=>Math.abs(r[k]-body[k])>3))continue;
+    if(['left','top','width','height'].some(k=>Math.abs(r[k]-body[k])>8))continue;
     try{const url=new URL(frame.src);if(frame.parentElement?.id!==url.searchParams.get('id'))continue;matches.push({url:url.href,id:frame.parentElement.id});}catch{}
   }
   return matches.length===1?matches:[];
