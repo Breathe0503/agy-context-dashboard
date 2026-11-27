@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.9 — 2026-11-27
+
+- **Calibrated Gemini 4, Gemini 3.x / 2.5, & Claude 5.5 public reference pricing (`sidecars/panel/{pricing.mjs,insights.mjs,store.mjs,audit.mjs}`, [#134](https://github.com/wycocoyu/agy-context-dashboard/issues/134), [#136](https://github.com/wycocoyu/agy-context-dashboard/pull/136), [#137](https://github.com/wycocoyu/agy-context-dashboard/pull/137))**:
+  - Split `Gemini 4 Hydrogen` (`$1.50 / $0.075 / $7.50`), `Gemini 4 Neon` (`$3.00 / $0.15 / $15.00`), `Gemini 4 Argon`, and `Gemini 4 Carbon` (`$2.00 / $0.10 / $10.00` through `2026-11-30`, stepping up to `$4.00 / $0.20 / $20.00` starting `2026-12-01`) from legacy Gemini 2.5 rules, set Gemini `cacheWrite` to `$0` (implicit caching), and added `MODEL_PLACEHOLDER_M578` (`Gemini 4 Hydrogen (Sonar)`).
+  - Added `Claude Opus 5.5` (`$4.00 / $0.20 / $5.00 / $20.00`) and corrected host placeholder mappings (`M368`, `M400..M402`, `M406` -> Opus 5.5; `M377`, `M403..M405`, `M407` -> Sonnet 5.5), calibrated `Claude Sonnet 5.5` (`$2.00 / $0.10 / $2.50 / $10.00`) and `Claude Haiku 5.5` (`$0.10 / $0.01 / $0.125 / $0.50` base `<=100K`, `$0.50 / $0.05 / $0.625 / $2.50` `>100K`), and aligned Gemini `3.6/3.7/3.8 Flash` (`$0.75 / $0.075 / $3.75` through `2026-12-31`), `3.5/3.1/2.5 Flash-Lite`, `3.5 Flash`, `3 Flash`, `2.5 Flash`, `2.0 Flash`, and `3.1 Pro` (`>200K` tier) with `docs/REFERENCES.md` benchmarks.
+  - Added `estimateDatedSummaryCost()` in `sidecars/panel/insights.mjs` and forwarded `requests` + `lastActiveAt` in `store.mjs` and `audit.mjs` so historical per-day buckets retain exact pre-cutover rates across scheduled rate transitions.
+- **Full-width footer strip corner-overlay & blocked-layout recovery fix (`compat/inline-widget.cjs`, [#135](https://github.com/wycocoyu/agy-context-dashboard/pull/135))**: Hit-test external corner controls against rendered `.bar` chip bounds rather than empty 100%-wide wrapper margins in `footer` mode, and temporarily clear `data-layout` while probing density tiers so collapsed `data-layout="blocked"` hosts recover cleanly.
+
 ## 1.0.8 — 2026-11-26
 
 - **Multi-window Antigravity IDE 2.6 CDP port recovery & per-window `agy --hub` routing ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**: Added `discoverIdeDebugPorts()` in `ide/discovery.mjs` and fallback CDP port discovery/caching in `ide/runtime.mjs` when a newly launched IDE window briefly overwrites `DevToolsActivePort` (`ECONNREFUSED`), and routed each IDE webview snapshot in `compat/runtime-ui.mjs`, `ide/main.mjs`, `ide/client.mjs`, and `ide/discovery.mjs` to its matching `agy --hub` port via up to 4 LRU-cached `hubStores` so concurrent multi-window chats never crosstalk or stall.
