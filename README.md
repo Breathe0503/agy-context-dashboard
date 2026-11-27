@@ -1,3 +1,5 @@
+有问题可以联系：weiyu9484@gmail.com
+
 <div align="center">
 
 <img src="docs/assets/hero-zh.png?v=1.0.1" width="100%" alt="Antigravity Dashboard：生成速度、Token 缓存、剩余额度与上下文控件，就在输入框旁。">
