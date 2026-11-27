@@ -2,7 +2,7 @@
   "name": "antigrative-dashboard-ide",
   "displayName": "Antigrative Dashboard IDE",
   "publisher": "you-should-know-me",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Adaptive throughput, cache and context icons with local token usage charts in the Antigravity IDE Agent composer.",
   "license": "MIT",
   "repository": {
