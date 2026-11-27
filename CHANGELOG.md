@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8 — 2026-11-26
+
+- **Multi-window Antigravity IDE 2.6 CDP port recovery & per-window `agy --hub` routing ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**: Added `discoverIdeDebugPorts()` in `ide/discovery.mjs` and fallback CDP port discovery/caching in `ide/runtime.mjs` when a newly launched IDE window briefly overwrites `DevToolsActivePort` (`ECONNREFUSED`), and routed each IDE webview snapshot in `compat/runtime-ui.mjs`, `ide/main.mjs`, `ide/client.mjs`, and `ide/discovery.mjs` to its matching `agy --hub` port via up to 4 LRU-cached `hubStores` so concurrent multi-window chats never crosstalk or stall.
+- **Weekly quota depletion forecast scaled by daily active conversation duration ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**: Aggregated daily active conversation duration (`dailyWorkHours`) in `sidecars/panel/usage.mjs` and `sidecars/panel/usage-disk-worker.mjs`, scaling weekly quota depletion forecasts by actual daily active duration across `sidecars/panel/app.js`, `compat/inline-widget.cjs`, and `compat/i18n.cjs` with calculation basis details in hover tooltips.
+
 ## 1.0.7 — 2026-11-26
 
 - **Eliminate `summarize()` SSD write amplification & sweep stale scratch DBs ([#124](https://github.com/wycocoyu/agy-context-dashboard/issues/124), [#125](https://github.com/wycocoyu/agy-context-dashboard/pull/125))**: Added an `ephemeral` SQLite mode (`PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF;`) and bounded outer batch transactions (`128` files / `8,192` rows) around per-file `SAVEPOINT source` in `sidecars/panel/usage-disk-worker.mjs` while keeping `merge()` on `DELETE + FULL`, cutting ~50x+ SSD write amplification and multi-second I/O spikes; added once-per-directory cleanup of stale (10+ min) `.summary-*.tmp*` leftovers in `sidecars/panel/usage.mjs`.
