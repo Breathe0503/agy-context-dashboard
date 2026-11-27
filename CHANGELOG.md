@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.8-ide.1 — 2026-11-27
+
+- **Fix IDE status bar disappearing after clicking turn-footer settings gear**: Replaced `Element.scrollIntoView()` in the inline settings popover (`compat/inline-widget.cjs`) with direct `#pulse-settings-body` `scrollTop` calculation so nested iframes never scroll the outer VS Code webview container, and relaxed the `agentOverlayProbe()` bounding rect tolerance in `ide/webview-targets.mjs` (`> 3` -> `> 8`) to avoid transient unmount on minor host container shifts.
+
 ## 1.0.8 — 2026-11-26
 
 - **Multi-window Antigravity IDE 2.6 CDP port recovery & per-window `agy --hub` routing ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**: Added `discoverIdeDebugPorts()` in `ide/discovery.mjs` and fallback CDP port discovery/caching in `ide/runtime.mjs` when a newly launched IDE window briefly overwrites `DevToolsActivePort` (`ECONNREFUSED`), and routed each IDE webview snapshot in `compat/runtime-ui.mjs`, `ide/main.mjs`, `ide/client.mjs`, and `ide/discovery.mjs` to its matching `agy --hub` port via up to 4 LRU-cached `hubStores` so concurrent multi-window chats never crosstalk or stall.
