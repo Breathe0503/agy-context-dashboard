@@ -212,14 +212,68 @@ test('calibrates Gemini 4 tiers and Claude 5.5 rates including Issue #134 worklo
   assert.ok(Math.abs(workload.totalUsd - expectedWorkload) < 1e-9);
   assert.ok(workload.totalUsd > 23.0 && workload.totalUsd < 24.0);
 
-  // Negative boundary checks: unverified placeholders, speculative versions, perplexity wrappers
+  // Negative boundary checks: unverified placeholders, speculative versions, non-text media, perplexity wrappers
   for (const unknown of [
     'MODEL_PLACEHOLDER_M408',
-    'MODEL_PLACEHOLDER_M578',
     'claude-opus-5.2',
     'claude-opus-4.9',
     'perplexity/sonnet-5-5-high',
+    'gemini-3.8-flash-tts',
+    'gemini-3.8-flash-lite-tts',
+    'gemini-3.8-flash-lite',
+    'gemini-3.1-flash-image',
+    'gemini-3.8-live',
+    'gemini-3.5-transcribe',
+    'gemini-omni-1.2-flash',
   ]) {
     assert.equal(modelPricingRule(unknown), null, unknown);
   }
+});
+
+test('aligns Flash/Pro rates, scheduled cutovers, zero Gemini cacheWrite, and long-context tiers with references', () => {
+  // Gemini 3.6/3.7/3.8 Flash introductory ($0.75 / $0.075 / $0 / $3.75) vs 2027-01-01 ($1.50 / $0.15 / $0 / $7.50)
+  for (const name of ['Gemini 3.8 Flash (Medium)', 'gemini-3.7-flash-high', 'gemini-3.6-flash-low', 'MODEL_PLACEHOLDER_M318', 'MODEL_PLACEHOLDER_M124']) {
+    const pre = estimateTokenCost(name, { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000, output: 1_000_000 }, { date: '2026-12-31' });
+    assert.equal(pre.rateKey, 'gemini-3.8-flash', name);
+    assert.ok(Math.abs(pre.totalUsd - (0.75 + 0.075 + 3.75)) < 1e-9, name);
+    const post = estimateTokenCost(name, { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000, output: 1_000_000 }, { date: '2027-01-01' });
+    assert.ok(Math.abs(post.totalUsd - (1.50 + 0.15 + 7.50)) < 1e-9, name);
+  }
+
+  // Gemini Flash-Lite, 3.5 Flash, 3 Flash, 2.5 Flash, 2.0 Flash, and 3.1 Pro base rates
+  assert.ok(Math.abs(estimateTokenCost('gemini-3.5-flash-lite', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.30 + 0.03 + 2.50)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('gemini-3.1-flash-lite', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.25 + 0.025 + 1.50)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('gemini-2.5-flash-lite', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.10 + 0.01 + 0.40)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('gemini-3.5-flash', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (1.50 + 0.15 + 9.00)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('gemini-3-flash', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.50 + 0.05 + 3.00)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('Gemini 2.5 Flash', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.30 + 0.03 + 2.50)) < 1e-9);
+  assert.ok(Math.abs(estimateTokenCost('gemini-2.0-flash', { uncached: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 }).totalUsd - (0.10 + 0.025 + 0.40)) < 1e-9);
+
+  // Gemini 4 Hydrogen Sonar (M578) and implicit caching cacheWrite === 0 across Gemini 4
+  assert.equal(modelPricingRule('MODEL_PLACEHOLDER_M578')?.key, 'gemini-4-hydrogen');
+  assert.equal(estimateTokenCost('Gemini 4 Hydrogen (High)', { uncached: 0, cacheRead: 0, cacheWrite: 1_000_000, output: 0 }).totalUsd, 0);
+
+  // Gemini 4 Carbon & Argon scheduled cutover on 2026-12-01
+  for (const name of ['Gemini 4 Carbon (High)', 'Gemini 4 Argon (High)', 'Orchestrator (Carbon)', 'Orchestrator (Argon)']) {
+    const before = estimateTokenCost(name, { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000, output: 1_000_000 }, { date: '2026-11-30' });
+    assert.ok(Math.abs(before.totalUsd - (2.00 + 0.10 + 10.00)) < 1e-9, name);
+    const after = estimateTokenCost(name, { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000, output: 1_000_000 }, { date: '2026-12-01' });
+    assert.ok(Math.abs(after.totalUsd - (4.00 + 0.20 + 20.00)) < 1e-9, name);
+  }
+
+  // Prompt-length step-ups when per-request average input exceeds longAt
+  const haikuBase = estimateTokenCost('claude-haiku-5-5', { uncached: 90_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(haikuBase.totalUsd - (0.09 * 0.10 + 0.01 * 0.50)) < 1e-9);
+  const haikuLong = estimateTokenCost('claude-haiku-5-5', { uncached: 150_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(haikuLong.totalUsd - (0.15 * 0.50 + 0.01 * 2.50)) < 1e-9);
+
+  const pro25Base = estimateTokenCost('Gemini 2.5 Pro', { uncached: 150_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(pro25Base.totalUsd - (0.15 * 1.25 + 0.01 * 10.00)) < 1e-9);
+  const pro25Long = estimateTokenCost('Gemini 2.5 Pro', { uncached: 250_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(pro25Long.totalUsd - (0.25 * 2.50 + 0.01 * 15.00)) < 1e-9);
+
+  const pro31Base = estimateTokenCost('gemini-3.1-pro-preview', { uncached: 150_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(pro31Base.totalUsd - (0.15 * 2.00 + 0.01 * 12.00)) < 1e-9);
+  const pro31Long = estimateTokenCost('gemini-3.1-pro-preview', { uncached: 250_000, cacheRead: 0, cacheWrite: 0, output: 10_000, requests: 1 });
+  assert.ok(Math.abs(pro31Long.totalUsd - (0.25 * 4.00 + 0.01 * 18.00)) < 1e-9);
 });
