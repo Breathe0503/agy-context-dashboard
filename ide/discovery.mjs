@@ -80,7 +80,7 @@ function isDescendant(pid,rootPid,byPid,maxHops=MAX_LINEAGE_HOPS){
   return false;
 }
 
-export function selectIdeServer(rows,portOwners,debugPort) {
+export function selectIdeServer(rows,portOwners,debugPort,{preferredHubPort=null}={}) {
   if(!Number.isInteger(debugPort)||debugPort<1||debugPort>65535)throw Error('Invalid IDE renderer port');
   const value=portOwners.get(debugPort);
   const owners=value instanceof Set||Array.isArray(value)?[...value]:value===undefined?[]:[value];
@@ -94,11 +94,29 @@ export function selectIdeServer(rows,portOwners,debugPort) {
   if(roots.length!==1)throw Error('Multiple Antigravity IDE instances own the renderer port');
   const root=roots[0];
   const candidates=rows.filter(r=>(ideServer(r)||agyServer(r))&&isDescendant(r.ProcessId,root.ProcessId,byPid));
-  if(candidates.length!==1)throw Error('Waiting for the IDE main language server');
-  return {...candidates[0],rootPid:root.ProcessId};
+  if(Number.isInteger(preferredHubPort)&&preferredHubPort>=1&&preferredHubPort<=65535){
+    const matched=candidates.filter(c=>agyServer(c)&&ideHubPort(c)===preferredHubPort);
+    if(matched.length===1)return {...matched[0],rootPid:root.ProcessId};
+  }
+  if(candidates.length===1)return {...candidates[0],rootPid:root.ProcessId};
+  // IDE 2.6 spawns one agy --hub per open window under the single Electron root.
+  // Pick a live hub deterministically (lowest PID) so opening another window
+  // does not break discovery or churn store epochs.
+  if(candidates.length>1&&candidates.every(agyServer)){
+    const ownsHubPort=c=>{
+      const hp=ideHubPort(c);if(!hp)return false;
+      const v=portOwners.get(hp),list=v instanceof Set||Array.isArray(v)?[...v]:v===undefined?[]:[v];
+      return list.map(processId).includes(c.ProcessId);
+    };
+    const live=candidates.filter(ownsHubPort);
+    const pool=live.length?live:candidates;
+    pool.sort((a,b)=>a.ProcessId-b.ProcessId);
+    return {...pool[0],rootPid:root.ProcessId};
+  }
+  throw Error('Waiting for the IDE main language server');
 }
 
-export async function discoverIdeProcesses(debugPort,{platform=process.platform,run=exec,uid=process.getuid?.(),linuxPort=linuxPorts,expectedApiPorts=[]}={}) {
+export async function discoverIdeProcesses(debugPort,{platform=process.platform,run=exec,uid=process.getuid?.(),linuxPort=linuxPorts,expectedApiPorts=[],preferredHubPort=null}={}) {
   let rows,ports;
   if(platform==='win32'){
     // Keep the complete process table so a helper between agy and the
@@ -168,8 +186,41 @@ export async function discoverIdeProcesses(debugPort,{platform=process.platform,
   // language server and Electron helpers. Keep all owners; never let process
   // iteration order replace the root or resolve a multi-instance ambiguity.
   for(const [pid,values] of ports)for(const port of values){if(!owners.has(port))owners.set(port,new Set());owners.get(port).add(pid);}
-  const selected=selectIdeServer(rows,owners,debugPort);
+  const selected=selectIdeServer(rows,owners,debugPort,{preferredHubPort});
   return {...selected,Ports:ports.get(selected.ProcessId)||[]};
+}
+
+export async function discoverIdeDebugPorts({platform=process.platform,run=exec,uid=process.getuid?.(),linuxPort=linuxPorts}={}) {
+  let roots=[],ports=new Map();
+  if(platform==='win32'){
+    const script="Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'Antigravity IDE*' -or $_.Name -like 'antigravity-ide*' } | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress";
+    const r=await run('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{windowsHide:true,timeout:8000,maxBuffer:4194304});
+    const parsed=r.stdout.trim()?JSON.parse(r.stdout.replace(/^\uFEFF/,'')):[];
+    const rows=(Array.isArray(parsed)?parsed:[parsed]).filter(row=>processId(row?.ProcessId)!==null).map(row=>({...row,ProcessId:processId(row.ProcessId),ParentProcessId:processId(row.ParentProcessId)}));
+    roots=rows.filter(ideRoot);
+    if(!roots.length)return [];
+    ports=await discoverWindowsPorts(roots.map(row=>row.ProcessId),{run});
+  }else{
+    const {stdout}=await run('/bin/ps',['-ww','-axo','pid=,ppid=,uid=,args='],{timeout:8000,maxBuffer:4194304});
+    const rows=stdout.split(/\r?\n/).flatMap(line=>{
+      const m=line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/);if(!m||Number(m[3])!==uid)return [];
+      const command=m[4],first=commandTokens(command)[0]||'',base=executableBase(first);let name;
+      if(/(?:^|\/)Antigravity IDE(?:\s|$)/i.test(command))name='Antigravity IDE';
+      else if(/^(?:antigravity-ide)$/i.test(base))name='antigravity-ide';
+      else return [];
+      return [{ProcessId:Number(m[1]),ParentProcessId:Number(m[2]),Name:name,CommandLine:command}];
+    });
+    roots=rows.filter(ideRoot);
+    if(!roots.length)return [];
+    if(platform==='darwin'){
+      const {stdout:lsofOut}=await run('/usr/sbin/lsof',['-nP','-a','-p',roots.map(r=>r.ProcessId).join(','),'-iTCP','-sTCP:LISTEN','-Fpn'],{timeout:8000,maxBuffer:2097152}).catch(e=>{if(e.code===1)return{stdout:''};throw e;});
+      ports=parseLsof(lsofOut);
+    }else if(platform==='linux')ports=new Map(await Promise.all(roots.map(async r=>[r.ProcessId,await linuxPort(r.ProcessId).catch(()=>[])])));
+    else return [];
+  }
+  const found=new Set();
+  for(const root of roots)for(const p of ports.get(root.ProcessId)||[])if(Number.isInteger(p)&&p>=1&&p<=65535)found.add(p);
+  return [...found];
 }
 
 export async function discoverIdeLogPorts(profile,{read=readLogTail,list=readdir}={}) {
