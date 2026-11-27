@@ -462,8 +462,9 @@ export class MetricsStore {
           cacheRead: speed.tokens.cachedTokens ?? speed.counts?.cacheRead ?? 0,
           cacheWrite: speed.tokens.cacheWriteTokens ?? speed.counts?.cacheWrite ?? 0,
           output: speed.tokens.outputTokens ?? speed.counts?.output ?? 0,
+          requests: speed.tokens.measuredRequests ?? speed.requests ?? 0,
         },
-      });
+      }, { date: speed.lastActiveAt || undefined });
       if (est.hasPriced) speed = { ...speed, estimatedCost: est };
     }
     if (speed?.taskUsage) {

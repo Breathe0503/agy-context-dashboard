@@ -1,29 +1,29 @@
-# Antigrative Dashboard v1.0.8
+# Antigrative Dashboard v1.0.9
 
-## v1.0.8 更新内容
+## v1.0.9 更新内容
 
-- **多窗口 Antigravity IDE 2.6 CDP 端口恢复与按窗口 `agy --hub` 精准路由（[#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128)）**：
-  - 在 `ide/discovery.mjs` 新增 `discoverIdeDebugPorts()`，并在 `ide/runtime.mjs` 中当新启动窗口短暂覆盖 `DevToolsActivePort` 导致 `ECONNREFUSED` 时自动探测并缓存存活的 CDP 调试端口，避免所有窗口状态条消失并卡在 `reconnecting`。
-  - 在 `compat/runtime-ui.mjs`、`ide/main.mjs`、`ide/client.mjs` 与 `ide/discovery.mjs` 中按每个 webview 的 `connection.origin` 端口维护最多 4 个 LRU 缓存的 `hubStores`，将多窗口并发对话请求准确路由至各自所属的 `agy --hub` 实例，防止串台或另一窗口显示「尚无请求」。
-- **周额度预计耗尽时间按当日活跃对话时长折算（[#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128)）**：
-  - 在 `sidecars/panel/usage.mjs` 与 `sidecars/panel/usage-disk-worker.mjs` 中汇总当日活跃对话总时长（`dailyWorkHours`），并在 `sidecars/panel/app.js`、`compat/inline-widget.cjs` 与 `compat/i18n.cjs` 中按实际日均活跃时长折算周额度耗尽预测，同时在悬停提示中展示推算依据。
+- **全面校准 Gemini 4 / 3.x / 2.5 与 Claude 5.5 公开参考计价（[#134](https://github.com/wycocoyu/agy-context-dashboard/issues/134), [#136](https://github.com/wycocoyu/agy-context-dashboard/pull/136), [#137](https://github.com/wycocoyu/agy-context-dashboard/pull/137)）**：
+  - 将 `Gemini 4 Hydrogen`（`$1.50 / $0.075 / $7.50`）、`Neon`（`$3.00 / $0.15 / $15.00`）、`Argon` 与 `Carbon`（`2026-11-30` 前 `$2.00 / $0.10 / $10.00`，`2026-12-01` 起 `$4.00 / $0.20 / $20.00`）从老一代 Gemini 2.5 规则中拆出，统一 Gemini 系列 `cacheWrite = $0` 并补入 `MODEL_PLACEHOLDER_M578`（`Gemini 4 Hydrogen (Sonar)`）。
+  - 新增 `Claude Opus 5.5`（`$4.00 / $0.20 / $5.00 / $20.00`）并修正宿主占位符归属（`M368`、`M400..M402`、`M406` 归入 Opus 5.5，`M377`、`M403..M405`、`M407` 归入 Sonnet 5.5），同步校准 `Claude Sonnet 5.5`、`Claude Haiku 5.5`（含 `>100K` 长上下文阶梯）、`Gemini 3.6/3.7/3.8 Flash`、`Flash-Lite` 与 `Gemini 3.1/2.5 Pro` 费率，并在 `insights.mjs` 中按日保留历史切价前账单精度。
+- **修复独立底栏（`footer`）模式被角落悬浮控件误遮挡与卡死恢复问题（[#135](https://github.com/wycocoyu/agy-context-dashboard/pull/135)）**：
+  - 在 `compat/inline-widget.cjs` 的 `footer` 模式下按实际可见 `.bar` 元素范围（而非整行 `100%` 空白外边距）检测外部角标碰撞，并在测量密度档位时临时移除 `data-layout`，解决从 `blocked` 切换回 `ready` 的恢复死锁。
 
 ## 安装与升级
 
-- **桌面端扩展包**：下载 `antigrative-dashboard-1.0.8.zip`，运行 `python3 manage.py install` 或 `python3 manage.py upgrade`（详情见 [README.md](README.md)）。
-- **IDE 扩展包**：下载 `antigrative-dashboard-ide-1.0.8.vsix`，在 IDE 扩展视图选择「从 VSIX 安装」。
+- **桌面端扩展包**：下载 `antigrative-dashboard-1.0.9.zip`，运行 `python3 manage.py install` 或 `python3 manage.py upgrade`（详情见 [README.md](README.md)）。
+- **IDE 扩展包**：下载 `antigrative-dashboard-ide-1.0.9.vsix`，在 IDE 扩展视图选择「从 VSIX 安装」。
 
 ---
 
-## What changed in v1.0.8
+## What changed in v1.0.9
 
-- **Multi-window Antigravity IDE 2.6 CDP port recovery & per-window `agy --hub` routing ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**:
-  - Added `discoverIdeDebugPorts()` in `ide/discovery.mjs` and fallback CDP port probing/caching in `ide/runtime.mjs` so launching a second IDE window that briefly overwrites `DevToolsActivePort` (`ECONNREFUSED`) no longer drops existing status strips or leaves them stuck in `reconnecting`.
-  - Routed each IDE webview snapshot via its `connection.origin` port across `compat/runtime-ui.mjs`, `ide/main.mjs`, `ide/client.mjs`, and `ide/discovery.mjs` using up to 4 LRU-cached `hubStores`, ensuring concurrent chats across multiple IDE windows target their own `agy --hub` instance.
-- **Weekly quota depletion forecast scaled by daily active conversation duration ([#128](https://github.com/wycocoyu/agy-context-dashboard/pull/128))**:
-  - Aggregated daily active conversation duration (`dailyWorkHours`) in `sidecars/panel/usage.mjs` and `sidecars/panel/usage-disk-worker.mjs`, scaling weekly quota depletion forecasts by actual daily active duration across `sidecars/panel/app.js`, `compat/inline-widget.cjs`, and `compat/i18n.cjs` with basis details in hover tooltips.
+- **Calibrated Gemini 4 / 3.x / 2.5 & Claude 5.5 public reference pricing ([#134](https://github.com/wycocoyu/agy-context-dashboard/issues/134), [#136](https://github.com/wycocoyu/agy-context-dashboard/pull/136), [#137](https://github.com/wycocoyu/agy-context-dashboard/pull/137))**:
+  - Split `Gemini 4 Hydrogen` (`$1.50 / $0.075 / $7.50`), `Neon` (`$3.00 / $0.15 / $15.00`), `Argon`, and `Carbon` (`$2.00 / $0.10 / $10.00` through `2026-11-30`, stepping up to `$4.00 / $0.20 / $20.00` on `2026-12-01`) from legacy Gemini 2.5 rules, set Gemini `cacheWrite` to `$0`, and mapped `MODEL_PLACEHOLDER_M578` (`Gemini 4 Hydrogen (Sonar)`).
+  - Added `Claude Opus 5.5` (`$4.00 / $0.20 / $5.00 / $20.00`) and fixed host placeholder mappings (`M368`, `M400..M402`, `M406` -> Opus 5.5; `M377`, `M403..M405`, `M407` -> Sonnet 5.5), calibrated `Claude Sonnet 5.5`, `Claude Haiku 5.5` (`<=100K` / `>100K`), `Gemini 3.6/3.7/3.8 Flash`, `Flash-Lite`, and `Gemini 3.1/2.5 Pro`, and added dated per-day pricing aggregation in `insights.mjs`.
+- **Full-width footer strip corner-overlay & blocked-layout recovery fix ([#135](https://github.com/wycocoyu/agy-context-dashboard/pull/135))**:
+  - Hit-test external corner controls against rendered `.bar` chip bounds instead of empty 100%-wide wrapper margins in `footer` mode, and temporarily clear `data-layout` while probing density tiers so `data-layout="blocked"` recovers cleanly.
 
 ## Install or update
 
-- **Desktop App bundle**: Download `antigrative-dashboard-1.0.8.zip` and run `python3 manage.py install` or `python3 manage.py upgrade` (see [README.en.md](README.en.md)).
-- **IDE extension**: Download `antigrative-dashboard-ide-1.0.8.vsix` and choose **Install from VSIX…** in the IDE Extensions view.
+- **Desktop App bundle**: Download `antigrative-dashboard-1.0.9.zip` and run `python3 manage.py install` or `python3 manage.py upgrade` (see [README.en.md](README.en.md)).
+- **IDE extension**: Download `antigrative-dashboard-ide-1.0.9.vsix` and choose **Install from VSIX…** in the IDE Extensions view.

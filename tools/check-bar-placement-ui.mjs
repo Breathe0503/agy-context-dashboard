@@ -387,6 +387,37 @@ try {
   }`);
   await waitUntil(() => document.getElementById('ag-pulse-status-bar')?.dataset.placement === 'inline' && document.getElementById('ag-pulse-status-bar')?.parentElement === document.querySelector('.actions'), 'horizontal flex parent falls back to inline');
 
+  // 7. Regression: external corner overlay over empty side margin of 100%-wide footer bar
+  // must NOT mark footer bar data-layout="blocked", and must recover even if previously blocked
+  await evalJs(`async () => {
+    const box = document.querySelector('.composer');
+    box.style.display = '';
+    box.style.flexDirection = '';
+    box.style.flexWrap = '';
+    document.querySelector('.editor').style.width = '';
+    document.querySelector('.actions').style.width = '';
+    const bar = document.getElementById('ag-pulse-status-bar');
+    const st = document.createElement('style');
+    st.id = 'test-blocked-deadlock-css';
+    st.textContent = ':host([data-layout="blocked"]){position:fixed!important;left:-9999px!important;width:0!important;height:0!important;visibility:hidden!important;}:host([data-layout="blocked"])>.bar{display:none!important;}';
+    bar.shadowRoot.appendChild(st);
+    bar.dataset.layout = 'blocked';
+    const corner = document.createElement('div');
+    corner.id = 'test-corner-widget';
+    corner.setAttribute('role', 'button');
+    corner.style.cssText = 'position:fixed;right:0;bottom:0;width:160px;height:800px;z-index:2147482800;';
+    document.body.appendChild(corner);
+    const barRight = box.getBoundingClientRect().right;
+    corner.style.left = Math.round(barRight - 140) + 'px';
+    window.dispatchEvent(new Event('resize'));
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  }`);
+  await waitUntil(() => {
+    const b = document.getElementById('ag-pulse-status-bar');
+    return b?.dataset.placement === 'footer' && b?.dataset.layout === 'ready' && b.getBoundingClientRect().height > 0;
+  }, 'footer stays visible with corner overlay over side padding and recovers from blocked css');
+
   console.log('PASS: check-bar-placement-ui (Issue #112 footer placement + fallback)');
 } finally {
   if (browser) {

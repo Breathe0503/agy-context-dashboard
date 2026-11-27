@@ -767,7 +767,7 @@ export async function summarizeTranscriptArchive(root, conversationId, { modelAl
     compactionMarkers: compactions,
   };
   const contextComposition = context && context.maxTokens ? compositionMetrics({ context, transcript: transcriptStats }) : null;
-  const est = estimateModelsCost(Object.fromEntries(modelMap));
+  const est = estimateModelsCost(Object.fromEntries(modelMap), { date: lastActiveAt || undefined });
 
   return {
     source: 'Local archived transcript',
