@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7-ide.1 — 2026-11-27
+
+- **IDE 2.6 multi-window CDP port recovery & per-window `agy --hub` routing**: Recovered the live loopback CDP port when launching a second Antigravity IDE window with `--remote-debugging-port=0` clobbers `DevToolsActivePort` (`ide/discovery.mjs`, `ide/runtime.mjs`), deterministically selected a live `agy --hub` under the shared Electron root, and routed each Jetski webview snapshot to its own hub port (`compat/runtime-ui.mjs`, `ide/client.mjs`, `ide/main.mjs`) so concurrent IDE windows show live context and cache metrics.
+- **Weekly quota depletion forecast scaled by daily active conversation duration**: Automatically computed today's active conversation duration (`todayActiveMs` / `dailyWorkHours` with 15-minute idle gap clustering and 7-day active fallback) across JSON and SQLite usage summaries (`sidecars/panel/usage.mjs`, `sidecars/panel/usage-disk-worker.mjs`) and applied it to weekly depletion forecasts (`compat/i18n.cjs`, `compat/inline-widget.cjs`, `sidecars/panel/app.js`).
+
 ## 1.0.7 — 2026-11-26
 
 - **Eliminate `summarize()` SSD write amplification & sweep stale scratch DBs ([#124](https://github.com/wycocoyu/agy-context-dashboard/issues/124), [#125](https://github.com/wycocoyu/agy-context-dashboard/pull/125))**: Added an `ephemeral` SQLite mode (`PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF;`) and bounded outer batch transactions (`128` files / `8,192` rows) around per-file `SAVEPOINT source` in `sidecars/panel/usage-disk-worker.mjs` while keeping `merge()` on `DELETE + FULL`, cutting ~50x+ SSD write amplification and multi-second I/O spikes; added once-per-directory cleanup of stale (10+ min) `.summary-*.tmp*` leftovers in `sidecars/panel/usage.mjs`.

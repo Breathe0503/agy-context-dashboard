@@ -295,3 +295,24 @@ test('macOS lsof duplicate owners are retained; Electron helpers cannot win a sh
  const run=async file=>({stdout:file==='/bin/ps'?ps:'p10\nn127.0.0.1:9000\np20\nn127.0.0.1:9000\nn127.0.0.1:8000\np30\nn127.0.0.1:9000'});
  const result=await discoverIdeProcesses(9000,{platform:'darwin',uid:501,run});assert.equal(result.rootPid,10);assert.equal(result.ProcessId,20);
 });
+test('ideTargets recovers and caches live CDP port when second-window launch clobbers DevToolsActivePort',async()=>{
+ const {ideTargets}=await import('../runtime.mjs');
+ const livePort=57425,deadPort=57745;
+ let discoverCalls=0;
+ const workbench={id:'wb1',type:'page',url:'vscode-file://vscode-app/d:/IDE/resources/app/out/vs/code/electron-browser/workbench/workbench.html',webSocketDebuggerUrl:`ws://127.0.0.1:${livePort}/devtools/page/wb1`};
+ const fetchFn=async url=>{
+  if(url.includes(`:${deadPort}/`))throw Object.assign(new Error('ECONNREFUSED'),{code:'ECONNREFUSED'});
+  if(url.includes(`:${livePort}/`))return {ok:true,text:async()=>JSON.stringify([workbench])};
+  throw new Error('Unexpected port');
+ };
+ const opts={
+  read:async()=>`${deadPort}\n/devtools/browser/fake\n`,
+  fetchFn,
+  discoverPorts:async()=>{discoverCalls++;return [deadPort,57426,livePort];},
+  discoverWebviews:async()=>[],
+ };
+ const first=await ideTargets('fixture-stale-profile',opts);
+ assert.equal(first.port,livePort);assert.equal(first.targets.length,1);assert.equal(discoverCalls,1);
+ const second=await ideTargets('fixture-stale-profile',opts);
+ assert.equal(second.port,livePort);assert.equal(discoverCalls,1,'Cached live port avoids rescanning processes on every tick');
+});
