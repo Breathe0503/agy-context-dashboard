@@ -1734,7 +1734,16 @@ module.exports = function installAgPulseInlineWidget() {
       if(targetRow){
         targetRow.classList.add('is-highlight');
         targetRow.setAttribute('data-highlighted','true');
-        requestAnimationFrame(()=>{if(settingsOpen&&targetRow.isConnected)targetRow.scrollIntoView({block:'center',behavior:'instant'});});
+        // Scroll only the modal's own body container; Element.scrollIntoView()
+        // inside a nested iframe can also scroll the outer VS Code webview host.
+        requestAnimationFrame(()=>{
+          if(!settingsOpen||!targetRow.isConnected)return;
+          const scroller=$('pulse-settings-body');
+          if(!scroller)return;
+          const sr=scroller.getBoundingClientRect(),tr=targetRow.getBoundingClientRect();
+          const nextTop=scroller.scrollTop+(tr.top-sr.top)-(scroller.clientHeight-tr.height)/2;
+          scroller.scrollTop=Math.max(0,Math.min(scroller.scrollHeight-scroller.clientHeight,nextTop));
+        });
         settingsHighlightTimer=setTimeout(()=>{settingsHighlightTimer=0;if(targetRow.isConnected){targetRow.classList.remove('is-highlight');targetRow.removeAttribute('data-highlighted');}},2800);
       }
     }
