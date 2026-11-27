@@ -2,13 +2,13 @@ import {AntigravityClient} from '../sidecars/panel/client.mjs';
 import {resolveDaemonCredential} from '../sidecars/panel/discovery.mjs';
 import {discoverIdeProcesses,discoverIdeLogPorts,agyServer,ideServer,ideHubPort} from './discovery.mjs';
 export class IdeClient extends AntigravityClient {
-  constructor({profile,debugPort,processes=discoverIdeProcesses,logPorts=discoverIdeLogPorts,probe,pidAlive,resolveDaemon=resolveDaemonCredential,now}={}){super({...(probe?{probe}:{}),...(pidAlive?{pidAlive}:{}),...(resolveDaemon?{resolveDaemon}:{}),...(now?{now}:{})});this.profile=profile;this.debugPort=debugPort;this.ideProcesses=processes;this.logPorts=logPorts;}
+  constructor({profile,debugPort,preferredHubPort=null,processes=discoverIdeProcesses,logPorts=discoverIdeLogPorts,probe,pidAlive,resolveDaemon=resolveDaemonCredential,now}={}){super({...(probe?{probe}:{}),...(pidAlive?{pidAlive}:{}),...(resolveDaemon?{resolveDaemon}:{}),...(now?{now}:{})});this.profile=profile;this.debugPort=debugPort;this.preferredHubPort=preferredHubPort;this.ideProcesses=processes;this.logPorts=logPorts;}
   async discoverNow(){
     this.server=null;
     // Missing old-profile logs must not block a 2.6 hub. Logs are optional
     // discovery hints, not ownership or HTTP identity for an agy process.
     const expectedApiPorts=await this.logPorts(this.profile).catch(()=>[]);
-    const row=await this.ideProcesses(this.debugPort(),{expectedApiPorts});
+    const row=await this.ideProcesses(this.debugPort(),{expectedApiPorts,...(this.preferredHubPort?{preferredHubPort:this.preferredHubPort}:{})});
     const hub=agyServer(row),hubPort=hub?ideHubPort(row):null;
     const daemon=await this.resolveDaemon({commandLine:row.CommandLine,pid:row.ProcessId,ports:row.Ports}).catch(()=>null);
     const port=hub?(hubPort&&row.Ports.includes(hubPort)?hubPort:null)
