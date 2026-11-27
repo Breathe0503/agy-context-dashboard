@@ -826,25 +826,44 @@ module.exports = function installAgPulseInlineWidget() {
     const bar=root.querySelector('.bar'),oldDensity=node.dataset.density,oldReady=node.dataset.layout==='ready';
     let previous=densityFrame;
     if(['compact','narrow','context-only'].some(c=>node.classList.contains(c)))node.classList.remove('compact','narrow','context-only');
+    const wasBlocked=node.dataset.layout==='blocked',prevVisibility=node.style.visibility;
+    if(wasBlocked){node.style.visibility='hidden';node.removeAttribute('data-layout');}
     // Flex shrink alone does not constrain nowrap children or protect controls
     // positioned outside the flex flow (e.g. Agent Manager window buttons).
     const fits=()=>{
-      const rect=node.getBoundingClientRect(),row=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect();
-      const intersects=other=>Math.min(rect.right,other.right)-Math.max(rect.left,other.left)>1&&Math.min(rect.bottom,other.bottom)-Math.max(rect.top,other.top)>1;
-      const barOverflow=!node.classList.contains('icons-only')&&!node.classList.contains('minimal-icon')&&(()=>{const items=Array.from(bar.children).filter(c=>!c.hidden&&getComputedStyle(c).display!=='none');if(!items.length)return false;const br=bar.getBoundingClientRect(),last=items[items.length-1].getBoundingClientRect();return last.right>br.right+1.5;})();
+      const footer=isFooter(),rect=node.getBoundingClientRect(),row=(footer?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect();
+      const visibleItems=Array.from(bar.children).filter(c=>!c.hidden&&getComputedStyle(c).display!=='none');
+      const intersects=(other,box=rect)=>Math.min(box.right,other.right)-Math.max(box.left,other.left)>1&&Math.min(box.bottom,other.bottom)-Math.max(box.top,other.top)>1;
+      const barOverflow=!node.classList.contains('icons-only')&&!node.classList.contains('minimal-icon')&&(()=>{if(!visibleItems.length)return false;const br=bar.getBoundingClientRect(),last=visibleItems[visibleItems.length-1].getBoundingClientRect();return last.right>br.right+1.5;})();
       if(barOverflow||bar.scrollWidth>bar.clientWidth+2||rect.width<=0||rect.left< -1||rect.right>innerWidth+1||rect.top< -1||rect.bottom>innerHeight+1||rect.left<row.left-1||rect.right>row.right+1)return false;
       if(!nativeComfortable())return false;
       if(composer.kind==='subagent'&&intersects(composer.anchor.getBoundingClientRect()))return false;
+      // Dedicated footer strips span 100% width while centering their chips, so
+      // external floating/corner widgets over empty side padding must not hide the bar.
+      const hitRect=(()=>{
+        if(!footer||!visibleItems.length)return rect;
+        const itemRects=visibleItems.map(c=>c.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+        if(!itemRects.length)return rect;
+        return {
+          left:Math.max(rect.left,Math.min(...itemRects.map(r=>r.left))),
+          right:Math.min(rect.right,Math.max(...itemRects.map(r=>r.right))),
+          top:rect.top,
+          bottom:rect.bottom,
+        };
+      })();
       for(const control of document.querySelectorAll('button,[role="button"],a[href],input,select,[contenteditable="true"]')){
         const other=control.getBoundingClientRect();
-        if(other.width<=0||other.height<=0||!intersects(other))continue;
+        if(other.width<=0||other.height<=0)continue;
+        const internal=composer.row.parentElement?.contains(control);
+        const targetBox=internal?rect:hitRect;
+        if(!intersects(other,targetBox))continue;
         if(control.closest('[hidden],[inert]')||getComputedStyle(control).visibility==='hidden')continue;
         // Scrolling messages can put clipped/covered links underneath the
         // fixed composer. Their rectangles alone are not a visible collision.
         // Always reserve local actions; other controls must actually paint at
         // the intersection (e.g. a floating jump-to-bottom button).
-        if(composer.row.parentElement?.contains(control))return false;
-        const left=Math.max(rect.left,other.left),right=Math.min(rect.right,other.right),top=Math.max(rect.top,other.top),bottom=Math.min(rect.bottom,other.bottom);
+        if(internal)return false;
+        const left=Math.max(targetBox.left,other.left),right=Math.min(targetBox.right,other.right),top=Math.max(targetBox.top,other.top),bottom=Math.min(targetBox.bottom,other.bottom);
         for(const [x,y]of [[(left+right)/2,(top+bottom)/2],[left+.5,top+.5],[right-.5,top+.5],[left+.5,bottom-.5],[right-.5,bottom-.5]]){
           const hit=document.elementFromPoint(x,y);
           if(hit&&(hit===control||control.contains(hit)))return false;
@@ -863,6 +882,7 @@ module.exports = function installAgPulseInlineWidget() {
       const kept=Array.from(node.classList).filter(cls=>!DENSITY_SET.has(cls));
       node.className=[...kept,...wanted].join(' ');
     };
+    try{
     const rowWidth=(isFooter()?(composer.row.parentElement||composer.row):composer.row).getBoundingClientRect().width;
     const probeKey=()=>{const s=getComputedStyle(node);return node.style.cssText.replace(/--pulse-native-room:[^;]+;?/g,'')+'|'+s.fontFamily+'|'+s.fontSize+'|'+language.language+'|'+stripMode.mode+'|'+(isFooter()?'footer':'inline')+'|'+(hasContextPercent?'1':'0')+'|'+lastConversation+'|'+barPrefs.order.join(',')+'|'+barPrefs.hidden.join(',')+'|'+barPrefs.contextChipMode+'|'+quotaDisplay.value+'|'+cacheChipMode.value+'|'+bar.textContent+'|'+$('dot').className+'|'+getComputedStyle(composer.row).gap+'|'+(composerModelSignature()||'')+'|'+Array.from(composer.row.querySelectorAll('button,[role="button"],a[href],input,select')).filter(c=>c!==composer.model&&!(composer.model&&c.contains(composer.model))).map(c=>Math.round(c.getBoundingClientRect().width)).join(',');};
     if(stripMode.mode==='minimal'){
@@ -919,6 +939,9 @@ module.exports = function installAgPulseInlineWidget() {
         }
         if(!safe)densityProbe={key:key??probeKey(),width:rowWidth};
       }
+    }
+    }finally{
+      if(wasBlocked){if(prevVisibility)node.style.visibility=prevVisibility;else node.style.removeProperty('visibility');}
     }
     node.dataset.density=nextDensity;
     const state=safe?'ready':'blocked';
