@@ -186,3 +186,38 @@ test('buildInsightsOverview applies date filter before 200-session truncation an
   assert.equal(filteredNov02.sessions[0].id, tzId);
   assert.deepEqual(filteredNov02.sessions[0].activeDates, ['2026-11-02']);
 });
+
+test('buildInsightsOverview preserves per-day historical pricing across Carbon/Argon 2026-12-01 cutover', () => {
+  const dayNov = { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 0, output: 1_000_000, requests: 10 };
+  const dayDec = { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 0, output: 1_000_000, requests: 10 };
+  const summary = {
+    id: ID1,
+    project: 'demo-repo',
+    primaryModel: 'Gemini 4 Carbon (High)',
+    firstAt: '2026-11-30T10:00:00Z',
+    lastAt: '2026-12-01T10:00:00Z',
+    rounds: 2,
+    steps: 4,
+    tokens: { uncached: 2_000_000, cacheRead: 2_000_000, cacheWrite: 0, output: 2_000_000, total: 6_000_000 },
+    models: {
+      'Gemini 4 Carbon (High)': { uncached: 2_000_000, cacheRead: 2_000_000, cacheWrite: 0, output: 2_000_000, requests: 20 },
+    },
+    days: {
+      '2026-11-30': { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 0, output: 1_000_000, models: { 'Gemini 4 Carbon (High)': dayNov } },
+      '2026-12-01': { uncached: 1_000_000, cacheRead: 1_000_000, cacheWrite: 0, output: 1_000_000, models: { 'Gemini 4 Carbon (High)': dayDec } },
+    },
+  };
+
+  const ov = buildInsightsOverview([summary], { now: Date.parse('2026-12-02T12:00:00Z') });
+  const expectedNov = 2.00 + 0.10 + 10.00;
+  const expectedDec = 4.00 + 0.20 + 20.00;
+  const expectedTotal = expectedNov + expectedDec;
+
+  assert.ok(Math.abs(ov.kpis.estimatedCostUsd - expectedTotal) < 1e-9);
+  assert.ok(Math.abs(ov.sessions[0].estimatedCostUsd - expectedTotal) < 1e-9);
+  assert.ok(Math.abs(ov.distributions.models[0].estimatedCostUsd - expectedTotal) < 1e-9);
+  const novRow = ov.last7Days.find(d => d.date === '2026-11-30');
+  const decRow = ov.last7Days.find(d => d.date === '2026-12-01');
+  assert.ok(Math.abs(novRow.estimatedCostUsd - expectedNov) < 1e-9);
+  assert.ok(Math.abs(decRow.estimatedCostUsd - expectedDec) < 1e-9);
+});

@@ -9,7 +9,7 @@ import { setImmediate as yieldLoop } from 'node:timers/promises';
 import { Worker } from 'node:worker_threads';
 import { platformPaths } from '../../compat/platform.mjs';
 import { formatModelName } from './context.mjs';
-import { estimateModelsCost } from './pricing.mjs';
+import { estimateModelsCost, estimateTokenCost } from './pricing.mjs';
 import { TrajectoryJson } from './trajectory-json.mjs';
 import { transcriptBrainRoot } from './transcript.mjs';
 import { dateKey } from './usage.mjs';
@@ -368,6 +368,56 @@ function lastNDays(today, count) {
   return result;
 }
 
+function estimateDatedSummaryCost(item, fallbackDate) {
+  const covered = new Map();
+  const modelCosts = new Map();
+  let totalUsd = 0, hasPriced = false;
+
+  for (const [day, d] of Object.entries(item?.days || {})) {
+    for (const [mName, mb] of Object.entries(d?.models || {})) {
+      if (!mb || typeof mb !== 'object') continue;
+      const cur = covered.get(mName) || { uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, requests: 0 };
+      cur.uncached += mb.uncached || 0;
+      cur.cacheRead += mb.cacheRead || 0;
+      cur.cacheWrite += mb.cacheWrite || 0;
+      cur.output += mb.output || 0;
+      cur.requests += mb.requests || 0;
+      covered.set(mName, cur);
+
+      const hasTokens = (mb.uncached || 0) > 0 || (mb.cacheRead || 0) > 0 || (mb.cacheWrite || 0) > 0 || (mb.output || 0) > 0;
+      if (!hasTokens) continue;
+      const cost = estimateTokenCost(mName, mb, { date: day });
+      if (cost) {
+        totalUsd += cost.totalUsd;
+        hasPriced = true;
+        modelCosts.set(mName, (modelCosts.get(mName) || 0) + cost.totalUsd);
+      }
+    }
+  }
+
+  for (const [mName, mb] of Object.entries(item?.models || {})) {
+    if (!mb || typeof mb !== 'object') continue;
+    const cov = covered.get(mName);
+    const bucket = cov ? {
+      uncached: Math.max(0, (mb.uncached || 0) - cov.uncached),
+      cacheRead: Math.max(0, (mb.cacheRead || 0) - cov.cacheRead),
+      cacheWrite: Math.max(0, (mb.cacheWrite || 0) - cov.cacheWrite),
+      output: Math.max(0, (mb.output || 0) - cov.output),
+      requests: Math.max(0, (mb.requests || 0) - cov.requests),
+    } : mb;
+    const hasTokens = (bucket.uncached || 0) > 0 || (bucket.cacheRead || 0) > 0 || (bucket.cacheWrite || 0) > 0 || (bucket.output || 0) > 0;
+    if (!hasTokens) continue;
+    const cost = estimateTokenCost(mName, bucket, { date: fallbackDate });
+    if (cost) {
+      totalUsd += cost.totalUsd;
+      hasPriced = true;
+      modelCosts.set(mName, (modelCosts.get(mName) || 0) + cost.totalUsd);
+    }
+  }
+
+  return { totalUsd: hasPriced ? totalUsd : null, hasPriced, modelCosts };
+}
+
 /**
  * Aggregate compact per-session summaries + live daemon summaries + pricing
  * into the Insights overview payload.
@@ -431,7 +481,7 @@ export function buildInsightsOverview(summaries, {
     textComp.toolText += item.composition?.toolTokens || 0;
     textComp.systemText += item.composition?.systemTokens || 0;
 
-    const sessionCost = estimateModelsCost(item.models);
+    const sessionCost = estimateDatedSummaryCost(item, item.lastAt || item.firstAt || today);
     if (sessionCost.hasPriced && sessionCost.totalUsd !== null) {
       estimatedCostUsd += sessionCost.totalUsd;
       pricedSessions++;
@@ -481,13 +531,17 @@ export function buildInsightsOverview(summaries, {
       commandMap.set(name, (commandMap.get(name) || 0) + count);
     }
     for (const [name, mb] of Object.entries(item.models || {})) {
-      const m = modelMap.get(name) || { name, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, requests: 0, totalTokens: 0 };
+      const m = modelMap.get(name) || { name, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, requests: 0, totalTokens: 0, estimatedCostUsd: 0, hasPricedCost: false };
       m.uncached += mb.uncached || 0;
       m.cacheRead += mb.cacheRead || 0;
       m.cacheWrite += mb.cacheWrite || 0;
       m.output += mb.output || 0;
       m.requests += mb.requests || 0;
       m.totalTokens += (mb.uncached || 0) + (mb.cacheRead || 0) + (mb.cacheWrite || 0) + (mb.output || 0);
+      if (sessionCost.modelCosts.has(name)) {
+        m.estimatedCostUsd += sessionCost.modelCosts.get(name);
+        m.hasPricedCost = true;
+      }
       modelMap.set(name, m);
     }
 
@@ -534,7 +588,7 @@ export function buildInsightsOverview(summaries, {
   const last7Days = last7Dates.map(date => {
     const d = dailyMap.get(date);
     if (!d) return { date, sessions: 0, uncachedTokens: 0, cacheReadTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: null };
-    const cost = estimateModelsCost(d.models);
+    const cost = estimateModelsCost(d.models, { date });
     return {
       date,
       sessions: d.sessions,
@@ -553,7 +607,10 @@ export function buildInsightsOverview(summaries, {
   });
 
   const modelDist = [...modelMap.values()]
-    .map(m => ({ ...m, estimatedCostUsd: estimateModelsCost({ [m.name]: m }).totalUsd }))
+    .map(({ hasPricedCost, estimatedCostUsd: modelUsd, ...m }) => ({
+      ...m,
+      estimatedCostUsd: hasPricedCost ? modelUsd : null,
+    }))
     .sort((a, b) => b.totalTokens - a.totalTokens)
     .slice(0, 10);
 
