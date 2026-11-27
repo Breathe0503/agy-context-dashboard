@@ -302,6 +302,12 @@ export class RuntimeUi {
       if (input.type === 'metrics') {
         if (await this.enabled()) {
           const metricsInput = validatedInput(input.input);
+          if (connection.ideWebview && connection.origin) {
+            try {
+              const hubPort = Number(new URL(connection.origin).port);
+              if (Number.isInteger(hubPort) && hubPort >= 1 && hubPort <= 65535) metricsInput.ideHubPort = hubPort;
+            } catch {}
+          }
           if (metricsInput.remoteHost && metricsInput.conversationId) {
             metricsInput.fetchRemoteTrajectory = cid => this.fetchRendererTrajectory(connection, cid, p.executionContextId);
           }

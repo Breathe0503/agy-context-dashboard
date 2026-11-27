@@ -87,4 +87,7 @@ test('multi-window IDE 2.6 selects a live agy hub deterministically when multipl
  const selected=await discovery.discoverIdeProcesses(9000,{platform:'win32',run});
  assert.equal(selected.ProcessId,20);
  assert.ok(selected.Ports.includes(8000));
+ const secondWindow=await discovery.discoverIdeProcesses(9000,{platform:'win32',run,preferredHubPort:8001});
+ assert.equal(secondWindow.ProcessId,25);
+ assert.ok(secondWindow.Ports.includes(8001));
 });
