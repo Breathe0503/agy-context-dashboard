@@ -14,7 +14,7 @@ const scope='a'.repeat(64),id='11111111-1111-1111-1111-111111111111',other='2222
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const row=(key,output=100)=>({id:hash(key),at:Date.parse('2026-10-30T01:00:00Z'),model:'Fixture',uncached:100,cacheRead:400,cacheWrite:0,output,partial:false,timeBasis:'request-start'});
 async function fixture(t){const root=await mkdtemp(join(tmpdir(),'pulse-usage-disk-'));t.after(()=>rm(root,{recursive:true,force:true}));const ledger=new UsageLedger(join(root,'ledger'));await mkdir(join(ledger.directory,scope),{recursive:true});return {root,ledger};}
-function job(file,rows){const db=new DatabaseSync(file);db.exec('CREATE TABLE usage(id TEXT PRIMARY KEY,j TEXT)');const put=db.prepare('INSERT INTO usage VALUES(?,?)');for(const r of rows)put.run(r.id,JSON.stringify(r));db.close();}
+function job(file,rows){const db=new DatabaseSync(file);db.exec('CREATE TABLE usage(id TEXT PRIMARY KEY,j TEXT);BEGIN');const put=db.prepare('INSERT INTO usage VALUES(?,?)');for(const r of rows)put.run(r.id,JSON.stringify(r));db.exec('COMMIT');db.close();}
 async function summary(ledger){for(let i=0;i<100;i++){const result=await ledger.summary(scope,Date.parse('2026-10-30T03:00:00Z'));if(!ledger.diskSummaryPending)return result;await ledger.diskSummaryPending;}throw Error('Summary did not settle');}
 async function until(check,ms=5000){const end=Date.now()+ms;while(!await check()){if(Date.now()>end)throw Error('Live usage did not settle');await wait(10);}}
 test('disk ledger merges exact rows, preserves old JSON, deduplicates mixed files and caches summary',async t=>{
@@ -566,7 +566,7 @@ test('batched ephemeral summary isolates corrupt files across batch boundaries a
  assert.equal(scopeFiles.includes('.summary-33333333-3333-3333-3333-333333333333.tmp'),true,'fresh concurrent summary temp must remain untouched');
 });
 
-test('mergeDisk keeps staging path below Windows MAX_PATH and retains StatementSync across >3k rows',async t=>{
+test('mergeDisk keeps staging path below Windows MAX_PATH and retains StatementSync across >3k rows',{timeout:120000},async t=>{
  const root=await mkdtemp(join(tmpdir(),'pulse-long-'));
  t.after(()=>rm(root,{recursive:true,force:true}));
  // Pad the ledger root so <root>/<64-hex>/<64-hex>.sqlite reaches ~225 chars

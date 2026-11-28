@@ -682,7 +682,11 @@ test('font sync, scope switching and quota window reference render end-to-end in
   await cdp.command('Emulation.clearDeviceMetricsOverride');
 
   // Zero idle DOM mutations over 1s
-  await new Promise(r => setTimeout(r, 300));
+  await waitUntil(`() => {
+    const bar = document.getElementById('ag-pulse-status-bar');
+    return bar?.shadowRoot?.getElementById('usage-today')?.textContent === '33K' && !bar.dataset.motion;
+  }`, 'widget settled after stressModels reset and viewport restore');
+  await new Promise(r => setTimeout(r, 200));
   await evalJs(`() => {
     window.__pulseMutations = 0;
     const sr = document.getElementById('ag-pulse-status-bar').shadowRoot;
