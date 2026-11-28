@@ -1,0 +1,113 @@
+name: Feishu Notify
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    # 未配置 FEISHU_WEBHOOK_URL secret 时自动跳过，不会报错
+    if: ${{ secrets.FEISHU_WEBHOOK_URL != '' }}
+    steps:
+      - name: Build Feishu card and send
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_AUTHOR_TYPE: ${{ github.event.comment.user.type }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_SUBJECT_TITLE: ${{ github.event.issue.title }}
+        run: |
+          set -euo pipefail
+
+          case "$EVENT" in
+            issues)
+              ICON="🐞"; LABEL="新 Issue"; COLOR="orange"
+              TITLE="$ISSUE_TITLE"; AUTHOR="$ISSUE_AUTHOR"; BODY="$ISSUE_BODY"; URL="$ISSUE_URL"
+              ;;
+            pull_request_target)
+              ICON="🔀"; LABEL="新 PR"; COLOR="green"
+              TITLE="$PR_TITLE"; AUTHOR="$PR_AUTHOR"; BODY="$PR_BODY"; URL="$PR_URL"
+              ;;
+            issue_comment)
+              # 跳过机器人评论（如 greetings 欢迎语），避免通知风暴
+              if [ "${COMMENT_AUTHOR_TYPE:-}" = "Bot" ]; then
+                echo "::notice::Bot 评论，跳过通知"
+                exit 0
+              fi
+              ICON="💬"; LABEL="新评论"; COLOR="blue"
+              TITLE="$COMMENT_SUBJECT_TITLE"; AUTHOR="$COMMENT_AUTHOR"; BODY="$COMMENT_BODY"; URL="$COMMENT_URL"
+              ;;
+            *)
+              echo "::notice::未知事件 $EVENT，跳过"
+              exit 0
+              ;;
+          esac
+
+          PAYLOAD=$(jq -n \
+            --arg color "$COLOR" \
+            --arg header "$ICON $LABEL · $REPO" \
+            --arg title "$TITLE" \
+            --arg author "$AUTHOR" \
+            --arg body "${BODY:-}" \
+            --arg url "$URL" \
+            --arg repo "$REPO" \
+            '{
+              msg_type: "interactive",
+              card: {
+                config: {wide_screen_mode: true},
+                header: {template: $color, title: {tag: "plain_text", content: $header}},
+                elements: [
+                  {
+                    tag: "div",
+                    text: {
+                      tag: "lark_md",
+                      content: (
+                        "**" + $title + "**\n**作者**：" + $author + "\n\n" +
+                        (if ($body | length) > 500 then ($body[0:500] + " …（已截断）") else $body end)
+                      )
+                    }
+                  },
+                  {
+                    tag: "action",
+                    actions: [{
+                      tag: "button",
+                      text: {tag: "plain_text", content: "🔗 查看详情"},
+                      type: "primary",
+                      url: $url
+                    }]
+                  },
+                  {
+                    tag: "note",
+                    elements: [{tag: "plain_text", content: "GitHub Actions · 飞书监控机器人 · " + $repo}]
+                  }
+                ]
+              }
+            }')
+
+          RESP=$(curl -sS -X POST "$FEISHU_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD")
+          echo "Feishu response: $RESP"
+          echo "$RESP" | jq -e '.code == 0 or .StatusCode == 0' > /dev/null || {
+            echo "::error::飞书推送失败"
+            exit 1
+          }
