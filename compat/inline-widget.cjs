@@ -1211,15 +1211,68 @@ module.exports = function installAgPulseInlineWidget() {
     if(cardName)warmUntil=Date.now()+WARM_WINDOW;
     hoverTimer=setTimeout(()=>{hoverTimer=null;if(!cardEngaged())hide({keepWarm:true});},LEAVE_DELAY);
   }
+  function nativeSafeBounds(anchor=composer?.box||composer?.row||node){
+    const vw=window.innerWidth||0,vh=window.innerHeight||0;
+    let left=0,right=vw;
+    if(vw<=0||vh<=0)return {left,right};
+    const ar=anchor?.isConnected?anchor.getBoundingClientRect():null;
+    const cx=ar&&ar.width>0?ar.left+ar.width/2:null;
+    for(const hole of document.querySelectorAll('[data-browser-hole]:not([data-browser-hole="false"]):not([data-browser-hole=""]),webview')){
+      if(!visibleHostElement(hole))continue;
+      const r=hole.getBoundingClientRect();
+      const hl=Math.max(0,r.left),hr=Math.min(vw,r.right),ht=Math.max(0,r.top),hb=Math.min(vh,r.bottom);
+      if(hr-hl<80||hb-ht<Math.min(120,vh*0.3))continue;
+      const onLeft=cx!==null?cx<=hl+4:hl>=vw-hr;
+      const onRight=cx!==null?cx>=hr-4:!onLeft;
+      if(onLeft&&hl-left>=220)right=Math.min(right,hl);
+      else if(onRight&&right-hr>=220)left=Math.max(left,hr);
+    }
+    return {left,right};
+  }
+  function paneBounds(anchor=composer?.box||composer?.row||node){
+    let {left,right}=nativeSafeBounds(anchor);
+    const vw=window.innerWidth||0,vh=window.innerHeight||0;
+    if(!anchor?.isConnected||vw<=0||vh<=0)return {left,right};
+    const minH=Math.min(200,vh*0.4);
+    for(let el=anchor,hops=0;el&&el!==document.body&&el!==document.documentElement&&hops<24;el=el.parentElement,hops++){
+      const parent=el.parentElement;if(!parent)break;
+      const er=el.getBoundingClientRect();if(er.width<200)continue;
+      const et=Math.max(0,er.top),eb=Math.min(vh,er.bottom);
+      for(const sib of parent.children){
+        if(sib===el||isPulseBar(sib)||!visibleHostElement(sib))continue;
+        const cs=getComputedStyle(sib);
+        if(cs.position==='fixed'||cs.position==='absolute'||Number(cs.opacity)===0)continue;
+        const sr=sib.getBoundingClientRect();
+        const sl=Math.max(0,sr.left),sRight=Math.min(vw,sr.right),st=Math.max(0,sr.top),sb=Math.min(vh,sr.bottom);
+        if(sRight-sl<120||sb-st<minH||Math.min(sb,eb)-Math.max(st,et)<=24)continue;
+        if(sl>=er.right-4&&sl-left>=220)right=Math.min(right,sl);
+        else if(sRight<=er.left+4&&right-sRight>=220)left=Math.max(left,sRight);
+      }
+    }
+    return {left,right};
+  }
+  function scrollWithin(scroller,target,center=false){
+    if(!scroller||!target?.isConnected)return;
+    const sr=scroller.getBoundingClientRect(),tr=target.getBoundingClientRect();
+    let next=scroller.scrollTop;
+    if(center)next+=(tr.top-sr.top)-(scroller.clientHeight-tr.height)/2;
+    else if(tr.top<sr.top)next+=tr.top-sr.top;
+    else if(tr.bottom>sr.bottom)next+=tr.bottom-sr.bottom;
+    else return;
+    scroller.scrollTop=Math.max(0,Math.min(scroller.scrollHeight-scroller.clientHeight,next));
+  }
   function position(){
     positionGuide();
     positionSettings();
+    updateMenu?.position?.();
+    usageDashboard?.position?.();
     if(!cardName)return;
     const button=root.querySelector(`[data-card="${cardName}"]`),card=$(cardIdFor(cardName)),rect=button.getBoundingClientRect();
-    const width=Math.min(312,window.innerWidth-24);style(card,'width',`${width}px`);
+    const bounds=paneBounds(),availW=Math.max(0,bounds.right-bounds.left);
+    const width=Math.min(312,availW-24);style(card,'width',`${width}px`);
     const roomAbove=rect.top-21,roomBelow=window.innerHeight-rect.bottom-21;
     style(card,'overflow-y','auto');
-    style(card,'left',`${Math.min(window.innerWidth-width-12,Math.max(12,rect.left+rect.width/2-width/2))}px`);
+    style(card,'left',`${Math.min(bounds.right-width-12,Math.max(bounds.left+12,rect.left+rect.width/2-width/2))}px`);
     // scrollHeight includes clipped content. Expanding maxHeight to measure it
     // on every poll used to reset scrollTop and then shrink the card again.
     const height=card.scrollHeight+card.offsetHeight-card.clientHeight;
@@ -1231,9 +1284,10 @@ module.exports = function installAgPulseInlineWidget() {
   function positionGuide(){
     const tip=$('language-guide'),button=root?.querySelector(`[data-card="${footerHostCard()}"]`);
     if(!tip||tip.hidden||!button)return;
-    const rect=button.getBoundingClientRect(),width=Math.min(244,innerWidth-24);
+    const bounds=paneBounds(),availW=Math.max(0,bounds.right-bounds.left);
+    const rect=button.getBoundingClientRect(),width=Math.min(244,availW-24);
     style(tip,'width',`${width}px`);
-    const left=Math.max(12,Math.min(innerWidth-width-12,rect.left+rect.width/2-width/2));
+    const left=Math.max(bounds.left+12,Math.min(bounds.right-width-12,rect.left+rect.width/2-width/2));
     style(tip,'left',`${left}px`);
     style(tip,'--guide-anchor',`${Math.max(16,Math.min(width-16,rect.left+rect.width/2-left))}px`);
     const above=rect.top-22,below=innerHeight-rect.bottom-22,height=tip.scrollHeight+tip.offsetHeight-tip.clientHeight,useAbove=height<=above||above>=below;
@@ -1245,10 +1299,11 @@ module.exports = function installAgPulseInlineWidget() {
     if(!settingsOpen||!settingsDialog||settingsDialog.hidden||!root)return;
     const anchor=root.querySelector(`[data-card="${footerHostCard()}"]`)||root.querySelector('.bar')||node;
     if(!anchor)return;
+    const bounds=paneBounds(),availW=Math.max(0,bounds.right-bounds.left);
     const rect=anchor.getBoundingClientRect();
-    const width=Math.min(492,window.innerWidth-24);
+    const width=Math.min(492,availW-24);
     style(settingsDialog,'width',`${width}px`);
-    const left=Math.min(window.innerWidth-width-12,Math.max(12,rect.left+rect.width/2-width/2));
+    const left=Math.min(bounds.right-width-12,Math.max(bounds.left+12,rect.left+rect.width/2-width/2));
     style(settingsDialog,'left',`${left}px`);
     const roomAbove=rect.top-20,roomBelow=window.innerHeight-rect.bottom-20;
     const useAbove=roomAbove>=180||roomAbove>=roomBelow;
@@ -1577,7 +1632,7 @@ module.exports = function installAgPulseInlineWidget() {
     setMarkup(repoLink,'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>');
     footerActions.append(repoLink);
     $('context-card').append(languageRow);
-    if(window.__agPulseUpdateFactory&&window.agPulseHost.updatePlugin)updateMenu=window.__agPulseUpdateFactory({root,row:footerActions,language,setMarkup,request:input=>window.agPulseHost.updatePlugin(input),onOpen:hide,onStateChange:()=>{if(!disposed&&!instDisposed)render();}});
+    if(window.__agPulseUpdateFactory&&window.agPulseHost.updatePlugin)updateMenu=window.__agPulseUpdateFactory({root,row:footerActions,language,setMarkup,request:input=>window.agPulseHost.updatePlugin(input),onOpen:hide,onStateChange:()=>{if(!disposed&&!instDisposed)render();},getBounds:()=>paneBounds()});
     saveNote=document.createElement('p');saveNote.className='footnote';saveNote.id='language-save-note';languageRow.after(saveNote);
     settingsDialog=document.createElement('section');settingsDialog.className='settings-dialog';settingsDialog.id='pulse-settings-dialog';settingsDialog.hidden=true;settingsDialog.setAttribute('role','dialog');settingsDialog.setAttribute('aria-modal','false');settingsDialog.setAttribute('aria-labelledby','settings-dialog-title');
     setMarkup(settingsDialog,'<div class="settings-shell"><header class="settings-head"><div class="settings-head-left"><button type="button" class="settings-back" id="pulse-settings-back"><span>←</span><span data-i18n="settingsBack"></span></button><div class="settings-title-wrap"><h2 class="settings-title" id="settings-dialog-title" data-i18n="pulseSettingsTitle"></h2><div class="settings-sub" data-i18n="pulseSettingsSubtitle"></div></div></div><div class="settings-head-actions"><button type="button" class="bar-customize-reset" id="bar-customize-reset" data-i18n="barReset"></button><button type="button" class="settings-close" id="pulse-settings-close" data-i18n-aria="settingsClose">×</button></div></header><div class="settings-body" id="pulse-settings-body"></div></div>');
@@ -1599,7 +1654,7 @@ module.exports = function installAgPulseInlineWidget() {
     setMarkup(guide,'<div class="guide-heading"><strong>Language <span>/ 语言</span></strong><button type="button" id="guide-close" aria-label="Dismiss language tip / 关闭语言提示" title="Dismiss / 关闭">×</button></div><button type="button" id="guide-open"><span><span>Switch in context details</span><span lang="zh-CN">在上下文详情中切换语言</span></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button><p class="footnote" id="guide-save-note"></p>');
     root.append(guide);
     $('guide-close').addEventListener('click',()=>void dismissGuide());
-    $('guide-open').addEventListener('click',()=>{guideOpened=true;show('context');const btn=$(language.language==='zh-TW'?'card-language-zh-tw':'card-language-zh');btn.scrollIntoView({block:'nearest'});btn.focus({preventScroll:true});});
+    $('guide-open').addEventListener('click',()=>{guideOpened=true;show('context');const btn=$(language.language==='zh-TW'?'card-language-zh-tw':'card-language-zh');scrollWithin($(cardIdFor('context')),btn,false);btn.focus({preventScroll:true});});
     // Escape ancestor stacking/paint contexts; ordinary z-index cannot do this.
     if(typeof HTMLElement.prototype.showPopover==='function')for(const card of root.querySelectorAll('.card'))card.setAttribute('popover','manual');
     if(typeof settingsDialog.showPopover==='function')settingsDialog.setAttribute('popover','manual');
@@ -1647,7 +1702,7 @@ module.exports = function installAgPulseInlineWidget() {
     if(window.__agPulseUsageFactory){
       const section=document.createElement('div');section.id='usage-entry';section.hidden=true;
       setMarkup(section,'<div class="usage-summary"><div><div class="usage-label" id="usage-today-label"></div><div class="usage-val"><strong id="usage-today"></strong><span class="usage-unit" id="usage-today-unit">toks</span></div></div><div><div class="usage-label" id="usage-month-label"></div><div class="usage-val"><strong id="usage-month"></strong><span class="usage-unit" id="usage-month-unit">toks</span></div></div></div><button type="button" id="open-usage"><span id="usage-open-label"></span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></button>');$('cache-card').append(section);
-      usageDashboard=window.__agPulseUsageFactory({root,language,setMarkup,hostLabel:surface?.usageHostLabel||'Antigravity',guideDismissed:usageGuideDismissed,onDismissGuide:async()=>{const saved=await window.agPulseHost.setPreferences({usageGuideDismissed:true});if(saved?.usageGuideDismissed!==true)throw Error('Usage guide could not be saved');syncGuide(saved);},onLanguage:next=>preferences.choose(next),onRefresh:()=>refreshManually(true),onScope:async next=>{
+      usageDashboard=window.__agPulseUsageFactory({root,language,setMarkup,hostLabel:surface?.usageHostLabel||'Antigravity',guideDismissed:usageGuideDismissed,getBounds:()=>nativeSafeBounds(),onDismissGuide:async()=>{const saved=await window.agPulseHost.setPreferences({usageGuideDismissed:true});if(saved?.usageGuideDismissed!==true)throw Error('Usage guide could not be saved');syncGuide(saved);},onLanguage:next=>preferences.choose(next),onRefresh:()=>refreshManually(true),onScope:async next=>{
         const ticket=++scopeRequestEpoch,save=usageScope.choose(next);
         try{
           const result=await window.agPulseHost.getMetrics({conversationId:null,force:false,usageOnly:true,usageScope:next});
@@ -1757,7 +1812,8 @@ module.exports = function installAgPulseInlineWidget() {
       if(targetRow){
         targetRow.classList.add('is-highlight');
         targetRow.setAttribute('data-highlighted','true');
-        requestAnimationFrame(()=>{if(settingsOpen&&targetRow.isConnected)targetRow.scrollIntoView({block:'center',behavior:'instant'});});
+        // Scroll only the modal body; scrollIntoView() can shift enclosing IDE webviews.
+        requestAnimationFrame(()=>{if(settingsOpen)scrollWithin($('pulse-settings-body'),targetRow,true);});
         settingsHighlightTimer=setTimeout(()=>{settingsHighlightTimer=0;if(targetRow.isConnected){targetRow.classList.remove('is-highlight');targetRow.removeAttribute('data-highlighted');}},2800);
       }
     }

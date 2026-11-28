@@ -1,5 +1,5 @@
 // Shared theme tokens; text-only release notes. Network checks require a click.
-module.exports = function createUpdateMenu({root,row,language,setMarkup,request,onOpen,onStateChange}){
+module.exports = function createUpdateMenu({root,row,language,setMarkup,request,onOpen,onStateChange,getBounds}){
  const button=document.createElement('button');button.type='button';button.className='update-trigger';button.id='check-update';
  setMarkup(button,'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12 6a5 5 0 1 0 0 4M12 2v4H8"/></svg><span id="check-update-label"></span><span class="update-hint-badge" id="check-update-badge" hidden><i class="update-hint-dot" aria-hidden="true"></i><span id="check-update-ver"></span></span>');
  row.append(button);
@@ -242,17 +242,33 @@ module.exports = function createUpdateMenu({root,row,language,setMarkup,request,
   catch{if(!disposed&&ticket===epoch)state={...state,state:'error',error:'network'};}
   finally{if(!disposed&&ticket===epoch){busy=false;render();if(['checking','installing'].includes(state.state)){clearTimeout(timer);timer=setTimeout(()=>void call('status'),800);}}}
  }
- button.addEventListener('click',()=>{onOpen?.();dialog.showModal();void call('check');});
+ function positionDialog(){
+  if(!dialog.open)return;
+  const vw=typeof window!=='undefined'?window.innerWidth||0:0,b=vw>0?getBounds?.():null;
+  if(!b||(b.left<=1&&b.right>=vw-1)){
+   for(const k of ['inset','margin','width'])dialog.style.removeProperty(k);
+   return;
+  }
+  const avail=Math.max(0,b.right-b.left),pad=avail>=260?16:8;
+  const width=Math.max(0,Math.min(340,avail-pad*2));
+  const left=Math.round(b.left+(avail-width)/2);
+  dialog.style.inset=`0 auto 0 ${left}px`;
+  dialog.style.margin='auto 0';
+  dialog.style.width=`${width}px`;
+ }
+ if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('resize',positionDialog);
+ button.addEventListener('click',()=>{onOpen?.();dialog.showModal();positionDialog();void call('check');});
  $('update-close').addEventListener('click',()=>{dialog.close();});
  $('update-action').addEventListener('click',()=>void call(state.state==='installed'?'reload':state.state==='error'?'check':'apply'));
  render();return {
   localize:render,
+  position:positionDialog,
   syncHint(hint){
    const nextAvailable=Boolean(hint?.available),nextVersion=hint?.latestVersion||null;
    if(passiveHint.available===nextAvailable&&passiveHint.latestVersion===nextVersion)return;
    passiveHint={available:nextAvailable,latestVersion:nextVersion};render();
   },
   getState:()=>state,
-  dispose(){disposed=true;epoch++;clearTimeout(timer);cancelAnimationFrame(meterFrame);cancelAnimationFrame(meterRestoreFrame);dialog.close();dialog.remove();button.remove();css.remove();}
+  dispose(){disposed=true;epoch++;clearTimeout(timer);cancelAnimationFrame(meterFrame);cancelAnimationFrame(meterRestoreFrame);if(typeof window!=='undefined'&&typeof window.removeEventListener==='function')window.removeEventListener('resize',positionDialog);dialog.close();dialog.remove();button.remove();css.remove();}
  };
 };

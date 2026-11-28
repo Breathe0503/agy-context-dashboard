@@ -99,5 +99,54 @@ try{
  await page.evaluate(()=>{window.passiveUpdate={available:true,latestVersion:'0.8.7'};});
  await page.locator('[data-card=context][data-update-available="true"]').waitFor({timeout:5000});
  assert.equal(await page.locator('#check-update').getAttribute('data-update-available'),'true','Newer passive release lights check-update button badge automatically');
- assert.deepEqual(errors,[]);console.log(JSON.stringify({manualOnly:true,currentVersion:true,bilingual:true,plainTextNotes:true,installationPolling:true,reload:true,retry:true,localizedLocationErrors:true,stalePlanRecheck:true,passiveRecoveryBadge:true,pageErrors:errors}));
+ // Right-side embedded browser hole & split-column bounds (#141)
+ await page.evaluate(()=>{
+  agPulseHost.updatePlugin=async()=>({state:'available',host:'app',currentVersion:'0.8.6',latestVersion:'0.8.7',notes:'Preview changes'});
+  const composer=document.querySelector('.composer');
+  const wrap=document.createElement('div');wrap.id='split-wrap';wrap.style.cssText='display:flex;align-items:flex-start;width:100%';
+  const left=document.createElement('div');left.id='chat-pane';left.style.cssText='flex:1;min-width:0';
+  const hole=document.createElement('aside');hole.id='browser-hole-pane';hole.setAttribute('data-browser-hole','builtin-browser:test');hole.style.cssText='flex:0 0 540px;height:780px';
+  composer.parentNode.insertBefore(wrap,composer);composer.style.margin='340px 0 0';left.append(composer);wrap.append(left,hole);
+ });
+ await page.locator('[data-card=context]').click();await page.locator('#card-language-en').click();await page.locator('#check-update').click();
+ await page.locator('#update-status').filter({hasText:'Update available'}).waitFor();
+ const bounded=await page.evaluate(()=>{
+  const sr=document.getElementById('ag-pulse-status-bar').shadowRoot;
+  const dr=sr.getElementById('plugin-update-dialog').getBoundingClientRect();
+  const cr=sr.getElementById('update-close').getBoundingClientRect();
+  const ar=sr.getElementById('update-action').getBoundingClientRect();
+  const hr=document.getElementById('browser-hole-pane').getBoundingClientRect();
+  return {dr:{left:dr.left,right:dr.right},cr:{right:cr.right},ar:{right:ar.right},holeLeft:hr.left};
+ });
+ assert.ok(bounded.dr.left>=16,`Update dialog must stay inside viewport left: ${JSON.stringify(bounded)}`);
+ assert.ok(bounded.dr.right<=bounded.holeLeft-16,`Update dialog must not overlap right browser hole: ${JSON.stringify(bounded)}`);
+ assert.ok(bounded.cr.right<=bounded.holeLeft-16&&bounded.ar.right<=bounded.holeLeft-16,`Close and action buttons must remain clickable outside browser hole: ${JSON.stringify(bounded)}`);
+ await page.locator('#update-close').click();
+
+ // Fallback when right pane is a split sibling without data-browser-hole attribute
+ await page.evaluate(()=>{document.getElementById('browser-hole-pane').removeAttribute('data-browser-hole');});
+ await page.locator('[data-card=context]').click();await page.locator('#check-update').click();
+ await page.locator('#update-status').filter({hasText:'Update available'}).waitFor();
+ const splitBounded=await page.evaluate(()=>{
+  const sr=document.getElementById('ag-pulse-status-bar').shadowRoot;
+  return {drRight:sr.getElementById('plugin-update-dialog').getBoundingClientRect().right,holeLeft:document.getElementById('browser-hole-pane').getBoundingClientRect().left};
+ });
+ assert.ok(splitBounded.drRight<=splitBounded.holeLeft-16,`Update dialog must respect split sibling boundary: ${JSON.stringify(splitBounded)}`);
+ await page.locator('#update-close').click();
+
+ // Restores full-window centering once the right pane closes
+ await page.evaluate(()=>{
+  const wrap=document.getElementById('split-wrap'),composer=document.querySelector('.composer');
+  composer.style.margin='340px auto 0';wrap.parentNode.insertBefore(composer,wrap);wrap.remove();
+ });
+ await page.locator('[data-card=context]').click();await page.locator('#check-update').click();
+ await page.locator('#update-status').filter({hasText:'Update available'}).waitFor();
+ const recentered=await page.evaluate(()=>{
+  const r=document.getElementById('ag-pulse-status-bar').shadowRoot.getElementById('plugin-update-dialog').getBoundingClientRect();
+  return {center:(r.left+r.right)/2,vw:window.innerWidth};
+ });
+ assert.ok(Math.abs(recentered.center-recentered.vw/2)<=2,`Update dialog must re-center when split pane closes: ${JSON.stringify(recentered)}`);
+ await page.locator('#update-close').click();
+
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({manualOnly:true,currentVersion:true,bilingual:true,plainTextNotes:true,installationPolling:true,reload:true,retry:true,localizedLocationErrors:true,stalePlanRecheck:true,passiveRecoveryBadge:true,splitBrowserBounded:true,pageErrors:errors}));
 }finally{await browser.close();await new Promise(r=>server.close(r));}

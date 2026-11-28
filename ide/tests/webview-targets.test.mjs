@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {discoverIdeWebviews} from '../webview-targets.mjs';
+import vm from 'node:vm';
+import {discoverIdeWebviews,OVERLAY_PROBE} from '../webview-targets.mjs';
 
 const port=9000,app='/d:/IDE/resources/app',uuid='11111111-1111-1111-1111-111111111111';
 const wrapperOrigin='vscode-webview://fixture-host';
@@ -119,4 +120,22 @@ test('discovery bounds target lists, contexts, frames and deep trees',async()=>{
  const f=fixture();f.contexts.push(...Array.from({length:17},(_,i)=>({id:i+3,origin:wrapperOrigin,auxData:{isDefault:true,frameId:'other'+i}})));assert.deepEqual(await scan(f),[]);assert.equal(f.evaluations,1);
  const frames=fixture();frames.tree.childFrames.push(...Array.from({length:65},(_,i)=>({frame:{id:'extra'+i,url:backend}})));assert.deepEqual(await scan(frames),[]);
  const deep=fixture();let tree=deep.tree;for(let i=0;i<10;i++){tree.childFrames=[{frame:{id:'deep'+i,url:wrapperUrl}}];tree=tree.childFrames[0];}assert.deepEqual(await scan(deep),[]);
+});
+
+test('agentOverlayProbe tolerates minor host container scroll offsets up to 8px and rejects larger drift',()=>{
+ const runProbe=deltaTop=>{
+  const box=(left,top,width,height)=>({left,top,width,height});
+  const el=(rect,parent=null)=>({isConnected:true,parentElement:parent,getClientRects:()=>[rect],closest:()=>null,getBoundingClientRect:()=>rect});
+  const body=el(box(0,35,600,700));
+  const container={...el(box(0,35,600,700)),querySelectorAll:sel=>sel==='.pane-body'?[body]:[]};
+  const wrapperParent={id:uuid};
+  const frame={...el(box(0,35-deltaTop,600,700),wrapperParent),src:wrapperUrl};
+  const document={querySelectorAll:sel=>sel==='[id="antigravity.agentViewContainerId"]'?[container]:sel==='iframe.webview'?[frame]:[]};
+  return [...vm.runInNewContext(OVERLAY_PROBE,{document,URL,getComputedStyle:()=>({visibility:'visible'})})];
+ };
+ assert.equal(runProbe(0).length,1);
+ assert.equal(runProbe(4).length,1);
+ assert.equal(runProbe(8).length,1);
+ assert.deepEqual(runProbe(9),[]);
+ assert.deepEqual(runProbe(24),[]);
 });
