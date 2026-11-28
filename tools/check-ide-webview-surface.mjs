@@ -11,12 +11,12 @@ const ids={main:'11111111-1111-1111-1111-111111111111',child:'22222222-2222-2222
 const composer=child=>`<section data-testid="agent-input-box"><div contenteditable="true" role="textbox" class="editor" tabindex="0"></div><div class="row"><div class="native"><button class="native-control">+</button>${child?'<div class="identity"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5"/></svg><span>worker</span></div>':'<button data-testid="model-selector-trigger">Gemini</button>'}</div><div class="controls"><button class="native-control" data-testid="send-button">→</button></div></div></section>`;
 const html=`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'; style-src 'unsafe-inline'; require-trusted-types-for 'script'; trusted-types 'none'"><style>
 body{margin:0;background:#282724;color:#eee;font:13px system-ui}.pane{padding:12px;box-sizing:border-box;max-width:620px;margin:auto}.editor{height:40px;padding:6px}.row,.native,.controls{display:flex;align-items:center;gap:4px}.native{flex:1;min-width:0}.controls{flex:none}button{border:0;background:transparent;color:inherit;white-space:nowrap;height:28px}.native-control{width:28px;flex:none}.identity{display:flex;gap:4px;align-items:center;padding:4px}.identity svg{width:14px;height:14px;fill:none;stroke:currentColor}[hidden]{display:none!important}#main-pane{margin-top:160px}
-</style></head><body><main id="main-pane" class="pane" data-testid="conversation-view" data-cascade-id="${ids.main}">${composer(false)}</main><aside id="child-pane" class="pane" data-aux-pane-open="true" hidden><div data-testid="subagent-tab-conversation" data-cascade-id="${ids.child}"><div data-cascade-id="${ids.other}">decoy child</div></div>${composer(true)}</aside><script>
-window.calls=[];window.prefs={language:'en',languageGuideDismissed:true,usageGuideDismissed:true,revision:1};
-window.agPulseHost={report:()=>{},getPreferences:async()=>prefs,setPreferences:async input=>(prefs={...prefs,...input,revision:prefs.revision+1}),getMetrics:async input=>{calls.push(input);const id=input.conversationId;return {connection:'live',groups:[],preferences:prefs,speed:id?{conversationId:id,tps:id==='${ids.child}'?90:50,latestTps:id==='${ids.child}'?90:50,rounds:1,steps:1,measuredRequests:1,counts:{responseOutput:100,thinkingOutput:0},cache:{hitRate:.5},tokens:{measuredRequests:1,totalTokens:1100,uncachedTokens:500,cachedTokens:500,outputTokens:100,inputRequests:1,outputRequests:1},context:{usedTokens:24000,maxTokens:256000,usedFraction:.09375,remainingFraction:.90625,model:'Gemini'}}:null};}};
+</style></head><body><main id="main-pane" class="pane" data-testid="conversation-view" data-cascade-id="${ids.main}"><div id="log"><div class="reply" data-turn-content="latest"><div data-testid="cascade-system-message-toolbar"><button>Copy</button></div></div></div>${composer(false)}</main><aside id="child-pane" class="pane" data-aux-pane-open="true" hidden><div data-testid="subagent-tab-conversation" data-cascade-id="${ids.child}"><div data-cascade-id="${ids.other}">decoy child</div></div>${composer(true)}</aside><script>
+window.calls=[];window.prefs={language:'en',languageGuideDismissed:true,usageGuideDismissed:true,turnFooter:true,revision:1};
+window.agPulseHost={report:()=>{},getPreferences:async()=>prefs,setPreferences:async input=>(prefs={...prefs,...input,revision:prefs.revision+1}),getMetrics:async input=>{calls.push(input);const id=input.conversationId;return {connection:'live',groups:[],preferences:prefs,speed:id?{conversationId:id,tps:id==='${ids.child}'?90:50,latestTps:id==='${ids.child}'?90:50,rounds:1,steps:1,measuredRequests:1,totalCompletedTurns:1,turns:[{model:'Gemini',inputTokens:1000,outputTokens:100,hitRate:.5,tps:id==='${ids.child}'?90:50}],counts:{responseOutput:100,thinkingOutput:0},cache:{hitRate:.5},tokens:{measuredRequests:1,totalTokens:1100,uncachedTokens:500,cachedTokens:500,outputTokens:100,inputRequests:1,outputRequests:1},context:{usedTokens:24000,maxTokens:256000,usedFraction:.09375,remainingFraction:.90625,model:'Gemini'}}:null};}};
 window.__agPulseSurface=(${extract(sources[3])})({webview:true});window.__agPulseI18nFactory=(${extract(sources[0])});window.__agPulseThemeFactory=(${extract(sources[1])});(${extract(sources[2])})();
 </script></body></html>`;
-const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html;charset=utf-8');res.end(req.url==='/host'?'<html><body style="margin:0"><iframe id="jetski-frame" style="width:100%;height:720px;border:0" src="/c/'+ids.main+'?extensionView=true&extensionVariant=vs-code"></iframe></body></html>':html);});
+const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html;charset=utf-8');res.end(req.url==='/host'?'<html><body style="margin:0"><div id="pane-body" style="width:100%;height:716px;overflow:hidden"><iframe id="jetski-frame" style="width:100%;height:720px;border:0" src="/c/'+ids.main+'?extensionView=true&extensionVariant=vs-code"></iframe></div></body></html>':html);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE?pathToFileURL(process.env.PLAYWRIGHT_MODULE).href:'playwright');
 const browser=await chromium.launch(process.platform==='win32'&&!process.env.CI?{channel:'msedge',headless:true}:{headless:true}),errors=[];
@@ -28,6 +28,21 @@ try{
  assert.equal(await frame.evaluate(()=>window.top===window),false);assert.equal(await frame.locator('[id="antigravity.agentSidePanelInputBox"]').count(),0,'No legacy IDE input ID in Jetski');
  assert.equal(await frame.evaluate(()=>calls.at(-1).conversationId),ids.main);assert.equal(await widget.locator('#tps').textContent(),'50.0');
  for(const name of ['speed','cache','context']){await widget.locator(`[data-card=${name}]`).click();await widget.locator(`#${name}-card`).waitFor({state:'visible'});await page.keyboard.press('Escape');}
+ const gearBtn=frame.locator('[data-ag-pulse-turn-footer-settings]');await gearBtn.waitFor({state:'attached'});
+ await gearBtn.evaluate(b=>b.click());
+ await frame.locator('#pulse-settings-dialog[data-open="true"]').waitFor({state:'visible'});
+ await frame.locator('#pulse-settings-dialog [data-setting-key="turnFooter"][data-highlighted="true"]').waitFor({state:'visible'});
+ await frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ const scrollState=await frame.evaluate(()=>{
+  const sr=document.getElementById('ag-pulse-status-bar').shadowRoot;
+  const body=sr.getElementById('pulse-settings-body').getBoundingClientRect();
+  const row=sr.querySelector('[data-setting-key="turnFooter"]').getBoundingClientRect();
+  return {inView:row.top>=body.top-1&&row.bottom<=body.bottom+1,barConnected:document.getElementById('ag-pulse-status-bar').isConnected};
+ });
+ const outerHostState=await page.evaluate(()=>({scrollTop:document.getElementById('pane-body').scrollTop,frameTop:document.getElementById('jetski-frame').getBoundingClientRect().top}));
+ assert.deepEqual(scrollState,{inView:true,barConnected:true});
+ assert.deepEqual(outerHostState,{scrollTop:0,frameTop:0},'Settings highlight scroll must not shift enclosing IDE webview host');
+ await page.keyboard.press('Escape');
  await page.setViewportSize({width:350,height:800});await frame.waitForFunction(()=>{const w=document.getElementById('ag-pulse-status-bar');return ['full','compact-text','snug-rounds','mini-rounds','tight-text','snug-text','trim-hit','dense-text'].includes(w?.dataset.density)&&w.dataset.layout==='ready'&&!w.dataset.motion;});
  await page.setViewportSize({width:240,height:800});await frame.waitForFunction(()=>{const w=document.getElementById('ag-pulse-status-bar');return w?.dataset.density==='icons'&&w.dataset.layout==='ready'&&!w.dataset.motion;});
  assert.equal(await widget.locator('.bar .chip:visible').count(),3);
@@ -49,5 +64,5 @@ try{
  await frame.evaluate(()=>document.getElementById('main-pane').setAttribute('data-cascade-id',''));
  await frame.waitForFunction(()=>calls.at(-1)?.conversationId===null&&document.getElementById('ag-pulse-status-bar')?.dataset.density==='icons');
  assert.equal(await widget.locator('#tps').textContent(),'—','Explicit empty owner must not inherit route identity');
- assert.deepEqual(errors,[]);console.log(JSON.stringify({nestedFrame:true,trustedTypes:true,legacyMarkerAbsent:true,compactIcons:true,cardsInteractive:true,simultaneousBars:true,ownerBeatsRoute:true,childIsolated:true,invalidOwnerFailsClosed:true,errors}));
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({nestedFrame:true,trustedTypes:true,legacyMarkerAbsent:true,compactIcons:true,cardsInteractive:true,settingsScrollIsolated:true,simultaneousBars:true,ownerBeatsRoute:true,childIsolated:true,invalidOwnerFailsClosed:true,errors}));
 }catch(error){console.error(JSON.stringify({pageErrors:errors}));throw error;}finally{await browser.close();await new Promise(r=>server.close(r));}

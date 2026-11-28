@@ -1,5 +1,5 @@
 // Shared local usage views. Values and model labels are inserted as text.
-module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope,embedded=false,showHeaderTabs=!embedded,onTabChange=null,themeHost=null}) {
+module.exports = function createUsageDashboard({root,language,setMarkup,hostLabel='Antigravity',guideDismissed=false,onDismissGuide,onLanguage,onRefresh,onScope,embedded=false,showHeaderTabs=!embedded,onTabChange=null,themeHost=null,getBounds=null}) {
   setMarkup||=(target,markup)=>{
     const fragment=document.createDocumentFragment(),stack=[fragment];let offset=0;
     const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:'\u00a0'};
@@ -804,6 +804,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   $('page-body').addEventListener('scroll',()=>{closeYear(false);closeRange(false);if(!$('tip').hidden){$('tip').hidden=true;highlightModel(null);}},{passive:true});
   window.addEventListener('resize',positionYear);
   window.addEventListener('resize',positionRange);
+  window.addEventListener('resize',positionDialog);
   const heatWrap=view.querySelector('.heat-wrap');
   const heatObserver=embedded&&typeof ResizeObserver==='function'&&heatWrap?new ResizeObserver(()=>{
     if(disposed||$('overview').hidden||heatMode!=='day'||!value)return;
@@ -866,9 +867,25 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
   // In long chats this alone can block Chromium for seconds. A top-layer
   // popover keeps the same backdrop without touching every background node.
   // Contain pointer, focus, Tab, Escape and scrolling explicitly instead.
+  function positionDialog(){
+    if(embedded||!dialog?.open)return;
+    const vw=typeof window!=='undefined'?window.innerWidth||0:0,b=vw>0?getBounds?.():null;
+    if(!b||(b.left<=1&&b.right>=vw-1)){
+      dialog.style.removeProperty('inset');dialog.style.removeProperty('margin');
+      dialog.style.width='min(1040px,calc(100vw - 40px))';
+      return;
+    }
+    const avail=Math.max(0,b.right-b.left),pad=avail>=320?20:12;
+    const width=Math.max(0,Math.min(1040,avail-pad*2));
+    const left=Math.round(b.left+(avail-width)/2);
+    dialog.style.inset='0 auto 0 '+left+'px';
+    dialog.style.margin='auto 0';
+    dialog.style.width=width+'px';
+  }
   function present(){
     if(embedded||dialog.matches(':popover-open'))return;
     dialog.removeAttribute('open');dialog.showPopover();dialog.setAttribute('open','');
+    positionDialog();
     $('locale').focus({preventScroll:true});
   }
   function conceal(){
@@ -941,6 +958,7 @@ const {baseModelName,mergeModelTiers}=usageTierHelpers;
     },
     setTab(next){changeTab(next,false);},
     renderIfVisible(){if(!disposed&&isActive()){lastKey=rawValue?contentKey(rawValue):'';render();}},
+    position:positionDialog,
     restoreModal(){if(!embedded&&!disposed&&dialog.open&&dialog.isConnected&&!dialog.matches(':popover-open')){closeYear(false);closeRange(false);present();}},
-    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker?.dispose();themeObserver.disconnect();heatObserver?.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);closeRange(false);view.removeEventListener('pointerdown',handleOutsideMenuPointer);document.removeEventListener('pointerdown',handleOutsideMenuPointer);window.removeEventListener('resize',positionYear);window.removeEventListener('resize',positionRange);if(!embedded){document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();}surface.remove();backdrop?.remove();},get isOpen(){return embedded?isActive():Boolean(dialog?.open);}};
+    close,syncGuideDismissed(){if(!replayGuide)dismissGuide();},dispose(){disposed=true;languagePicker?.dispose();themeObserver.disconnect();heatObserver?.disconnect();clearTimeout(refreshDelay);finishRefresh?.();refreshMotion?.cancel();for(const anim of scopeAnimations)anim.cancel();scopeAnimations=[];closeYear(false);closeRange(false);view.removeEventListener('pointerdown',handleOutsideMenuPointer);document.removeEventListener('pointerdown',handleOutsideMenuPointer);window.removeEventListener('resize',positionYear);window.removeEventListener('resize',positionRange);window.removeEventListener('resize',positionDialog);if(!embedded){document.removeEventListener('focusin',containFocus,true);document.removeEventListener('keydown',containKeys,true);document.removeEventListener('wheel',containScroll,true);document.removeEventListener('touchmove',containScroll,true);for(const type of ['pointerdown','mousedown','click'])document.removeEventListener(type,containPointer,true);conceal();}surface.remove();backdrop?.remove();},get isOpen(){return embedded?isActive():Boolean(dialog?.open);}};
 };

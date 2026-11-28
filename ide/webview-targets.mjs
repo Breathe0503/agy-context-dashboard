@@ -70,7 +70,7 @@ function agentOverlayProbe(){
   for(const frame of frames){
     if(!visible(frame))continue;
     const r=frame.getBoundingClientRect();
-    if(['left','top','width','height'].some(k=>Math.abs(r[k]-body[k])>3))continue;
+    if(['left','top','width','height'].some(k=>Math.abs(r[k]-body[k])>8))continue;
     try{const url=new URL(frame.src);if(frame.parentElement?.id!==url.searchParams.get('id'))continue;matches.push({url:url.href,id:frame.parentElement.id});}catch{}
   }
   return matches.length===1?matches:[];
@@ -81,7 +81,7 @@ function agentContentProbe(){
   if(frames.length!==1||document.scripts.length>32)return null;
   return {host:'antigravity',url:frames[0].src,scripts:[...document.scripts].filter(s=>s.src).map(s=>s.src)};
 }
-const OVERLAY_PROBE='('+agentOverlayProbe.toString()+')()';
+export const OVERLAY_PROBE='('+agentOverlayProbe.toString()+')()';
 const CONTENT_PROBE='('+agentContentProbe.toString()+')()';
 
 export async function discoverIdeWebviews({targets,workbenches,port,connect=(url,options)=>new CdpConnection(url,options)}={}){
