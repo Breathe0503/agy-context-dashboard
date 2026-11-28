@@ -17,6 +17,9 @@ Keep the summary visible. Hover or switch tabs for full details.
 
 </div>
 
+> [!NOTE]
+> **Project Scope**: This project focuses exclusively on Antigravity (`agy`) context management, including quota tracking, context composition, and `compact` workflows. Future work will center on policy-compliant Context Harness engineering and optimization without patching or violating official host policies, rather than spending effort on skins, color themes, or other cosmetic UI features.
+
 > [!TIP]
 > - **3-Language UI + 1-Click Host UI Chinese**: Supports `English / 简体中文 / 繁體中文`. Click `汉` in the Side Panel header to translate the Antigravity Desktop UI live without patching `app.asar` (turning it off restores exact English).
 > - **`2.33.0+` / `2.34.0+` Auto-Compatibility**: Automatically handles `2.34.0+` daemon credentials and Windows/Linux shortcut debug flags, with default-on `autoRelaunchDebug` (20s startup window recovery) while keeping `app.asar` untouched.

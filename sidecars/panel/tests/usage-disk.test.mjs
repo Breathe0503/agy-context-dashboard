@@ -565,3 +565,26 @@ test('batched ephemeral summary isolates corrupt files across batch boundaries a
  assert.equal(scopeFiles.includes('.summary-22222222-2222-2222-2222-222222222222.tmp-journal'),false);
  assert.equal(scopeFiles.includes('.summary-33333333-3333-3333-3333-333333333333.tmp'),true,'fresh concurrent summary temp must remain untouched');
 });
+
+test('mergeDisk keeps staging path below Windows MAX_PATH and retains StatementSync across >3k rows',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'pulse-long-'));
+ t.after(()=>rm(root,{recursive:true,force:true}));
+ // Pad the ledger root so <root>/<64-hex>/<64-hex>.sqlite reaches ~225 chars
+ // (matching C:\Users\<name>\.gemini\antigravity\sidecar_data\antigravity-pulse\panel\data\usage-v1),
+ // where appending .<36-char-uuid>.tmp-journal would exceed Windows MAX_PATH (260).
+ const padLen=Math.max(0,88-join(root,'ledger').length);
+ const baseDir=padLen?join(root,'p'.repeat(padLen),'ledger'):join(root,'ledger');
+ const ledger=new UsageLedger(baseDir);
+ await mkdir(join(ledger.directory,scope),{recursive:true});
+ const target=ledger.file(scope,id).replace(/\.json$/,'.sqlite');
+ assert.ok(target.length>=220,`expected realistic target length >= 220, got ${target.length}`);
+ const jobRows=Array.from({length:5000},(_,i)=>({...row('gc-row-'+i,100),model:'Model '+'X'.repeat(60)}));
+ const jobFile=join(root,'job.sqlite');
+ job(jobFile,jobRows);
+ await ledger.ingestDisk(scope,id,jobFile);
+ const result=await summary(ledger);
+ assert.equal(result.requests,5000);
+ assert.equal(result.totalTokens,5000*600);
+ const scopeFiles=await readdir(join(ledger.directory,scope));
+ assert.equal(scopeFiles.some(name=>name.endsWith('.tmp')||name.endsWith('.tmp-journal')),false);
+});

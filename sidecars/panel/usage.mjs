@@ -1,8 +1,8 @@
 import {Worker} from 'node:worker_threads';
 // Local usage ledger. Never stores prompts, credentials or raw request IDs.
 import {readFile,writeFile,mkdir,rename,readdir,unlink,open,stat,lstat} from 'node:fs/promises';
-import {join} from 'node:path';
-import {createHash,randomUUID} from 'node:crypto';
+import {join,dirname} from 'node:path';
+import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {usageModelKey} from './context.mjs';
 import {tokenCount,requestCacheMetrics} from './metrics.mjs';
 import {platformPaths} from '../../compat/platform.mjs';
@@ -231,7 +231,7 @@ export class UsageLedger{
       for(const row of rows)merged.set(row.id,mergeUsageRow(row,merged.get(row.id)));
       const records=[...merged.values()].sort((a,b)=>a.id.localeCompare(b.id));
       if(previous&&JSON.stringify(previous.records)===JSON.stringify(records))return;
-      await mkdir(join(this.directory,scope),{recursive:true});if(isCurrent()!==true)return;const temp=file+'.'+randomUUID()+'.tmp';
+      await mkdir(join(this.directory,scope),{recursive:true});if(isCurrent()!==true)return;const temp=join(dirname(file),`.j-${randomBytes(6).toString('hex')}.json.tmp`);
       try{await this.writeRecord(temp,JSON.stringify({schema:1,account:scope,records}));if(isCurrent()!==true)return;await rename(temp,file);}
       finally{await unlink(temp).catch(()=>{});}
       // Keep the last same-account/day result as a visibly stale fallback
@@ -272,7 +272,7 @@ export class UsageLedger{
           if(isCurrent()!==true)return;return {changed:false,skipped:true};
         }
       }
-      const staging=file+'.'+randomUUID()+'.tmp';
+      const staging=join(dirname(file),`.m-${randomBytes(6).toString('hex')}.tmp`);
       try{
         const result=await this.diskJob({action:'merge',scope,previous,staging,...input},{isCurrent});if(!result||isCurrent()!==true)return;
         if(result.changed!==false){await rename(staging,file);this.revision++;}
