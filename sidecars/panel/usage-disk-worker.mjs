@@ -24,7 +24,8 @@ async function rows(file,accept,{job=false,expectedAccount=workerData.scope}={})
  }else{
   const db=new DatabaseSync(file,{readOnly:true});try{
    if(!job&&db.prepare('SELECT account FROM meta').get()?.account!==expectedAccount)throw Error('Invalid usage account');
-   for(const row of db.prepare(job?'SELECT j FROM usage ORDER BY rowid':'SELECT j FROM records ORDER BY rowid').iterate()){check();const value=JSON.parse(row.j);if(!valid(value))throw Error('Invalid usage record');accept(value);}
+   const stmt=db.prepare(job?'SELECT j FROM usage ORDER BY rowid':'SELECT j FROM records ORDER BY rowid');
+   for(const row of stmt.iterate()){check();const value=JSON.parse(row.j);if(!valid(value))throw Error('Invalid usage record');accept(value);}
   }finally{db.close();}
  }
 }
@@ -96,7 +97,8 @@ async function summarize(){
   const putTime=db.prepare('INSERT INTO times VALUES(?,?)');
   const model=db.prepare('INSERT OR IGNORE INTO models VALUES(?)'),normalizeModel=createUsageModelNormalizer();let unknownTokens=0,unknownRequests=0,partialRequests=0;
   const quotaWindowCounts={};
-  for(const {j,acct} of db.prepare('SELECT j,acct FROM records ORDER BY rowid').iterate()){
+  const recordStmt=db.prepare('SELECT j,acct FROM records ORDER BY rowid');
+  for(const {j,acct} of recordStmt.iterate()){
    check();const r=JSON.parse(j),name=normalizeModel(r.model);model.run(name);if(r.partial)partialRequests++;
    if(acct===1&&specs.length&&r.at!==null){
     const gid=classifyQuotaGroupId(quotaGroups,name);
@@ -109,8 +111,10 @@ async function summarize(){
   }
   db.exec('COMMIT');
   const days=[],models=[];let used=0;
-  for(const row of db.prepare('SELECT * FROM buckets ORDER BY day,model').iterate()){check();used+=Buffer.byteLength(JSON.stringify(row));if(used>4*1024*1024)throw Error('Usage summary exceeds result budget');let day=days.at(-1);if(day?.date!==row.day){day={date:row.day,models:{}};days.push(day);}const {day:_,model,...values}=row;Object.defineProperty(day.models,model,{value:values,enumerable:true,configurable:true,writable:true});}
-  for(const {model} of db.prepare('SELECT model FROM models ORDER BY model').iterate()){used+=Buffer.byteLength(model);if(used>4*1024*1024)throw Error('Usage summary exceeds result budget');models.push(model);}
+  const bucketStmt=db.prepare('SELECT * FROM buckets ORDER BY day,model');
+  for(const row of bucketStmt.iterate()){check();used+=Buffer.byteLength(JSON.stringify(row));if(used>4*1024*1024)throw Error('Usage summary exceeds result budget');let day=days.at(-1);if(day?.date!==row.day){day={date:row.day,models:{}};days.push(day);}const {day:_,model,...values}=row;Object.defineProperty(day.models,model,{value:values,enumerable:true,configurable:true,writable:true});}
+  const modelStmt=db.prepare('SELECT model FROM models ORDER BY model');
+  for(const {model} of modelStmt.iterate()){used+=Buffer.byteLength(model);if(used>4*1024*1024)throw Error('Usage summary exceeds result budget');models.push(model);}
   const now=workerData.now,today=dateKey(now,workerData.timeZone),sumDay=d=>Object.values(d.models).reduce((n,r)=>n+r.total,0);
   const readDayTimes=d=>db.prepare('SELECT at FROM times WHERE day=? ORDER BY at').all(d).map(x=>x.at);
   const todayActiveMs=computeActiveDurationMs(readDayTimes(today));
